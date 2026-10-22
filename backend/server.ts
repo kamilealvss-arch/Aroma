@@ -204,7 +204,8 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Aroma (Café Gourmet Pro) server listening on http://0.0.0.0:${PORT}`);
+    console.log(`\n☕ Aroma - Gestão & Cardápio rodando em:`);
+    console.log(`➜ [Aroma - Gestão & Cardápio](http://localhost:${PORT}/)\n`);
   });
 }
 
