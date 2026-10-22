@@ -204,8 +204,8 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n☕ Aroma - Gestão & Cardápio rodando em:`);
-    console.log(`➜ [Aroma - Gestão & Cardápio](http://localhost:${PORT}/)\n`);
+    console.log(`\n☕ Aroma rodando em:`);
+    console.log(`➜ [Aroma](http://localhost:${PORT}/)\n`);
   });
 }
 

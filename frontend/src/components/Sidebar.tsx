@@ -187,11 +187,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           {!isCollapsed && (
             <div className="overflow-hidden whitespace-nowrap pr-4">
-              <span className="text-[13px] font-extrabold tracking-[0.2em] text-stone-800 uppercase block">
-                AROMA CAFÉ
-              </span>
-              <span className="text-[10px] font-medium tracking-widest text-stone-400 uppercase block">
-                Gestão & Cardápio
+              <span className="text-[14px] font-extrabold tracking-[0.25em] text-stone-900 uppercase block">
+                AROMA
               </span>
             </div>
           )}

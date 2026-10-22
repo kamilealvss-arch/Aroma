@@ -1,4 +1,4 @@
-# Aroma - Gestão & Cardápio para Cafeteria
+# Aroma
 
 Sistema completo de gestão para cafeteria **Aroma**, incluindo cardápio digital, gestão de estoque inteligente, kanban para barista, dashboard gerencial com curva ABC e trilha de auditoria completa.
 
