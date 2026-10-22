@@ -9,14 +9,14 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
-        '@frontend': path.resolve(__dirname, 'frontend/src'),
-        '@backend': path.resolve(__dirname, 'backend'),
-        '@shared': path.resolve(__dirname, 'shared'),
+        '@': path.resolve(import.meta.dirname, '.'),
+        '@frontend': path.resolve(import.meta.dirname, 'frontend/src'),
+        '@backend': path.resolve(import.meta.dirname, 'backend'),
+        '@shared': path.resolve(import.meta.dirname, 'shared'),
       },
     },
     build: {
-      outDir: path.resolve(__dirname, 'dist'),
+      outDir: path.resolve(import.meta.dirname, 'dist'),
       emptyOutDir: true,
     },
     server: {

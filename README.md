@@ -21,11 +21,11 @@ aroma/
 │       │   ├── AuditView.tsx
 │       │   ├── ClientMenuView.tsx
 │       │   ├── DashboardView.tsx
-│       │   ├── Header.tsx
 │       │   ├── KanbanView.tsx
 │       │   ├── ProductModal.tsx
 │       │   ├── ProductsView.tsx
 │       │   ├── ReportsView.tsx
+│       │   ├── Sidebar.tsx
 │       │   └── StockView.tsx
 │       ├── services/         # Clientes de API (fetch)
 │       │   └── api.ts

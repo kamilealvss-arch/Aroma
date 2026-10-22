@@ -8,7 +8,7 @@ import {
   DailyDashboardMetrics,
   DaySalesSummary,
 } from '../../shared/types/index.ts';
-import { Header } from './components/Header.tsx';
+import { Sidebar } from './components/Sidebar.tsx';
 import { DashboardView } from './components/DashboardView.tsx';
 import { ProductsView } from './components/ProductsView.tsx';
 import { StockView } from './components/StockView.tsx';
@@ -199,9 +199,9 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-stone-100 flex flex-col font-sans">
-      {/* Header com Navegação e Perfis */}
-      <Header
+    <div className="min-h-screen bg-stone-100 flex font-sans">
+      {/* Sidebar Lateral com Recorte Curvo e Perfis */}
+      <Sidebar
         currentView={currentView}
         onViewChange={setCurrentView}
         adminTab={adminTab}
@@ -215,7 +215,7 @@ export default function App() {
       />
 
       {/* Conteúdo Principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {currentView === 'admin' ? (
           <div>
             {adminTab === 'dashboard' && (
