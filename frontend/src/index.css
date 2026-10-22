@@ -1,3 +1,55 @@
 @import "tailwindcss";
 @source "../**/*.{html,js,ts,jsx,tsx}";
 @source "../../shared/**/*.{js,ts,jsx,tsx}";
+
+@theme {
+  /* Paleta Oficial Aroma */
+  --color-aroma-bg: #f6efdd;
+  --color-aroma-caramel: #c68e5b;
+  --color-aroma-terracotta: #924529;
+  --color-aroma-wine: #820b28;
+  --color-aroma-espresso: #631a09;
+  --color-aroma-green: #7e8b60;
+
+  /* Escala de Verdes (#7e8b60) */
+  --color-emerald-50: #f6f8f0;
+  --color-emerald-100: #e8ecde;
+  --color-emerald-200: #d4dcbe;
+  --color-emerald-300: #b9c79a;
+  --color-emerald-400: #9caf76;
+  --color-emerald-500: #7e8b60;
+  --color-emerald-600: #7e8b60;
+  --color-emerald-700: #626d4a;
+  --color-emerald-800: #4f583c;
+  --color-emerald-900: #424933;
+  --color-emerald-950: #23271b;
+
+  --color-green-50: #f6f8f0;
+  --color-green-100: #e8ecde;
+  --color-green-200: #d4dcbe;
+  --color-green-300: #b9c79a;
+  --color-green-400: #9caf76;
+  --color-green-500: #7e8b60;
+  --color-green-600: #7e8b60;
+  --color-green-700: #626d4a;
+  --color-green-800: #4f583c;
+  --color-green-900: #424933;
+
+  /* Mapeia tons quentes de café */
+  --color-amber-50: #fbf7ee;
+  --color-amber-100: #f6efdd;
+  --color-amber-200: #eddcc0;
+  --color-amber-300: #dfc29a;
+  --color-amber-400: #d0a473;
+  --color-amber-500: #c68e5b;
+  --color-amber-600: #924529;
+  --color-amber-700: #820b28;
+  --color-amber-800: #631a09;
+  --color-amber-900: #471206;
+  --color-amber-950: #2b0a03;
+}
+
+body {
+  background-color: #ffffff;
+  color: #631a09;
+}

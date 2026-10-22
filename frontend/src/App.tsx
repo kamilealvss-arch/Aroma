@@ -199,7 +199,7 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-stone-100 flex font-sans">
+    <div className="min-h-screen bg-white flex font-sans">
       {/* Sidebar Lateral com Recorte Curvo e Perfis */}
       <Sidebar
         currentView={currentView}
