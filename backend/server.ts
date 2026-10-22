@@ -195,6 +195,7 @@ async function startServer() {
     });
   } else {
     const vite = await createViteServer({
+      configFile: path.resolve(ROOT_DIR, 'vite.config.ts'),
       root: FRONTEND_DIR,
       server: { middlewareMode: true },
       appType: 'spa',
