@@ -1,0 +1,6 @@
+{
+  "name": "Aroma - Gestão & Cardápio",
+  "description": "Sistema completo de gestão para cafeteria Aroma: cardápio com exclusão lógica, estoque inteligente com alertas e baixa automática, dashboard gerencial, relatórios de vendas e curva ABC, e trilha de auditoria de segurança.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
