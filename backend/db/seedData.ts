@@ -211,14 +211,17 @@ export function generateSeedOrders(): Order[] {
     { name: 'Camila Rocha', phone: '(11) 93322-1100' },
   ];
 
+  // Quantidade determinística de pedidos por dia para evitar divergência entre instâncias serverless
+  const pastDayCounts = [14, 12, 15, 11, 16, 13, 14];
+
   // Gera vendas dos últimos 7 dias (incluindo hoje)
   for (let daysAgo = 6; daysAgo >= 0; daysAgo--) {
     const date = new Date(today);
     date.setDate(date.getDate() - daysAgo);
 
     const isToday = daysAgo === 0;
-    // Hoje terá em torno de 15 pedidos para demonstração inicial e faturamento representativo
-    const countForDay = isToday ? 14 : Math.floor(10 + Math.random() * 8);
+    // Hoje terá 14 pedidos fixos e os dias anteriores seguem valores determinísticos
+    const countForDay = isToday ? 14 : pastDayCounts[daysAgo];
 
     for (let j = 0; j < countForDay; j++) {
       const cust = customers[(orderCounter + j) % customers.length];

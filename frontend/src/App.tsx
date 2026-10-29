@@ -166,11 +166,16 @@ export default function App() {
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
     try {
+      const nowIso = new Date().toISOString();
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus, updatedAt: nowIso } : o))
+      );
       await api.updateOrderStatus(orderId, newStatus);
       showToast(`Status do pedido atualizado para "${newStatus}"!`);
       await refreshAllData();
     } catch (err: any) {
       showToast(err.message, 'error');
+      await refreshAllData();
     }
   };
 
