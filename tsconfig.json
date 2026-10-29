@@ -29,6 +29,7 @@
     "frontend/**/*",
     "backend/**/*",
     "shared/**/*",
+    "api/**/*",
     "vite.config.ts"
   ]
 }
