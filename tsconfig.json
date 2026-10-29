@@ -17,6 +17,7 @@
     "allowJs": true,
     "jsx": "react-jsx",
     "paths": {
+      "@/components/*": ["./frontend/src/components/*"],
       "@/*": ["./*"],
       "@shared/*": ["./shared/*"],
       "@frontend/*": ["./frontend/src/*"],
