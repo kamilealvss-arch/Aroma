@@ -2,7 +2,18 @@
 @source "../**/*.{html,js,ts,jsx,tsx}";
 @source "../../shared/**/*.{js,ts,jsx,tsx}";
 
+@font-face {
+  font-family: 'Amarego';
+  src: url('/fonts/Amarego.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
+  /* Fonte Oficial Amarego */
+  --font-amarego: 'Amarego', serif;
+
   /* Paleta Oficial Aroma */
   --color-aroma-bg: #f6efdd;
   --color-aroma-caramel: #c68e5b;
@@ -49,7 +60,41 @@
   --color-amber-950: #2b0a03;
 }
 
+html {
+  zoom: 1.1;
+}
+
 body {
   background-color: #ffffff;
   color: #631a09;
+}
+
+/* ==================== BARRA DE ROLAGEM SIMPLES E VERMELHA ==================== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #820b28 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #820b28;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #a31438;
+}
+
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }

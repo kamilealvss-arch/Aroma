@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 
 export type ColumnStatus = 'recebido' | 'preparando' | 'pronto' | 'entregue' | 'todo' | 'in-progress' | 'done' | string;
 
@@ -26,6 +26,8 @@ export interface ColumnData {
   status: ColumnStatus;
   subtitle?: string;
   badgeColor?: string;
+  columnBg?: string;
+  dotColor?: string;
   cards: any[];
 }
 
@@ -64,9 +66,6 @@ export const Column: React.FC<ColumnProps> = ({
 }) => {
   const [isOver, setIsOver] = useState(false);
 
-  const isDraggingSource = dragState?.fromColumnId === column.id;
-  const isTargetOfDrag = dragState !== null && !isDraggingSource;
-
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -74,7 +73,6 @@ export const Column: React.FC<ColumnProps> = ({
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Evita falsos disparos se entrar em elementos filhos
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsOver(false);
     }
@@ -117,57 +115,44 @@ export const Column: React.FC<ColumnProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDropEvent}
-      className={`rounded-2xl border transition-all duration-200 p-3.5 flex flex-col min-h-[520px] relative select-none ${
+      className={`rounded-3xl border transition-all duration-150 p-3.5 flex flex-col min-h-[550px] relative select-none ${
+        column.columnBg || 'bg-stone-100/90 border-stone-200/90'
+      } ${
         isOver
-          ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/30 scale-[1.01]'
-          : isTargetOfDrag
-          ? 'bg-stone-100/90 border-dashed border-stone-400/80 hover:border-amber-400'
-          : 'bg-stone-100/90 border-stone-200/90'
+          ? 'border-stone-400 ring-2 ring-stone-300'
+          : ''
       } ${className}`}
     >
-      {/* Header da Coluna */}
-      <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-3">
+      {/* Header da Coluna no estilo clean NovaBoard */}
+      <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-black/5">
         <div className="flex items-center space-x-2">
-          {headerIcon}
-          <h3 className="font-extrabold text-stone-900 text-sm">
+          {headerIcon || (
+            <span className={`w-2.5 h-2.5 rounded-full ${column.dotColor || 'bg-stone-400'}`} />
+          )}
+          <h3 className="font-extrabold text-stone-900 text-sm tracking-tight">
             {column.title}
           </h3>
         </div>
         <span
-          className={`w-6 h-6 rounded-lg text-xs font-extrabold flex items-center justify-center transition-transform ${
-            isOver ? 'scale-110' : ''
-          } ${column.badgeColor || 'bg-stone-200 text-stone-800'}`}
+          className={`w-6 h-6 rounded-lg text-xs font-black flex items-center justify-center ${
+            column.badgeColor || 'bg-white/80 text-stone-700 shadow-2xs border border-stone-200/60'
+          }`}
         >
           {column.cards.length}
         </span>
       </div>
 
       {column.subtitle && (
-        <p className="text-[11px] text-stone-500 mb-3">
+        <p className="text-[11px] text-stone-500 mb-2.5 font-medium">
           {column.subtitle}
         </p>
       )}
-
-      {/* Indicador visual de Drop Hover */}
-      <AnimatePresence>
-        {isOver && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.95 }}
-            className="mb-3 py-2 px-3 rounded-xl bg-amber-500 text-stone-950 font-extrabold text-xs text-center shadow-md flex items-center justify-center space-x-1.5"
-          >
-            <span>⬇️</span>
-            <span>Soltar comanda em "{column.title}"</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Lista de Cards com Scroll suave */}
       <div className="flex-1 space-y-3 overflow-y-auto max-h-[700px] pr-1">
         {column.cards.length === 0 ? (
           emptyState || (
-            <div className="text-center py-12 text-stone-400 bg-white/60 rounded-xl border border-dashed border-stone-300">
+            <div className="text-center py-12 text-stone-400 bg-white/70 rounded-2xl border border-dashed border-stone-300/80">
               <p className="text-xs font-semibold text-stone-600">Sem pedidos nesta coluna</p>
               <p className="text-[11px] text-stone-400">Arraste uma comanda para cá</p>
             </div>
@@ -196,11 +181,9 @@ export const Column: React.FC<ColumnProps> = ({
                   setDragState(null);
                   setIsOver(false);
                 }}
-                whileHover={{ scale: 1.015 }}
-                whileTap={{ scale: 0.985 }}
                 className={`cursor-grab active:cursor-grabbing transition-shadow ${
                   isCardDragging
-                    ? 'opacity-40 rotate-1 scale-95 shadow-none'
+                    ? 'opacity-40 scale-95 shadow-none'
                     : 'hover:shadow-md'
                 }`}
               >

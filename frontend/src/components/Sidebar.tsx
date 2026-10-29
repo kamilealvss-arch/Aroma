@@ -155,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       className="sticky top-0 h-screen shrink-0 z-40 flex select-none"
       aria-label="Menu Lateral"
     >
-      {/* Barra Branca Principal com recortes curvos para o item ativo */}
+      {/* Barra Principal com recortes curvos para o item ativo */}
       <div
         className={`${
           isCollapsed ? 'w-[76px]' : 'w-[248px]'
@@ -225,7 +225,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     aria-hidden="true"
                   />
 
-                  {/* Pílula Escura do Item Ativo */}
+                  {/* Pílula do Item Ativo */}
                   <button
                     onClick={item.onClick}
                     title={isCollapsed ? item.label : undefined}
@@ -304,34 +304,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
-        {/* Rodapé: Perfil do Usuário e Ação de Logout / Reset */}
-        <div className="pb-6 pt-3 flex flex-col space-y-3 border-t border-white/15">
-          {/* Seletor de Usuário (Auditoria) */}
-          <div className="relative group" title="Clique para alternar o usuário (Auditoria)">
-            <div className="w-full flex items-center cursor-pointer py-1">
-              <div className="w-[76px] shrink-0 flex items-center justify-center">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm ring-2 ring-white/30 group-hover:ring-amber-300 transition ${
-                    currentUser?.role === 'Administrador'
-                      ? 'bg-[#631a09]'
-                      : currentUser?.role === 'Sub-gerente'
-                      ? 'bg-[#7e8b60]'
-                      : 'bg-[#924529]'
-                  }`}
-                >
-                  {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
-                </div>
+        {/* Rodapé: Card Branco estilo referência com Perfil e Botão Circular de Sair no topo */}
+        {isCollapsed ? (
+          <div className="pb-5 pt-3 px-2 flex flex-col items-center space-y-3">
+            {/* Avatar compacto quando recolhido */}
+            <div
+              className="relative group cursor-pointer"
+              title={`${currentUser?.name || 'Usuário'} (${currentUser?.role || ''}) - Clique para trocar`}
+            >
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-[#820b28] bg-white shadow-sm ring-2 ring-white/40 group-hover:scale-105 transition"
+              >
+                {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
               </div>
-              {!isCollapsed && (
-                <div className="pr-4 overflow-hidden whitespace-nowrap">
-                  <div className="text-[11px] font-bold tracking-[0.12em] text-white uppercase truncate">
-                    {currentUser?.name || 'CARREGANDO...'}
-                  </div>
-                  <div className="text-[10px] font-semibold tracking-wider text-amber-200/90 uppercase">
-                    {currentUser?.role || ''}
-                  </div>
-                </div>
-              )}
               <select
                 value={currentUser?.id || ''}
                 onChange={(e) => onSwitchUser(e.target.value)}
@@ -345,24 +330,98 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 ))}
               </select>
             </div>
-          </div>
 
-          {/* Botão Restaurar / Logout */}
-          <button
-            onClick={onResetDemo}
-            title="Restaurar dados de demonstração"
-            className="w-full h-[44px] flex items-center text-white/70 hover:text-amber-200 transition-colors group"
-          >
-            <div className="w-[76px] shrink-0 flex items-center justify-center">
-              <LogOut className="w-5 h-5 stroke-[1.75] group-hover:scale-110 transition-transform" />
+            {/* Botão Sair compacto */}
+            <button
+              type="button"
+              onClick={onResetDemo}
+              title="Sair / Restaurar demonstração"
+              className="w-10 h-10 rounded-full bg-white text-[#820b28] hover:bg-stone-100 flex items-center justify-center shadow-sm transition-transform hover:scale-105 cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 stroke-[2.2]" />
+            </button>
+          </div>
+        ) : (
+          <div className="px-4 pb-5 pt-7">
+            <div className="relative bg-white rounded-[26px] shadow-md">
+              {/* Botão Circular Superior Recortado (Sair / Reset) igual à imagem de referência */}
+              <button
+                type="button"
+                onClick={onResetDemo}
+                title="Sair / Restaurar dados de demonstração"
+                className="absolute -top-5 left-1/2 -translate-x-1/2 z-20 w-11 h-11 rounded-full bg-white border-[5px] border-[#820b28] text-[#820b28] hover:bg-rose-50 hover:scale-105 transition-all flex items-center justify-center cursor-pointer shadow-xs"
+              >
+                <LogOut className="w-4 h-4 stroke-[2.2]" />
+              </button>
+
+              {/* Conteúdo Interno do Card Branco com elementos gráficos e seletor de Perfil */}
+              <div
+                className="relative overflow-hidden rounded-[26px] pt-7 pb-4 px-4 cursor-pointer group"
+                title="Clique para alternar o perfil de usuário (Auditoria)"
+              >
+                {/* Semicírculo decorativo suave no canto inferior esquerdo (como na referência) */}
+                <div
+                  className="pointer-events-none absolute -bottom-6 -left-4 w-36 h-24 bg-[#820b28]/[0.06] rounded-t-full transition-transform duration-300 group-hover:scale-105"
+                  aria-hidden="true"
+                />
+
+                <div className="relative z-10 flex items-end justify-between gap-2">
+                  {/* Lado Esquerdo: Avatar / Ícone + Nome do Perfil e Cargo */}
+                  <div className="flex flex-col space-y-2 min-w-0">
+                    {/* Avatar do Perfil */}
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-extrabold text-white shadow-xs transition-transform group-hover:scale-105 ${
+                        currentUser?.role === 'Administrador'
+                          ? 'bg-[#820b28]'
+                          : currentUser?.role === 'Sub-gerente'
+                          ? 'bg-[#7e8b60]'
+                          : 'bg-[#924529]'
+                      }`}
+                    >
+                      {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+
+                    {/* Nome e Cargo (como o bloco tipográfico inferior esquerdo da referência) */}
+                    <div className="pt-0.5">
+                      <div className="text-xs font-extrabold text-stone-900 leading-tight truncate">
+                        {currentUser?.name || 'Carregando...'}
+                      </div>
+                      <div className="text-[10px] font-semibold text-[#820b28] leading-tight mt-0.5">
+                        {currentUser?.role || 'Perfil'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lado Direito: Barras decorativas empilhadas + bloco (idêntico à referência visual) */}
+                  <div
+                    className="flex flex-col items-end space-y-1.5 shrink-0 pb-0.5"
+                    aria-hidden="true"
+                  >
+                    <span className="w-7 h-1 rounded-full bg-[#820b28]/20" />
+                    <span className="w-7 h-1 rounded-full bg-[#820b28]/20" />
+                    <span className="w-7 h-1 rounded-full bg-[#820b28]/20" />
+                    <span className="w-7 h-1 rounded-full bg-[#820b28]/20" />
+                    <span className="w-7 h-4 rounded-sm bg-[#820b28]/25 mt-0.5" />
+                  </div>
+                </div>
+
+                {/* Select invisível sobre o card para permitir trocar de usuário ao clicar no perfil */}
+                <select
+                  value={currentUser?.id || ''}
+                  onChange={(e) => onSwitchUser(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                  aria-label="Trocar usuário"
+                >
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id} className="bg-white text-stone-900">
+                      {u.name} ({u.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            {!isCollapsed && (
-              <span className="text-[12px] font-medium tracking-[0.14em] uppercase text-white/70 group-hover:text-amber-200 whitespace-nowrap">
-                RESETAR DEMO
-              </span>
-            )}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </aside>
   );
