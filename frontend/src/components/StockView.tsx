@@ -2070,10 +2070,7 @@ export const StockView: React.FC<StockViewProps> = ({
                       <span>Cadastrando...</span>
                     </>
                   ) : (
-                    <>
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Cadastrar Insumo</span>
-                    </>
+                    <span>Cadastrar Insumo</span>
                   )}
                 </button>
               </div>
