@@ -22,7 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { Product, StockAlert, Ingredient } from '../../../shared/types/index.ts';
+import { Product, StockAlert, Ingredient, IngredientCategory, IngredientUnit } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 
 interface StockViewProps {
@@ -31,6 +31,7 @@ interface StockViewProps {
   alerts: StockAlert[];
   onAdjustStock: (productId: string, newStock: number, reason?: string) => Promise<void>;
   onAdjustIngredientStock?: (ingredientId: string, newStock: number, reason?: string) => Promise<void>;
+  onCreateIngredient?: (data: Omit<Ingredient, 'id' | 'updatedAt'>) => Promise<void | Ingredient>;
   onRefresh: () => void;
 }
 
@@ -42,6 +43,7 @@ export const StockView: React.FC<StockViewProps> = ({
   alerts,
   onAdjustStock,
   onAdjustIngredientStock,
+  onCreateIngredient,
   onRefresh,
 }) => {
   // Controle de Aba Ativa: Cardápio vs Insumos
@@ -80,6 +82,18 @@ export const StockView: React.FC<StockViewProps> = ({
   const [ingredientAdjustReason, setIngredientAdjustReason] = useState<string>('Compra de fornecedor');
   const [isSavingIngredient, setIsSavingIngredient] = useState(false);
   const [restockedIngredientId, setRestockedIngredientId] = useState<string | null>(null);
+
+  // Modal de Cadastro de Novo Ingrediente / Insumo
+  const [isCreateIngredientOpen, setIsCreateIngredientOpen] = useState(false);
+  const [newIngName, setNewIngName] = useState('');
+  const [newIngCategory, setNewIngCategory] = useState<IngredientCategory>('Grãos & Pós');
+  const [newIngUnit, setNewIngUnit] = useState<IngredientUnit>('kg');
+  const [newIngStock, setNewIngStock] = useState<string>('10');
+  const [newIngMinStock, setNewIngMinStock] = useState<string>('5');
+  const [newIngCost, setNewIngCost] = useState<string>('0');
+  const [newIngSupplier, setNewIngSupplier] = useState('');
+  const [isCreatingIngredient, setIsCreatingIngredient] = useState(false);
+  const [createIngredientError, setCreateIngredientError] = useState<string | null>(null);
 
   // Estados gerais visuais
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -350,6 +364,47 @@ export const StockView: React.FC<StockViewProps> = ({
     return `${qty.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} ${unit}`;
   };
 
+  const handleOpenCreateIngredient = () => {
+    setNewIngName('');
+    setNewIngCategory('Grãos & Pós');
+    setNewIngUnit('kg');
+    setNewIngStock('10');
+    setNewIngMinStock('5');
+    setNewIngCost('0');
+    setNewIngSupplier('');
+    setCreateIngredientError(null);
+    setIsCreateIngredientOpen(true);
+  };
+
+  const handleSaveNewIngredient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newIngName.trim()) {
+      setCreateIngredientError('Informe o nome do insumo ou matéria-prima.');
+      return;
+    }
+
+    setIsCreatingIngredient(true);
+    setCreateIngredientError(null);
+    try {
+      if (onCreateIngredient) {
+        await onCreateIngredient({
+          name: newIngName.trim(),
+          category: newIngCategory,
+          unit: newIngUnit,
+          currentStock: Math.max(0, parseFloat(newIngStock) || 0),
+          minStockThreshold: Math.max(0, parseFloat(newIngMinStock) || 0),
+          costPerUnit: Math.max(0, parseFloat(newIngCost) || 0),
+          supplier: newIngSupplier.trim() || undefined,
+        });
+      }
+      setIsCreateIngredientOpen(false);
+    } catch (err: any) {
+      setCreateIngredientError(err.message || 'Erro ao cadastrar insumo');
+    } finally {
+      setIsCreatingIngredient(false);
+    }
+  };
+
   return (
     <div
       className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 space-y-5 text-[#35312F]"
@@ -391,8 +446,20 @@ export const StockView: React.FC<StockViewProps> = ({
           </div>
         </div>
 
-        {/* Botão Principal "Atualizar estoque" em Vinho Escuro (#850D2C) com Estado de Loading */}
-        <div className="self-start sm:self-center shrink-0">
+        {/* Botões do Cabeçalho */}
+        <div className="flex items-center space-x-2 self-start sm:self-center shrink-0">
+          {activeTab === 'INGREDIENTS' && (
+            <button
+              type="button"
+              onClick={handleOpenCreateIngredient}
+              className="inline-flex items-center space-x-1.5 h-8.5 px-3.5 rounded-full text-xs font-semibold text-[#850D2C] bg-white hover:bg-stone-50 border border-[#850D2C]/30 shadow-2xs transition active:scale-95"
+              title="Cadastrar novo ingrediente ou matéria-prima no estoque"
+            >
+              <Plus className="w-3.5 h-3.5 text-[#850D2C]" />
+              <span>Novo Insumo</span>
+            </button>
+          )}
+
           <button
             onClick={handleRefreshClick}
             disabled={isRefreshing}
@@ -455,11 +522,21 @@ export const StockView: React.FC<StockViewProps> = ({
           </button>
         </div>
 
-        <span className="text-xs text-stone-400 hidden sm:inline">
-          {activeTab === 'PRODUCTS'
-            ? 'Itens finais comercializados diretamente no cardápio'
-            : 'Matérias-primas com controle por kg, L e un.'}
-        </span>
+        {activeTab === 'INGREDIENTS' ? (
+          <button
+            type="button"
+            onClick={handleOpenCreateIngredient}
+            className="inline-flex items-center space-x-1.5 h-8 px-4 rounded-full text-xs font-semibold text-white bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] shadow-xs transition active:scale-95"
+            title="Cadastrar novo insumo ou matéria-prima"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Cadastrar Insumo</span>
+          </button>
+        ) : (
+          <span className="text-xs text-stone-400 hidden sm:inline">
+            Itens finais comercializados diretamente no cardápio
+          </span>
+        )}
       </div>
 
       {/* ======================= ABA 1: PRODUTOS DO CARDÁPIO ======================= */}
@@ -1283,16 +1360,26 @@ export const StockView: React.FC<StockViewProps> = ({
                       <td colSpan={7} className="py-12 text-center text-stone-400">
                         <Boxes className="w-8 h-8 mx-auto mb-2 text-stone-300" />
                         <p className="text-sm font-semibold text-[#35312F]">Nenhum insumo encontrado</p>
-                        <p className="text-xs text-stone-400 mt-0.5">Tente ajustar seus termos de pesquisa ou filtros selecionados.</p>
-                        {hasActiveIngredientFilters && (
+                        <p className="text-xs text-stone-400 mt-0.5">Tente ajustar seus termos de pesquisa ou cadastre um novo insumo.</p>
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                           <button
-                            onClick={handleClearIngredientFilters}
-                            className="mt-3 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium text-[#850D2C] bg-rose-50 border border-[#850D2C]/20 hover:bg-rose-100 transition"
+                            type="button"
+                            onClick={handleOpenCreateIngredient}
+                            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-white bg-[#850D2C] hover:bg-[#6e0a24] shadow-xs transition"
                           >
-                            <RotateCcw className="w-3 h-3" />
-                            <span>Limpar todos os filtros</span>
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Cadastrar Novo Insumo</span>
                           </button>
-                        )}
+                          {hasActiveIngredientFilters && (
+                            <button
+                              onClick={handleClearIngredientFilters}
+                              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 transition"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Limpar todos os filtros</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -1805,6 +1892,203 @@ export const StockView: React.FC<StockViewProps> = ({
                 {isZeroing ? 'Zerando...' : 'Confirmar Zerar'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de Cadastro de Novo Insumo / Matéria-Prima */}
+      {isCreateIngredientOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-stone-200 p-6 sm:p-7 relative animate-in fade-in zoom-in-95 duration-150">
+            {/* Cabeçalho do Modal */}
+            <div className="flex items-center justify-between pb-4 border-b border-stone-100">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#850D2C]/10 flex items-center justify-center text-[#850D2C] shrink-0 border border-[#850D2C]/20">
+                  <Scale className="w-5 h-5 text-[#850D2C]" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#35312F] text-base">
+                    Cadastrar Insumo / Matéria-Prima
+                  </h3>
+                  <p className="text-xs text-stone-400">
+                    Controle de estoque físico, limite mínimo e custo unitário
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateIngredientOpen(false)}
+                className="text-stone-400 hover:text-stone-600 p-1.5 rounded-full hover:bg-stone-100 transition"
+                title="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Formulário de Cadastro */}
+            <form onSubmit={handleSaveNewIngredient} className="mt-5 space-y-4">
+              {createIngredientError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-[#850D2C] flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-[#850D2C]" />
+                  <span>{createIngredientError}</span>
+                </div>
+              )}
+
+              {/* Nome */}
+              <div>
+                <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                  Nome do Insumo / Matéria-Prima *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newIngName}
+                  onChange={(e) => setNewIngName(e.target.value)}
+                  placeholder="Ex: Café Especial Mogiana, Farinha de Trigo, Leite Integral..."
+                  className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
+                />
+              </div>
+
+              {/* Categoria e Unidade de Medida */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Categoria *
+                  </label>
+                  <select
+                    value={newIngCategory}
+                    onChange={(e) => setNewIngCategory(e.target.value as IngredientCategory)}
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] font-medium focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition cursor-pointer"
+                  >
+                    <option value="Grãos & Pós">Grãos & Pós</option>
+                    <option value="Laticínios">Laticínios</option>
+                    <option value="Panificação & Doces">Panificação & Doces</option>
+                    <option value="Mercearia & Adoçantes">Mercearia & Adoçantes</option>
+                    <option value="Embalagens & Descartáveis">Embalagens & Descartáveis</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Unidade de Medida *
+                  </label>
+                  <select
+                    value={newIngUnit}
+                    onChange={(e) => setNewIngUnit(e.target.value as IngredientUnit)}
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] font-medium focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition cursor-pointer"
+                  >
+                    <option value="kg">kg (Quilogramas)</option>
+                    <option value="g">g (Gramas)</option>
+                    <option value="L">L (Litros)</option>
+                    <option value="ml">ml (Mililitros)</option>
+                    <option value="un">un (Unidades)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Estoque Inicial e Limite Mínimo */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Estoque Inicial ({newIngUnit})
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={newIngStock}
+                    onChange={(e) => setNewIngStock(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Limite Mínimo ({newIngUnit})
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={newIngMinStock}
+                    onChange={(e) => setNewIngMinStock(e.target.value)}
+                    placeholder="5"
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition font-semibold"
+                  />
+                  <span className="text-[10px] text-stone-400 block mt-0.5">
+                    Dispara alerta de reposição quando estoque ≤ limite.
+                  </span>
+                </div>
+              </div>
+
+              {/* Custo Unitário e Fornecedor */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Custo por {newIngUnit} (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newIngCost}
+                    onChange={(e) => setNewIngCost(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Fornecedor / Distribuidor
+                  </label>
+                  <input
+                    type="text"
+                    value={newIngSupplier}
+                    onChange={(e) => setNewIngSupplier(e.target.value)}
+                    placeholder="Ex: Moinho Paulista, BioAlimentos..."
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* Dica */}
+              <div className="p-3 bg-[#F9F7F3] rounded-xl text-[11px] text-stone-600 border border-stone-200/80 flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-[#850D2C] mt-0.5" />
+                <span>
+                  O novo insumo entrará imediatamente no controle de estoque com rastreamento auditado para inventário e cálculo de reposição.
+                </span>
+              </div>
+
+              {/* Ações */}
+              <div className="pt-2 flex items-center justify-end space-x-3 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateIngredientOpen(false)}
+                  disabled={isCreatingIngredient}
+                  className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-[#35312F] rounded-xl hover:bg-stone-100 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingIngredient}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] rounded-xl shadow-xs transition inline-flex items-center space-x-1.5 disabled:opacity-75"
+                >
+                  {isCreatingIngredient ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Cadastrando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Cadastrar Insumo</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
