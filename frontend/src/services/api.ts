@@ -15,6 +15,7 @@ const STORAGE_KEYS = {
   ORDER_STATUS: 'aroma_order_status_overrides_v1',
   CREATED_ORDERS: 'aroma_created_orders_v1',
   CURRENT_USER_ID: 'aroma_current_user_id_v1',
+  CREATED_INGREDIENTS: 'aroma_created_ingredients_v1',
 };
 
 interface OrderStatusOverride {
@@ -68,9 +69,43 @@ function clearLocalOverrides(): void {
     localStorage.removeItem(STORAGE_KEYS.ORDER_STATUS);
     localStorage.removeItem(STORAGE_KEYS.CREATED_ORDERS);
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    localStorage.removeItem(STORAGE_KEYS.CREATED_INGREDIENTS);
   } catch {
     // ignore
   }
+}
+
+function getCreatedIngredientsLocal(): Ingredient[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.CREATED_INGREDIENTS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCreatedIngredientLocal(ingredient: Ingredient): void {
+  try {
+    const current = getCreatedIngredientsLocal().filter((i) => i.id !== ingredient.id);
+    current.unshift(ingredient);
+    localStorage.setItem(STORAGE_KEYS.CREATED_INGREDIENTS, JSON.stringify(current));
+  } catch {
+    // ignore
+  }
+}
+
+function applyIngredientOverrides(serverIngredients: Ingredient[]): Ingredient[] {
+  const local = getCreatedIngredientsLocal();
+  const mergedMap = new Map<string, Ingredient>();
+
+  for (const ing of local) {
+    mergedMap.set(ing.id, ing);
+  }
+  for (const ing of serverIngredients) {
+    mergedMap.set(ing.id, ing);
+  }
+
+  return Array.from(mergedMap.values());
 }
 
 function applyOrderOverrides(serverOrders: Order[]): Order[] {
@@ -191,12 +226,58 @@ export const api = {
   getStockAlerts: () => request<StockAlert[]>('/api/stock/alerts'),
 
   // Ingredientes & Insumos
-  getIngredients: () => request<Ingredient[]>('/api/ingredients'),
-  adjustIngredientStock: (id: string, newStock: number, reason?: string) =>
-    request<Ingredient>(`/api/ingredients/${id}/stock`, {
-      method: 'POST',
-      body: JSON.stringify({ newStock, reason }),
-    }),
+  getIngredients: async () => {
+    try {
+      const serverIngredients = await request<Ingredient[]>('/api/ingredients');
+      return applyIngredientOverrides(serverIngredients);
+    } catch {
+      return getCreatedIngredientsLocal();
+    }
+  },
+  createIngredient: async (data: Omit<Ingredient, 'id' | 'updatedAt'>) => {
+    try {
+      const created = await request<Ingredient>('/api/ingredients', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      saveCreatedIngredientLocal(created);
+      return created;
+    } catch {
+      const fallback: Ingredient = {
+        id: `ing_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        name: data.name,
+        category: data.category,
+        unit: data.unit,
+        currentStock: Number(data.currentStock) || 0,
+        minStockThreshold: Number(data.minStockThreshold) || 0,
+        costPerUnit: Number(data.costPerUnit) || 0,
+        supplier: data.supplier,
+        updatedAt: new Date().toISOString(),
+      };
+      saveCreatedIngredientLocal(fallback);
+      return fallback;
+    }
+  },
+  adjustIngredientStock: async (id: string, newStock: number, reason?: string) => {
+    try {
+      const res = await request<Ingredient>(`/api/ingredients/${id}/stock`, {
+        method: 'POST',
+        body: JSON.stringify({ newStock, reason }),
+      });
+      saveCreatedIngredientLocal(res);
+      return res;
+    } catch {
+      const current = getCreatedIngredientsLocal();
+      const target = current.find((i) => i.id === id);
+      if (target) {
+        target.currentStock = Math.max(0, newStock);
+        target.updatedAt = new Date().toISOString();
+        saveCreatedIngredientLocal(target);
+        return target;
+      }
+      throw new Error('Insumo não encontrado');
+    }
+  },
 
   // Pedidos
   getOrders: async () => {

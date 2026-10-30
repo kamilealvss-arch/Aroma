@@ -22,8 +22,9 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { Product, StockAlert, Ingredient } from '../../../shared/types/index.ts';
+import { Product, StockAlert, Ingredient, IngredientCategory, IngredientUnit } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
+import { IngredientsBasketIcon } from './icons/IngredientsBasketIcon.tsx';
 
 interface StockViewProps {
   products: Product[];
@@ -31,6 +32,7 @@ interface StockViewProps {
   alerts: StockAlert[];
   onAdjustStock: (productId: string, newStock: number, reason?: string) => Promise<void>;
   onAdjustIngredientStock?: (ingredientId: string, newStock: number, reason?: string) => Promise<void>;
+  onCreateIngredient?: (data: Omit<Ingredient, 'id' | 'updatedAt'>) => Promise<void | Ingredient>;
   onRefresh: () => void;
 }
 
@@ -42,6 +44,7 @@ export const StockView: React.FC<StockViewProps> = ({
   alerts,
   onAdjustStock,
   onAdjustIngredientStock,
+  onCreateIngredient,
   onRefresh,
 }) => {
   // Controle de Aba Ativa: Cardápio vs Insumos
@@ -80,6 +83,18 @@ export const StockView: React.FC<StockViewProps> = ({
   const [ingredientAdjustReason, setIngredientAdjustReason] = useState<string>('Compra de fornecedor');
   const [isSavingIngredient, setIsSavingIngredient] = useState(false);
   const [restockedIngredientId, setRestockedIngredientId] = useState<string | null>(null);
+
+  // Modal de Cadastro de Novo Ingrediente / Insumo
+  const [isCreateIngredientOpen, setIsCreateIngredientOpen] = useState(false);
+  const [newIngName, setNewIngName] = useState('');
+  const [newIngCategory, setNewIngCategory] = useState<IngredientCategory>('Grãos & Pós');
+  const [newIngUnit, setNewIngUnit] = useState<IngredientUnit>('kg');
+  const [newIngStock, setNewIngStock] = useState<string>('10');
+  const [newIngMinStock, setNewIngMinStock] = useState<string>('5');
+  const [newIngCost, setNewIngCost] = useState<string>('0');
+  const [newIngSupplier, setNewIngSupplier] = useState('');
+  const [isCreatingIngredient, setIsCreatingIngredient] = useState(false);
+  const [createIngredientError, setCreateIngredientError] = useState<string | null>(null);
 
   // Estados gerais visuais
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -350,10 +365,51 @@ export const StockView: React.FC<StockViewProps> = ({
     return `${qty.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} ${unit}`;
   };
 
+  const handleOpenCreateIngredient = () => {
+    setNewIngName('');
+    setNewIngCategory('Grãos & Pós');
+    setNewIngUnit('kg');
+    setNewIngStock('10');
+    setNewIngMinStock('5');
+    setNewIngCost('0');
+    setNewIngSupplier('');
+    setCreateIngredientError(null);
+    setIsCreateIngredientOpen(true);
+  };
+
+  const handleSaveNewIngredient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newIngName.trim()) {
+      setCreateIngredientError('Informe o nome do insumo ou matéria-prima.');
+      return;
+    }
+
+    setIsCreatingIngredient(true);
+    setCreateIngredientError(null);
+    try {
+      if (onCreateIngredient) {
+        await onCreateIngredient({
+          name: newIngName.trim(),
+          category: newIngCategory,
+          unit: newIngUnit,
+          currentStock: Math.max(0, parseFloat(newIngStock) || 0),
+          minStockThreshold: Math.max(0, parseFloat(newIngMinStock) || 0),
+          costPerUnit: Math.max(0, parseFloat(newIngCost) || 0),
+          supplier: newIngSupplier.trim() || undefined,
+        });
+      }
+      setIsCreateIngredientOpen(false);
+    } catch (err: any) {
+      setCreateIngredientError(err.message || 'Erro ao cadastrar insumo');
+    } finally {
+      setIsCreatingIngredient(false);
+    }
+  };
+
   return (
     <div
       className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 space-y-5 text-[#35312F]"
-      style={{ zoom: 1.2 }}
+      style={{ zoom: 1.05 }}
     >
       {/* 1. Cabeçalho da Página: Minimalista, Elegante e Profissional */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-stone-100">
@@ -441,7 +497,7 @@ export const StockView: React.FC<StockViewProps> = ({
             }`}
             title="Visualizar estoque de insumos e matérias-primas"
           >
-            <Scale className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'INGREDIENTS' ? 'text-white' : 'text-stone-400'}`} />
+            <IngredientsBasketIcon className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'INGREDIENTS' ? 'text-white' : 'text-stone-400'}`} />
             <span>Ingredientes & Insumos</span>
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full font-bold leading-none transition ${
@@ -455,11 +511,21 @@ export const StockView: React.FC<StockViewProps> = ({
           </button>
         </div>
 
-        <span className="text-xs text-stone-400 hidden sm:inline">
-          {activeTab === 'PRODUCTS'
-            ? 'Itens finais comercializados diretamente no cardápio'
-            : 'Matérias-primas com controle por kg, L e un.'}
-        </span>
+        {activeTab === 'INGREDIENTS' ? (
+          <button
+            type="button"
+            onClick={handleOpenCreateIngredient}
+            className="inline-flex items-center space-x-1.5 h-8 px-4 rounded-full text-xs font-semibold text-white bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] shadow-xs transition active:scale-95"
+            title="Cadastrar novo insumo ou matéria-prima"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Cadastrar Insumo</span>
+          </button>
+        ) : (
+          <span className="text-xs text-stone-400 hidden sm:inline">
+            Itens finais comercializados diretamente no cardápio
+          </span>
+        )}
       </div>
 
       {/* ======================= ABA 1: PRODUTOS DO CARDÁPIO ======================= */}
@@ -564,127 +630,104 @@ export const StockView: React.FC<StockViewProps> = ({
             </div>
           </div>
 
-          {/* 3. Barra de Filtros: Dimensões Padronizadas, Filtros Compactos e Alinhamento Preciso */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 pt-0.5">
-            {/* Lado Esquerdo: Chips de Status Compactos + Dropdown de Categorias */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                onClick={() => setFilter('ALL')}
-                className={`h-8 px-3 rounded-full text-xs font-semibold transition flex items-center space-x-1.5 ${
-                  filter === 'ALL'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Mostrar todos os produtos ativos"
-              >
-                <span>Todos</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    filter === 'ALL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+          {/* 3. Barra de Filtros: Perfeitamente Alinhada e Estruturada */}
+          <div className="space-y-2.5 pt-0.5">
+            {/* Linha 1: Chips de Status de Estoque */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  onClick={() => setFilter('ALL')}
+                  className={`h-8 px-3 rounded-full text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    filter === 'ALL'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Mostrar todos os produtos ativos"
                 >
-                  {totalActive}
-                </span>
-              </button>
+                  <span>Todos</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      filter === 'ALL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                    }`}
+                  >
+                    {totalActive}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setFilter('NORMAL')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  filter === 'NORMAL'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar produtos com estoque normal"
-              >
-                <span>Abastecidos</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    filter === 'NORMAL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                <button
+                  onClick={() => setFilter('NORMAL')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    filter === 'NORMAL'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar produtos com estoque normal"
                 >
-                  {normalStockCount}
-                </span>
-              </button>
+                  <span>Abastecidos</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      filter === 'NORMAL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                    }`}
+                  >
+                    {normalStockCount}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setFilter('BAIXO')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  filter === 'BAIXO'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar produtos no nível de reposição"
-              >
-                <span>Repor</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    filter === 'BAIXO' ? 'bg-white/20 text-white' : 'bg-amber-100/70 text-[#924529]'
+                <button
+                  onClick={() => setFilter('BAIXO')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    filter === 'BAIXO'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar produtos no nível de reposição"
                 >
-                  {lowStockCount}
-                </span>
-              </button>
+                  <span>Repor</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      filter === 'BAIXO' ? 'bg-white/20 text-white' : 'bg-amber-100/70 text-[#924529]'
+                    }`}
+                  >
+                    {lowStockCount}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setFilter('ESGOTADO')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  filter === 'ESGOTADO'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar produtos esgotados no cardápio"
-              >
-                <span>Esgotados</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    filter === 'ESGOTADO' ? 'bg-white/20 text-white' : 'bg-rose-100/70 text-[#850D2C]'
+                <button
+                  onClick={() => setFilter('ESGOTADO')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    filter === 'ESGOTADO'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar produtos esgotados no cardápio"
                 >
-                  {outOfStockCount}
-                </span>
-              </button>
-
-              {/* Dropdown de Categorias com Altura Padronizada */}
-              <div className="relative">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="h-8 rounded-full border border-stone-200 pl-3 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
-                  title="Filtrar por categoria de cardápio"
-                >
-                  <option value="ALL">Todas as Categorias</option>
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400">
-                  <Filter className="w-3 h-3" />
-                </div>
+                  <span>Esgotados</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      filter === 'ESGOTADO' ? 'bg-white/20 text-white' : 'bg-rose-100/70 text-[#850D2C]'
+                    }`}
+                  >
+                    {outOfStockCount}
+                  </span>
+                </button>
               </div>
+
+              {/* Botão Limpar Filtros Quando Ativo */}
+              {hasActiveProductFilters && (
+                <button
+                  onClick={handleClearProductFilters}
+                  className="inline-flex items-center space-x-1 h-8 px-2.5 text-xs text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition shrink-0"
+                  title="Restaurar visualização padrão"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpar filtros</span>
+                </button>
+              )}
             </div>
 
-            {/* Lado Direito: Ordenação, Pesquisa Compacta e Botão Limpar Discreto */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-              <div className="relative shrink-0">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="h-8 rounded-full border border-stone-200 pl-7 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
-                  title="Critério de ordenação da tabela"
-                >
-                  <option value="CRITICALITY">Criticidade (Esgotados 1º)</option>
-                  <option value="NAME_ASC">Nome (A - Z)</option>
-                  <option value="STOCK_ASC">Menor estoque 1º</option>
-                  <option value="STOCK_DESC">Maior estoque 1º</option>
-                </select>
-                <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400">
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </div>
-
-              <div className="relative w-full sm:w-64">
+            {/* Linha 2: Busca, Categoria e Ordenação Perfeitamente Alinhadas */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -705,17 +748,43 @@ export const StockView: React.FC<StockViewProps> = ({
                 )}
               </div>
 
-              {/* Ação de Limpar Filtros Mais Discreta */}
-              {hasActiveProductFilters && (
-                <button
-                  onClick={handleClearProductFilters}
-                  className="inline-flex items-center space-x-1 h-8 px-2.5 text-xs text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition shrink-0"
-                  title="Restaurar visualização padrão"
+              {/* Dropdown de Categorias */}
+              <div className="relative shrink-0 sm:w-auto">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full sm:w-auto h-8 rounded-full border border-stone-200 pl-3 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
+                  title="Filtrar por categoria de cardápio"
                 >
-                  <RotateCcw className="w-3 h-3" />
-                  <span className="hidden sm:inline">Limpar</span>
-                </button>
-              )}
+                  <option value="ALL">Todas as Categorias</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400">
+                  <Filter className="w-3 h-3" />
+                </div>
+              </div>
+
+              {/* Dropdown de Ordenação */}
+              <div className="relative shrink-0 sm:w-auto">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="w-full sm:w-auto h-8 rounded-full border border-stone-200 pl-7 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
+                  title="Critério de ordenação da tabela"
+                >
+                  <option value="CRITICALITY">Criticidade (Esgotados 1º)</option>
+                  <option value="NAME_ASC">Nome (A - Z)</option>
+                  <option value="STOCK_ASC">Menor estoque 1º</option>
+                  <option value="STOCK_DESC">Maior estoque 1º</option>
+                </select>
+                <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400">
+                  <ArrowUpDown className="w-3 h-3" />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -724,7 +793,7 @@ export const StockView: React.FC<StockViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider">
+                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider whitespace-nowrap">
                     <th className="py-3 px-4 font-semibold text-stone-600">Produto</th>
                     <th className="py-3 px-4 font-semibold text-stone-600">Categoria</th>
                     <th className="py-3 px-4 font-semibold text-stone-600">Estoque Atual</th>
@@ -862,18 +931,18 @@ export const StockView: React.FC<StockViewProps> = ({
                           </td>
 
                           {/* Reposição Rápida Padronizada */}
-                          <td className="py-2.5 px-4 text-center align-middle">
+                          <td className="py-2.5 px-4 text-center align-middle whitespace-nowrap">
                             <div className="inline-flex items-center space-x-1.5">
                               <button
                                 onClick={() => handleQuickAdd(product, 10)}
-                                className="h-7 px-2.5 bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs"
+                                className="h-7 px-2.5 min-w-[44px] inline-flex items-center justify-center whitespace-nowrap bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs leading-none"
                                 title="Adicionar +10 unidades ao estoque físico"
                               >
                                 +10
                               </button>
                               <button
                                 onClick={() => handleQuickAdd(product, 25)}
-                                className="h-7 px-2.5 bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs"
+                                className="h-7 px-2.5 min-w-[44px] inline-flex items-center justify-center whitespace-nowrap bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs leading-none"
                                 title="Adicionar +25 unidades ao estoque físico"
                               >
                                 +25
@@ -1101,126 +1170,104 @@ export const StockView: React.FC<StockViewProps> = ({
             </div>
           </div>
 
-          {/* Barra de Ferramentas de Ingredientes: Padronizada e Compacta */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 pt-0.5">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                onClick={() => setIngredientFilter('ALL')}
-                className={`h-8 px-3 rounded-full text-xs font-semibold transition flex items-center space-x-1.5 ${
-                  ingredientFilter === 'ALL'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Mostrar todos os insumos"
-              >
-                <span>Todos</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    ingredientFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+          {/* Barra de Ferramentas de Ingredientes: Perfeitamente Alinhada e Estruturada */}
+          <div className="space-y-2.5 pt-0.5">
+            {/* Linha 1: Chips de Status de Insumos */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  onClick={() => setIngredientFilter('ALL')}
+                  className={`h-8 px-3 rounded-full text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    ingredientFilter === 'ALL'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Mostrar todos os insumos"
                 >
-                  {totalIngredients}
-                </span>
-              </button>
+                  <span>Todos</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      ingredientFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                    }`}
+                  >
+                    {totalIngredients}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setIngredientFilter('NORMAL')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  ingredientFilter === 'NORMAL'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar insumos com estoque normal"
-              >
-                <span>Abastecidos</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    ingredientFilter === 'NORMAL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                <button
+                  onClick={() => setIngredientFilter('NORMAL')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    ingredientFilter === 'NORMAL'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar insumos com estoque normal"
                 >
-                  {normalStockIngredients}
-                </span>
-              </button>
+                  <span>Abastecidos</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      ingredientFilter === 'NORMAL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                    }`}
+                  >
+                    {normalStockIngredients}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setIngredientFilter('BAIXO')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  ingredientFilter === 'BAIXO'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar insumos que necessitam reposição"
-              >
-                <span>Comprar</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    ingredientFilter === 'BAIXO' ? 'bg-white/20 text-white' : 'bg-amber-100/70 text-[#924529]'
+                <button
+                  onClick={() => setIngredientFilter('BAIXO')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    ingredientFilter === 'BAIXO'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar insumos que necessitam reposição"
                 >
-                  {lowStockIngredients}
-                </span>
-              </button>
+                  <span>Comprar</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      ingredientFilter === 'BAIXO' ? 'bg-white/20 text-white' : 'bg-amber-100/70 text-[#924529]'
+                    }`}
+                  >
+                    {lowStockIngredients}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setIngredientFilter('ESGOTADO')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  ingredientFilter === 'ESGOTADO'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar insumos esgotados"
-              >
-                <span>Esgotados</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    ingredientFilter === 'ESGOTADO' ? 'bg-white/20 text-white' : 'bg-rose-100/70 text-[#850D2C]'
+                <button
+                  onClick={() => setIngredientFilter('ESGOTADO')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    ingredientFilter === 'ESGOTADO'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar insumos esgotados"
                 >
-                  {outOfStockIngredients}
-                </span>
-              </button>
-
-              {/* Dropdown de Categorias de Insumos */}
-              <div className="relative">
-                <select
-                  value={selectedIngredientCategory}
-                  onChange={(e) => setSelectedIngredientCategory(e.target.value)}
-                  className="h-8 rounded-full border border-stone-200 pl-3 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
-                  title="Filtrar insumos por categoria"
-                >
-                  <option value="ALL">Todas as Categorias</option>
-                  {ingredientCategories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400">
-                  <Filter className="w-3 h-3" />
-                </div>
+                  <span>Esgotados</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      ingredientFilter === 'ESGOTADO' ? 'bg-white/20 text-white' : 'bg-rose-100/70 text-[#850D2C]'
+                    }`}
+                  >
+                    {outOfStockIngredients}
+                  </span>
+                </button>
               </div>
+
+              {/* Botão Limpar Filtros de Insumos Quando Ativo */}
+              {hasActiveIngredientFilters && (
+                <button
+                  onClick={handleClearIngredientFilters}
+                  className="inline-flex items-center space-x-1 h-8 px-2.5 text-xs text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition shrink-0"
+                  title="Restaurar visualização padrão"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpar filtros</span>
+                </button>
+              )}
             </div>
 
-            {/* Ordenação, Busca de Insumos e Limpar */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-              <div className="relative shrink-0">
-                <select
-                  value={ingredientSortBy}
-                  onChange={(e) => setIngredientSortBy(e.target.value as SortOption)}
-                  className="h-8 rounded-full border border-stone-200 pl-7 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
-                  title="Critério de ordenação da tabela de insumos"
-                >
-                  <option value="CRITICALITY">Criticidade (Esgotados 1º)</option>
-                  <option value="NAME_ASC">Nome (A - Z)</option>
-                  <option value="STOCK_ASC">Menor estoque 1º</option>
-                  <option value="STOCK_DESC">Maior estoque 1º</option>
-                </select>
-                <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400">
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </div>
-
-              <div className="relative w-full sm:w-64">
+            {/* Linha 2: Busca, Categoria e Ordenação Perfeitamente Alinhadas */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -1241,16 +1288,43 @@ export const StockView: React.FC<StockViewProps> = ({
                 )}
               </div>
 
-              {hasActiveIngredientFilters && (
-                <button
-                  onClick={handleClearIngredientFilters}
-                  className="inline-flex items-center space-x-1 h-8 px-2.5 text-xs text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition shrink-0"
-                  title="Restaurar visualização padrão"
+              {/* Dropdown de Categorias de Insumos */}
+              <div className="relative shrink-0 sm:w-auto">
+                <select
+                  value={selectedIngredientCategory}
+                  onChange={(e) => setSelectedIngredientCategory(e.target.value)}
+                  className="w-full sm:w-auto h-8 rounded-full border border-stone-200 pl-3 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
+                  title="Filtrar insumos por categoria"
                 >
-                  <RotateCcw className="w-3 h-3" />
-                  <span className="hidden sm:inline">Limpar</span>
-                </button>
-              )}
+                  <option value="ALL">Todas as Categorias</option>
+                  {ingredientCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400">
+                  <Filter className="w-3 h-3" />
+                </div>
+              </div>
+
+              {/* Dropdown de Ordenação de Insumos */}
+              <div className="relative shrink-0 sm:w-auto">
+                <select
+                  value={ingredientSortBy}
+                  onChange={(e) => setIngredientSortBy(e.target.value as SortOption)}
+                  className="w-full sm:w-auto h-8 rounded-full border border-stone-200 pl-7 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
+                  title="Critério de ordenação da tabela de insumos"
+                >
+                  <option value="CRITICALITY">Criticidade (Esgotados 1º)</option>
+                  <option value="NAME_ASC">Nome (A - Z)</option>
+                  <option value="STOCK_ASC">Menor estoque 1º</option>
+                  <option value="STOCK_DESC">Maior estoque 1º</option>
+                </select>
+                <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400">
+                  <ArrowUpDown className="w-3 h-3" />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1259,7 +1333,7 @@ export const StockView: React.FC<StockViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider">
+                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider whitespace-nowrap">
                     <th className="py-3 px-4 font-semibold text-stone-600">Insumo / Matéria-Prima</th>
                     <th className="py-3 px-4 font-semibold text-stone-600">Categoria</th>
                     <th className="py-3 px-4 font-semibold text-stone-600">Estoque Atual</th>
@@ -1275,16 +1349,26 @@ export const StockView: React.FC<StockViewProps> = ({
                       <td colSpan={7} className="py-12 text-center text-stone-400">
                         <Boxes className="w-8 h-8 mx-auto mb-2 text-stone-300" />
                         <p className="text-sm font-semibold text-[#35312F]">Nenhum insumo encontrado</p>
-                        <p className="text-xs text-stone-400 mt-0.5">Tente ajustar seus termos de pesquisa ou filtros selecionados.</p>
-                        {hasActiveIngredientFilters && (
+                        <p className="text-xs text-stone-400 mt-0.5">Tente ajustar seus termos de pesquisa ou cadastre um novo insumo.</p>
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                           <button
-                            onClick={handleClearIngredientFilters}
-                            className="mt-3 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium text-[#850D2C] bg-rose-50 border border-[#850D2C]/20 hover:bg-rose-100 transition"
+                            type="button"
+                            onClick={handleOpenCreateIngredient}
+                            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-white bg-[#850D2C] hover:bg-[#6e0a24] shadow-xs transition"
                           >
-                            <RotateCcw className="w-3 h-3" />
-                            <span>Limpar todos os filtros</span>
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Cadastrar Novo Insumo</span>
                           </button>
-                        )}
+                          {hasActiveIngredientFilters && (
+                            <button
+                              onClick={handleClearIngredientFilters}
+                              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 transition"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Limpar todos os filtros</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -1320,7 +1404,7 @@ export const StockView: React.FC<StockViewProps> = ({
                             <div className="flex items-center space-x-3">
                               <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-600 border border-stone-200 shrink-0">
                                 {ing.category === 'Laticínios' ? (
-                                  <Scale className="w-4 h-4 text-stone-500" />
+                                  <IngredientsBasketIcon className="w-4 h-4 text-stone-500" />
                                 ) : ing.category === 'Panificação & Doces' ? (
                                   <Wheat className="w-4 h-4 text-stone-500" />
                                 ) : ing.category === 'Grãos & Pós' ? (
@@ -1405,18 +1489,18 @@ export const StockView: React.FC<StockViewProps> = ({
                           </td>
 
                           {/* Entrada Rápida Padronizada */}
-                          <td className="py-2.5 px-4 text-center align-middle">
+                          <td className="py-2.5 px-4 text-center align-middle whitespace-nowrap">
                             <div className="inline-flex items-center space-x-1.5">
                               <button
                                 onClick={() => handleQuickAddIngredient(ing, quick1)}
-                                className="h-7 px-2.5 bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs"
+                                className="h-7 px-2.5 min-w-[56px] inline-flex items-center justify-center whitespace-nowrap bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs leading-none"
                                 title={`Adicionar +${quick1} ${ing.unit} ao estoque físico`}
                               >
                                 +{quick1} {ing.unit}
                               </button>
                               <button
                                 onClick={() => handleQuickAddIngredient(ing, quick2)}
-                                className="h-7 px-2.5 bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs"
+                                className="h-7 px-2.5 min-w-[56px] inline-flex items-center justify-center whitespace-nowrap bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs leading-none"
                                 title={`Adicionar +${quick2} ${ing.unit} ao estoque físico`}
                               >
                                 +{quick2} {ing.unit}
@@ -1646,7 +1730,7 @@ export const StockView: React.FC<StockViewProps> = ({
           <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-stone-200 p-6 animate-in fade-in zoom-in-95">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center text-stone-600 border border-stone-200 shrink-0">
-                <Scale className="w-6 h-6 text-stone-600" />
+                <IngredientsBasketIcon className="w-6 h-6 text-stone-600" />
               </div>
               <div>
                 <h3 className="font-bold text-stone-900 text-sm">
@@ -1797,6 +1881,200 @@ export const StockView: React.FC<StockViewProps> = ({
                 {isZeroing ? 'Zerando...' : 'Confirmar Zerar'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de Cadastro de Novo Insumo / Matéria-Prima */}
+      {isCreateIngredientOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-stone-200 p-6 sm:p-7 relative animate-in fade-in zoom-in-95 duration-150">
+            {/* Cabeçalho do Modal */}
+            <div className="flex items-center justify-between pb-4 border-b border-stone-100">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#850D2C]/10 flex items-center justify-center text-[#850D2C] shrink-0 border border-[#850D2C]/20">
+                  <IngredientsBasketIcon className="w-5 h-5 text-[#850D2C]" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#35312F] text-base">
+                    Cadastrar Insumo / Matéria-Prima
+                  </h3>
+                  <p className="text-xs text-stone-400">
+                    Controle de estoque físico, limite mínimo e custo unitário
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateIngredientOpen(false)}
+                className="text-stone-400 hover:text-stone-600 p-1.5 rounded-full hover:bg-stone-100 transition"
+                title="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Formulário de Cadastro */}
+            <form onSubmit={handleSaveNewIngredient} className="mt-5 space-y-4">
+              {createIngredientError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-[#850D2C] flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-[#850D2C]" />
+                  <span>{createIngredientError}</span>
+                </div>
+              )}
+
+              {/* Nome */}
+              <div>
+                <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                  Nome do Insumo / Matéria-Prima *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newIngName}
+                  onChange={(e) => setNewIngName(e.target.value)}
+                  placeholder="Ex: Café Especial Mogiana, Farinha de Trigo, Leite Integral..."
+                  className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
+                />
+              </div>
+
+              {/* Categoria e Unidade de Medida */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Categoria *
+                  </label>
+                  <select
+                    value={newIngCategory}
+                    onChange={(e) => setNewIngCategory(e.target.value as IngredientCategory)}
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] font-medium focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition cursor-pointer"
+                  >
+                    <option value="Grãos & Pós">Grãos & Pós</option>
+                    <option value="Laticínios">Laticínios</option>
+                    <option value="Panificação & Doces">Panificação & Doces</option>
+                    <option value="Mercearia & Adoçantes">Mercearia & Adoçantes</option>
+                    <option value="Embalagens & Descartáveis">Embalagens & Descartáveis</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Unidade de Medida *
+                  </label>
+                  <select
+                    value={newIngUnit}
+                    onChange={(e) => setNewIngUnit(e.target.value as IngredientUnit)}
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] font-medium focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition cursor-pointer"
+                  >
+                    <option value="kg">kg (Quilogramas)</option>
+                    <option value="g">g (Gramas)</option>
+                    <option value="L">L (Litros)</option>
+                    <option value="ml">ml (Mililitros)</option>
+                    <option value="un">un (Unidades)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Estoque Inicial e Limite Mínimo */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Estoque Inicial ({newIngUnit})
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={newIngStock}
+                    onChange={(e) => setNewIngStock(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Limite Mínimo ({newIngUnit})
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={newIngMinStock}
+                    onChange={(e) => setNewIngMinStock(e.target.value)}
+                    placeholder="5"
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition font-semibold"
+                  />
+                  <span className="text-[10px] text-stone-400 block mt-0.5">
+                    Dispara alerta de reposição quando estoque ≤ limite.
+                  </span>
+                </div>
+              </div>
+
+              {/* Custo Unitário e Fornecedor */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Custo por {newIngUnit} (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newIngCost}
+                    onChange={(e) => setNewIngCost(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                    Fornecedor / Distribuidor
+                  </label>
+                  <input
+                    type="text"
+                    value={newIngSupplier}
+                    onChange={(e) => setNewIngSupplier(e.target.value)}
+                    placeholder="Ex: Moinho Paulista, BioAlimentos..."
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* Dica */}
+              <div className="p-3 bg-[#F9F7F3] rounded-xl text-[11px] text-stone-600 border border-stone-200/80 flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-[#850D2C] mt-0.5" />
+                <span>
+                  O novo insumo entrará imediatamente no controle de estoque com rastreamento auditado para inventário e cálculo de reposição.
+                </span>
+              </div>
+
+              {/* Ações */}
+              <div className="pt-2 flex items-center justify-end space-x-3 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateIngredientOpen(false)}
+                  disabled={isCreatingIngredient}
+                  className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-[#35312F] rounded-xl hover:bg-stone-100 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingIngredient}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] rounded-xl shadow-xs transition inline-flex items-center space-x-1.5 disabled:opacity-75"
+                >
+                  {isCreatingIngredient ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Cadastrando...</span>
+                    </>
+                  ) : (
+                    <span>Cadastrar Insumo</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

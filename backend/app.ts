@@ -105,6 +105,15 @@ export function createExpressApp() {
     res.json(db.getIngredients());
   });
 
+  router.post('/ingredients', (req, res) => {
+    try {
+      const ingredient = db.createIngredient(req.body);
+      res.status(201).json(ingredient);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   router.post('/ingredients/:id/stock', (req, res) => {
     const { newStock, reason } = req.body;
     try {
