@@ -564,127 +564,104 @@ export const StockView: React.FC<StockViewProps> = ({
             </div>
           </div>
 
-          {/* 3. Barra de Filtros: Dimensões Padronizadas, Filtros Compactos e Alinhamento Preciso */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 pt-0.5">
-            {/* Lado Esquerdo: Chips de Status Compactos + Dropdown de Categorias */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                onClick={() => setFilter('ALL')}
-                className={`h-8 px-3 rounded-full text-xs font-semibold transition flex items-center space-x-1.5 ${
-                  filter === 'ALL'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Mostrar todos os produtos ativos"
-              >
-                <span>Todos</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    filter === 'ALL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+          {/* 3. Barra de Filtros: Perfeitamente Alinhada e Estruturada */}
+          <div className="space-y-2.5 pt-0.5">
+            {/* Linha 1: Chips de Status de Estoque */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  onClick={() => setFilter('ALL')}
+                  className={`h-8 px-3 rounded-full text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    filter === 'ALL'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Mostrar todos os produtos ativos"
                 >
-                  {totalActive}
-                </span>
-              </button>
+                  <span>Todos</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      filter === 'ALL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                    }`}
+                  >
+                    {totalActive}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setFilter('NORMAL')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  filter === 'NORMAL'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar produtos com estoque normal"
-              >
-                <span>Abastecidos</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    filter === 'NORMAL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                <button
+                  onClick={() => setFilter('NORMAL')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    filter === 'NORMAL'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar produtos com estoque normal"
                 >
-                  {normalStockCount}
-                </span>
-              </button>
+                  <span>Abastecidos</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      filter === 'NORMAL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                    }`}
+                  >
+                    {normalStockCount}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setFilter('BAIXO')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  filter === 'BAIXO'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar produtos no nível de reposição"
-              >
-                <span>Repor</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    filter === 'BAIXO' ? 'bg-white/20 text-white' : 'bg-amber-100/70 text-[#924529]'
+                <button
+                  onClick={() => setFilter('BAIXO')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    filter === 'BAIXO'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar produtos no nível de reposição"
                 >
-                  {lowStockCount}
-                </span>
-              </button>
+                  <span>Repor</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      filter === 'BAIXO' ? 'bg-white/20 text-white' : 'bg-amber-100/70 text-[#924529]'
+                    }`}
+                  >
+                    {lowStockCount}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setFilter('ESGOTADO')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  filter === 'ESGOTADO'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar produtos esgotados no cardápio"
-              >
-                <span>Esgotados</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    filter === 'ESGOTADO' ? 'bg-white/20 text-white' : 'bg-rose-100/70 text-[#850D2C]'
+                <button
+                  onClick={() => setFilter('ESGOTADO')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    filter === 'ESGOTADO'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar produtos esgotados no cardápio"
                 >
-                  {outOfStockCount}
-                </span>
-              </button>
-
-              {/* Dropdown de Categorias com Altura Padronizada */}
-              <div className="relative">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="h-8 rounded-full border border-stone-200 pl-3 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
-                  title="Filtrar por categoria de cardápio"
-                >
-                  <option value="ALL">Todas as Categorias</option>
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400">
-                  <Filter className="w-3 h-3" />
-                </div>
+                  <span>Esgotados</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      filter === 'ESGOTADO' ? 'bg-white/20 text-white' : 'bg-rose-100/70 text-[#850D2C]'
+                    }`}
+                  >
+                    {outOfStockCount}
+                  </span>
+                </button>
               </div>
+
+              {/* Botão Limpar Filtros Quando Ativo */}
+              {hasActiveProductFilters && (
+                <button
+                  onClick={handleClearProductFilters}
+                  className="inline-flex items-center space-x-1 h-8 px-2.5 text-xs text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition shrink-0"
+                  title="Restaurar visualização padrão"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpar filtros</span>
+                </button>
+              )}
             </div>
 
-            {/* Lado Direito: Ordenação, Pesquisa Compacta e Botão Limpar Discreto */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-              <div className="relative shrink-0">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="h-8 rounded-full border border-stone-200 pl-7 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
-                  title="Critério de ordenação da tabela"
-                >
-                  <option value="CRITICALITY">Criticidade (Esgotados 1º)</option>
-                  <option value="NAME_ASC">Nome (A - Z)</option>
-                  <option value="STOCK_ASC">Menor estoque 1º</option>
-                  <option value="STOCK_DESC">Maior estoque 1º</option>
-                </select>
-                <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400">
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </div>
-
-              <div className="relative w-full sm:w-64">
+            {/* Linha 2: Busca, Categoria e Ordenação Perfeitamente Alinhadas */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -705,17 +682,43 @@ export const StockView: React.FC<StockViewProps> = ({
                 )}
               </div>
 
-              {/* Ação de Limpar Filtros Mais Discreta */}
-              {hasActiveProductFilters && (
-                <button
-                  onClick={handleClearProductFilters}
-                  className="inline-flex items-center space-x-1 h-8 px-2.5 text-xs text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition shrink-0"
-                  title="Restaurar visualização padrão"
+              {/* Dropdown de Categorias */}
+              <div className="relative shrink-0 sm:w-auto">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full sm:w-auto h-8 rounded-full border border-stone-200 pl-3 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
+                  title="Filtrar por categoria de cardápio"
                 >
-                  <RotateCcw className="w-3 h-3" />
-                  <span className="hidden sm:inline">Limpar</span>
-                </button>
-              )}
+                  <option value="ALL">Todas as Categorias</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400">
+                  <Filter className="w-3 h-3" />
+                </div>
+              </div>
+
+              {/* Dropdown de Ordenação */}
+              <div className="relative shrink-0 sm:w-auto">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="w-full sm:w-auto h-8 rounded-full border border-stone-200 pl-7 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
+                  title="Critério de ordenação da tabela"
+                >
+                  <option value="CRITICALITY">Criticidade (Esgotados 1º)</option>
+                  <option value="NAME_ASC">Nome (A - Z)</option>
+                  <option value="STOCK_ASC">Menor estoque 1º</option>
+                  <option value="STOCK_DESC">Maior estoque 1º</option>
+                </select>
+                <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400">
+                  <ArrowUpDown className="w-3 h-3" />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -724,7 +727,7 @@ export const StockView: React.FC<StockViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider">
+                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider whitespace-nowrap">
                     <th className="py-3 px-4 font-semibold text-stone-600">Produto</th>
                     <th className="py-3 px-4 font-semibold text-stone-600">Categoria</th>
                     <th className="py-3 px-4 font-semibold text-stone-600">Estoque Atual</th>
@@ -862,18 +865,18 @@ export const StockView: React.FC<StockViewProps> = ({
                           </td>
 
                           {/* Reposição Rápida Padronizada */}
-                          <td className="py-2.5 px-4 text-center align-middle">
+                          <td className="py-2.5 px-4 text-center align-middle whitespace-nowrap">
                             <div className="inline-flex items-center space-x-1.5">
                               <button
                                 onClick={() => handleQuickAdd(product, 10)}
-                                className="h-7 px-2.5 bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs"
+                                className="h-7 px-2.5 min-w-[44px] inline-flex items-center justify-center whitespace-nowrap bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs leading-none"
                                 title="Adicionar +10 unidades ao estoque físico"
                               >
                                 +10
                               </button>
                               <button
                                 onClick={() => handleQuickAdd(product, 25)}
-                                className="h-7 px-2.5 bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs"
+                                className="h-7 px-2.5 min-w-[44px] inline-flex items-center justify-center whitespace-nowrap bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs leading-none"
                                 title="Adicionar +25 unidades ao estoque físico"
                               >
                                 +25
@@ -1101,126 +1104,104 @@ export const StockView: React.FC<StockViewProps> = ({
             </div>
           </div>
 
-          {/* Barra de Ferramentas de Ingredientes: Padronizada e Compacta */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 pt-0.5">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                onClick={() => setIngredientFilter('ALL')}
-                className={`h-8 px-3 rounded-full text-xs font-semibold transition flex items-center space-x-1.5 ${
-                  ingredientFilter === 'ALL'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Mostrar todos os insumos"
-              >
-                <span>Todos</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    ingredientFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+          {/* Barra de Ferramentas de Ingredientes: Perfeitamente Alinhada e Estruturada */}
+          <div className="space-y-2.5 pt-0.5">
+            {/* Linha 1: Chips de Status de Insumos */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  onClick={() => setIngredientFilter('ALL')}
+                  className={`h-8 px-3 rounded-full text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    ingredientFilter === 'ALL'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Mostrar todos os insumos"
                 >
-                  {totalIngredients}
-                </span>
-              </button>
+                  <span>Todos</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      ingredientFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                    }`}
+                  >
+                    {totalIngredients}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setIngredientFilter('NORMAL')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  ingredientFilter === 'NORMAL'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar insumos com estoque normal"
-              >
-                <span>Abastecidos</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    ingredientFilter === 'NORMAL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                <button
+                  onClick={() => setIngredientFilter('NORMAL')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    ingredientFilter === 'NORMAL'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar insumos com estoque normal"
                 >
-                  {normalStockIngredients}
-                </span>
-              </button>
+                  <span>Abastecidos</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      ingredientFilter === 'NORMAL' ? 'bg-white/20 text-white' : 'bg-stone-200/70 text-stone-600'
+                    }`}
+                  >
+                    {normalStockIngredients}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setIngredientFilter('BAIXO')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  ingredientFilter === 'BAIXO'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar insumos que necessitam reposição"
-              >
-                <span>Comprar</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    ingredientFilter === 'BAIXO' ? 'bg-white/20 text-white' : 'bg-amber-100/70 text-[#924529]'
+                <button
+                  onClick={() => setIngredientFilter('BAIXO')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    ingredientFilter === 'BAIXO'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar insumos que necessitam reposição"
                 >
-                  {lowStockIngredients}
-                </span>
-              </button>
+                  <span>Comprar</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      ingredientFilter === 'BAIXO' ? 'bg-white/20 text-white' : 'bg-amber-100/70 text-[#924529]'
+                    }`}
+                  >
+                    {lowStockIngredients}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setIngredientFilter('ESGOTADO')}
-                className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 ${
-                  ingredientFilter === 'ESGOTADO'
-                    ? 'bg-[#850D2C] text-white shadow-2xs'
-                    : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-                }`}
-                title="Filtrar insumos esgotados"
-              >
-                <span>Esgotados</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                    ingredientFilter === 'ESGOTADO' ? 'bg-white/20 text-white' : 'bg-rose-100/70 text-[#850D2C]'
+                <button
+                  onClick={() => setIngredientFilter('ESGOTADO')}
+                  className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    ingredientFilter === 'ESGOTADO'
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
                   }`}
+                  title="Filtrar insumos esgotados"
                 >
-                  {outOfStockIngredients}
-                </span>
-              </button>
-
-              {/* Dropdown de Categorias de Insumos */}
-              <div className="relative">
-                <select
-                  value={selectedIngredientCategory}
-                  onChange={(e) => setSelectedIngredientCategory(e.target.value)}
-                  className="h-8 rounded-full border border-stone-200 pl-3 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
-                  title="Filtrar insumos por categoria"
-                >
-                  <option value="ALL">Todas as Categorias</option>
-                  {ingredientCategories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400">
-                  <Filter className="w-3 h-3" />
-                </div>
+                  <span>Esgotados</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      ingredientFilter === 'ESGOTADO' ? 'bg-white/20 text-white' : 'bg-rose-100/70 text-[#850D2C]'
+                    }`}
+                  >
+                    {outOfStockIngredients}
+                  </span>
+                </button>
               </div>
+
+              {/* Botão Limpar Filtros de Insumos Quando Ativo */}
+              {hasActiveIngredientFilters && (
+                <button
+                  onClick={handleClearIngredientFilters}
+                  className="inline-flex items-center space-x-1 h-8 px-2.5 text-xs text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition shrink-0"
+                  title="Restaurar visualização padrão"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpar filtros</span>
+                </button>
+              )}
             </div>
 
-            {/* Ordenação, Busca de Insumos e Limpar */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-              <div className="relative shrink-0">
-                <select
-                  value={ingredientSortBy}
-                  onChange={(e) => setIngredientSortBy(e.target.value as SortOption)}
-                  className="h-8 rounded-full border border-stone-200 pl-7 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
-                  title="Critério de ordenação da tabela de insumos"
-                >
-                  <option value="CRITICALITY">Criticidade (Esgotados 1º)</option>
-                  <option value="NAME_ASC">Nome (A - Z)</option>
-                  <option value="STOCK_ASC">Menor estoque 1º</option>
-                  <option value="STOCK_DESC">Maior estoque 1º</option>
-                </select>
-                <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400">
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </div>
-
-              <div className="relative w-full sm:w-64">
+            {/* Linha 2: Busca, Categoria e Ordenação Perfeitamente Alinhadas */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -1241,16 +1222,43 @@ export const StockView: React.FC<StockViewProps> = ({
                 )}
               </div>
 
-              {hasActiveIngredientFilters && (
-                <button
-                  onClick={handleClearIngredientFilters}
-                  className="inline-flex items-center space-x-1 h-8 px-2.5 text-xs text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition shrink-0"
-                  title="Restaurar visualização padrão"
+              {/* Dropdown de Categorias de Insumos */}
+              <div className="relative shrink-0 sm:w-auto">
+                <select
+                  value={selectedIngredientCategory}
+                  onChange={(e) => setSelectedIngredientCategory(e.target.value)}
+                  className="w-full sm:w-auto h-8 rounded-full border border-stone-200 pl-3 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
+                  title="Filtrar insumos por categoria"
                 >
-                  <RotateCcw className="w-3 h-3" />
-                  <span className="hidden sm:inline">Limpar</span>
-                </button>
-              )}
+                  <option value="ALL">Todas as Categorias</option>
+                  {ingredientCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400">
+                  <Filter className="w-3 h-3" />
+                </div>
+              </div>
+
+              {/* Dropdown de Ordenação de Insumos */}
+              <div className="relative shrink-0 sm:w-auto">
+                <select
+                  value={ingredientSortBy}
+                  onChange={(e) => setIngredientSortBy(e.target.value as SortOption)}
+                  className="w-full sm:w-auto h-8 rounded-full border border-stone-200 pl-7 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
+                  title="Critério de ordenação da tabela de insumos"
+                >
+                  <option value="CRITICALITY">Criticidade (Esgotados 1º)</option>
+                  <option value="NAME_ASC">Nome (A - Z)</option>
+                  <option value="STOCK_ASC">Menor estoque 1º</option>
+                  <option value="STOCK_DESC">Maior estoque 1º</option>
+                </select>
+                <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400">
+                  <ArrowUpDown className="w-3 h-3" />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1259,7 +1267,7 @@ export const StockView: React.FC<StockViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider">
+                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider whitespace-nowrap">
                     <th className="py-3 px-4 font-semibold text-stone-600">Insumo / Matéria-Prima</th>
                     <th className="py-3 px-4 font-semibold text-stone-600">Categoria</th>
                     <th className="py-3 px-4 font-semibold text-stone-600">Estoque Atual</th>
@@ -1405,18 +1413,18 @@ export const StockView: React.FC<StockViewProps> = ({
                           </td>
 
                           {/* Entrada Rápida Padronizada */}
-                          <td className="py-2.5 px-4 text-center align-middle">
+                          <td className="py-2.5 px-4 text-center align-middle whitespace-nowrap">
                             <div className="inline-flex items-center space-x-1.5">
                               <button
                                 onClick={() => handleQuickAddIngredient(ing, quick1)}
-                                className="h-7 px-2.5 bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs"
+                                className="h-7 px-2.5 min-w-[56px] inline-flex items-center justify-center whitespace-nowrap bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs leading-none"
                                 title={`Adicionar +${quick1} ${ing.unit} ao estoque físico`}
                               >
                                 +{quick1} {ing.unit}
                               </button>
                               <button
                                 onClick={() => handleQuickAddIngredient(ing, quick2)}
-                                className="h-7 px-2.5 bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs"
+                                className="h-7 px-2.5 min-w-[56px] inline-flex items-center justify-center whitespace-nowrap bg-white hover:bg-stone-50 text-[#35312F] rounded-lg text-xs font-medium border border-stone-200 transition active:scale-95 shadow-2xs leading-none"
                                 title={`Adicionar +${quick2} ${ing.unit} ao estoque físico`}
                               >
                                 +{quick2} {ing.unit}
