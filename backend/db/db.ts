@@ -1,9 +1,10 @@
-import { Product, SystemUser, Order, AuditLog, StockAlert } from '../../shared/types/index.ts';
+import { Product, SystemUser, Order, AuditLog, StockAlert, Ingredient } from '../../shared/types/index.ts';
 import {
   initialProducts,
   initialUsers,
   generateSeedOrders,
   initialAuditLogs,
+  initialIngredients,
 } from './seedData.ts';
 import {
   softDeleteProduct,
@@ -17,6 +18,7 @@ import {
 
 class DatabaseStore {
   private products: Product[] = [];
+  private ingredients: Ingredient[] = [];
   private orders: Order[] = [];
   private auditLogs: AuditLog[] = [];
   private users: SystemUser[] = [];
@@ -29,6 +31,7 @@ class DatabaseStore {
 
   public resetToDefaults(): void {
     this.products = JSON.parse(JSON.stringify(initialProducts));
+    this.ingredients = JSON.parse(JSON.stringify(initialIngredients));
     this.users = JSON.parse(JSON.stringify(initialUsers));
     this.orders = generateSeedOrders();
     this.auditLogs = JSON.parse(JSON.stringify(initialAuditLogs));
@@ -185,6 +188,42 @@ class DatabaseStore {
 
   public getStockAlerts(): StockAlert[] {
     return checkStockAlerts(this.products);
+  }
+
+  // ===================== INGREDIENTES E MATÉRIAS-PRIMAS =====================
+  public getIngredients(): Ingredient[] {
+    return [...this.ingredients];
+  }
+
+  public getIngredientById(id: string): Ingredient | undefined {
+    return this.ingredients.find((ing) => ing.id === id);
+  }
+
+  public adjustIngredientStock(id: string, newStock: number, reason?: string): Ingredient {
+    const ingredient = this.getIngredientById(id);
+    if (!ingredient) throw new Error('Ingrediente não encontrado');
+
+    const currentUser = this.getCurrentUser();
+    const oldStock = ingredient.currentStock;
+    const diff = Number((newStock - oldStock).toFixed(2));
+    const sign = diff > 0 ? `+${diff}` : `${diff}`;
+
+    ingredient.currentStock = Math.max(0, Number(newStock));
+    ingredient.updatedAt = new Date().toISOString();
+
+    const reasonText = reason ? ` Motivo: "${reason}".` : '';
+    const auditLog = createAuditLog(
+      currentUser,
+      'ESTOQUE_AJUSTADO',
+      'Estoque',
+      `Estoque do insumo "${ingredient.name}" alterado de ${oldStock} ${ingredient.unit} para ${newStock} ${ingredient.unit} (${sign} ${ingredient.unit}) pelo usuário ${currentUser.name} (${currentUser.role}).${reasonText}`,
+      ingredient.id,
+      oldStock,
+      newStock
+    );
+    this.auditLogs.unshift(auditLog);
+
+    return { ...ingredient };
   }
 
   // ===================== PEDIDOS =====================
