@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Product, StockAlert, Ingredient, IngredientCategory, IngredientUnit } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
+import { IngredientsBasketIcon } from './icons/IngredientsBasketIcon.tsx';
 
 interface StockViewProps {
   products: Product[];
@@ -446,20 +447,8 @@ export const StockView: React.FC<StockViewProps> = ({
           </div>
         </div>
 
-        {/* Botões do Cabeçalho */}
-        <div className="flex items-center space-x-2 self-start sm:self-center shrink-0">
-          {activeTab === 'INGREDIENTS' && (
-            <button
-              type="button"
-              onClick={handleOpenCreateIngredient}
-              className="inline-flex items-center space-x-1.5 h-8.5 px-3.5 rounded-full text-xs font-semibold text-[#850D2C] bg-white hover:bg-stone-50 border border-[#850D2C]/30 shadow-2xs transition active:scale-95"
-              title="Cadastrar novo ingrediente ou matéria-prima no estoque"
-            >
-              <Plus className="w-3.5 h-3.5 text-[#850D2C]" />
-              <span>Novo Insumo</span>
-            </button>
-          )}
-
+        {/* Botão Principal "Atualizar estoque" em Vinho Escuro (#850D2C) com Estado de Loading */}
+        <div className="self-start sm:self-center shrink-0">
           <button
             onClick={handleRefreshClick}
             disabled={isRefreshing}
@@ -508,7 +497,7 @@ export const StockView: React.FC<StockViewProps> = ({
             }`}
             title="Visualizar estoque de insumos e matérias-primas"
           >
-            <Scale className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'INGREDIENTS' ? 'text-white' : 'text-stone-400'}`} />
+            <IngredientsBasketIcon className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'INGREDIENTS' ? 'text-white' : 'text-stone-400'}`} />
             <span>Ingredientes & Insumos</span>
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full font-bold leading-none transition ${
@@ -1415,7 +1404,7 @@ export const StockView: React.FC<StockViewProps> = ({
                             <div className="flex items-center space-x-3">
                               <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-600 border border-stone-200 shrink-0">
                                 {ing.category === 'Laticínios' ? (
-                                  <Scale className="w-4 h-4 text-stone-500" />
+                                  <IngredientsBasketIcon className="w-4 h-4 text-stone-500" />
                                 ) : ing.category === 'Panificação & Doces' ? (
                                   <Wheat className="w-4 h-4 text-stone-500" />
                                 ) : ing.category === 'Grãos & Pós' ? (
@@ -1741,7 +1730,7 @@ export const StockView: React.FC<StockViewProps> = ({
           <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-stone-200 p-6 animate-in fade-in zoom-in-95">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center text-stone-600 border border-stone-200 shrink-0">
-                <Scale className="w-6 h-6 text-stone-600" />
+                <IngredientsBasketIcon className="w-6 h-6 text-stone-600" />
               </div>
               <div>
                 <h3 className="font-bold text-stone-900 text-sm">
@@ -1903,7 +1892,7 @@ export const StockView: React.FC<StockViewProps> = ({
             <div className="flex items-center justify-between pb-4 border-b border-stone-100">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-2xl bg-[#850D2C]/10 flex items-center justify-center text-[#850D2C] shrink-0 border border-[#850D2C]/20">
-                  <Scale className="w-5 h-5 text-[#850D2C]" />
+                  <IngredientsBasketIcon className="w-5 h-5 text-[#850D2C]" />
                 </div>
                 <div>
                   <h3 className="font-bold text-[#35312F] text-base">
