@@ -61,7 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems: NavItemConfig[] = [
     {
       id: 'dashboard',
-      label: 'HOME',
+      label: 'INÍCIO',
       icon: Home,
       circleBg: 'bg-[#924529]',
       activeText: 'text-[#924529]',
@@ -101,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'reports',
-      label: 'ANALYTICS',
+      label: 'RELATÓRIOS',
       icon: BarChart3,
       circleBg: 'bg-[#820b28]',
       activeText: 'text-[#820b28]',
