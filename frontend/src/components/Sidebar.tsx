@@ -391,18 +391,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     </div>
                   </div>
-
-                  {/* Lado Direito: Barras decorativas empilhadas + bloco (idêntico à referência visual) */}
-                  <div
-                    className="flex flex-col items-end space-y-1.5 shrink-0 pb-0.5"
-                    aria-hidden="true"
-                  >
-                    <span className="w-7 h-1 rounded-full bg-[#820b28]/20" />
-                    <span className="w-7 h-1 rounded-full bg-[#820b28]/20" />
-                    <span className="w-7 h-1 rounded-full bg-[#820b28]/20" />
-                    <span className="w-7 h-1 rounded-full bg-[#820b28]/20" />
-                    <span className="w-7 h-4 rounded-sm bg-[#820b28]/25 mt-0.5" />
-                  </div>
                 </div>
 
                 {/* Select invisível sobre o card para permitir trocar de usuário ao clicar no perfil */}
