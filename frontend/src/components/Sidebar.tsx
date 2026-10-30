@@ -66,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       circleBg: 'bg-[#924529]',
       activeText: 'text-[#924529]',
       badge: criticalCount > 0 ? criticalCount : undefined,
-      badgeColor: 'bg-rose-500 text-white',
+      badgeColor: 'bg-[#c68e5b] text-white',
       isActive: currentView === 'admin' && adminTab === 'dashboard',
       onClick: () => {
         onViewChange('admin');
