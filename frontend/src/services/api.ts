@@ -8,6 +8,7 @@ import {
   DaySalesSummary,
   ABCCurveItem,
   CustomerLoyaltyItem,
+  Ingredient,
 } from '../../../shared/types/index.ts';
 
 const STORAGE_KEYS = {
@@ -188,6 +189,14 @@ export const api = {
       body: JSON.stringify({ newStock, reason }),
     }),
   getStockAlerts: () => request<StockAlert[]>('/api/stock/alerts'),
+
+  // Ingredientes & Insumos
+  getIngredients: () => request<Ingredient[]>('/api/ingredients'),
+  adjustIngredientStock: (id: string, newStock: number, reason?: string) =>
+    request<Ingredient>(`/api/ingredients/${id}/stock`, {
+      method: 'POST',
+      body: JSON.stringify({ newStock, reason }),
+    }),
 
   // Pedidos
   getOrders: async () => {

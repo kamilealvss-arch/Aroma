@@ -100,6 +100,21 @@ export function createExpressApp() {
     res.json(db.getStockAlerts());
   });
 
+  // ==================== ROTAS DE INGREDIENTES E MATÉRIAS-PRIMAS ====================
+  router.get('/ingredients', (req, res) => {
+    res.json(db.getIngredients());
+  });
+
+  router.post('/ingredients/:id/stock', (req, res) => {
+    const { newStock, reason } = req.body;
+    try {
+      const ingredient = db.adjustIngredientStock(req.params.id, Number(newStock), reason);
+      res.json(ingredient);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   // ==================== ROTAS DE PEDIDOS ====================
   router.get('/orders', (req, res) => {
     res.json(db.getOrders());

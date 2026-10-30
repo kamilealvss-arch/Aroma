@@ -7,6 +7,7 @@ import {
   StockAlert,
   DailyDashboardMetrics,
   DaySalesSummary,
+  Ingredient,
 } from '../../shared/types/index.ts';
 import { Sidebar } from './components/Sidebar.tsx';
 import { DashboardView } from './components/DashboardView.tsx';
@@ -24,6 +25,7 @@ export default function App() {
   const [orders, setOrders] = useState<Order[]>([]);
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [currentUser, setCurrentUser] = useState<SystemUser | null>(null);
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [alerts, setAlerts] = useState<StockAlert[]>([]);
@@ -47,8 +49,9 @@ export default function App() {
   // Carrega todos os dados necessários
   const refreshAllData = async () => {
     try {
-      const [prods, usr, userList, dashData, allOrders] = await Promise.all([
+      const [prods, ings, usr, userList, dashData, allOrders] = await Promise.all([
         api.getProducts(true), // Traz todos inclusive inativos para gestão do admin
+        api.getIngredients(),
         api.getCurrentUser(),
         api.getUsers(),
         api.getDashboardData(),
@@ -56,6 +59,7 @@ export default function App() {
       ]);
 
       setProducts(prods);
+      setIngredients(ings);
       setCurrentUser(usr);
       setUsers(userList);
       setMetrics(dashData.metrics);
@@ -128,6 +132,17 @@ export default function App() {
     try {
       await api.adjustStock(id, newStock, reason);
       showToast(`Estoque atualizado para ${newStock} unidades!`);
+      await refreshAllData();
+    } catch (err: any) {
+      showToast(err.message, 'error');
+      throw err;
+    }
+  };
+
+  const handleAdjustIngredientStock = async (id: string, newStock: number, reason?: string) => {
+    try {
+      const ing = await api.adjustIngredientStock(id, newStock, reason);
+      showToast(`Estoque de "${ing.name}" atualizado para ${newStock} ${ing.unit}!`);
       await refreshAllData();
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -256,8 +271,10 @@ export default function App() {
             {adminTab === 'stock' && (
               <StockView
                 products={products}
+                ingredients={ingredients}
                 alerts={alerts}
                 onAdjustStock={handleAdjustStock}
+                onAdjustIngredientStock={handleAdjustIngredientStock}
                 onRefresh={refreshAllData}
               />
             )}

@@ -22,6 +22,28 @@ export interface Product {
   updatedAt: string;
 }
 
+// ==================== INGREDIENTES E MATÉRIAS-PRIMAS ====================
+export type IngredientUnit = 'kg' | 'g' | 'L' | 'ml' | 'un';
+
+export type IngredientCategory =
+  | 'Grãos & Pós'
+  | 'Laticínios'
+  | 'Panificação & Doces'
+  | 'Mercearia & Adoçantes'
+  | 'Embalagens & Descartáveis';
+
+export interface Ingredient {
+  id: string;
+  name: string;
+  category: IngredientCategory;
+  currentStock: number;
+  unit: IngredientUnit;
+  minStockThreshold: number;
+  costPerUnit: number; // Custo por kg, L ou un
+  supplier?: string;
+  updatedAt: string;
+}
+
 export interface StockAlert {
   productId: string;
   productName: string;
