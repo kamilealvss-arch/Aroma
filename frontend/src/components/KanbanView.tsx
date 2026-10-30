@@ -442,12 +442,9 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
 
   return (
     <MotionConfig transition={gentleSpring}>
-      {/* Container com fundo vermelho transparente exclusivo desta página (como o fundo suave da imagem de referência) */}
-      <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-6 p-4 sm:p-6 lg:p-8 bg-[#820b28]/[0.05] min-h-[calc(100vh-3rem)] transition-colors">
-        {/* Superfície branca arredondada flutuante estilo NovaBoard */}
-        <div className="bg-white/95 rounded-[32px] sm:rounded-[40px] p-5 sm:p-8 shadow-sm border border-[#820b28]/10 space-y-6">
-          
-          {/* Top Header do KDS */}
+      {/* Superfície branca arredondada flutuante */}
+      <div className="bg-white rounded-[32px] sm:rounded-[40px] p-5 sm:p-8 shadow-sm border border-stone-200/80 space-y-6">
+        {/* Top Header do KDS */}
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
@@ -619,7 +616,6 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               />
             ))}
           </div>
-        </div>
       </div>
     </MotionConfig>
   );
