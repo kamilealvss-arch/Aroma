@@ -409,7 +409,7 @@ export const StockView: React.FC<StockViewProps> = ({
   return (
     <div
       className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 space-y-5 text-[#35312F]"
-      style={{ zoom: 1.2 }}
+      style={{ zoom: 1.05 }}
     >
       {/* 1. Cabeçalho da Página: Minimalista, Elegante e Profissional */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-stone-100">
