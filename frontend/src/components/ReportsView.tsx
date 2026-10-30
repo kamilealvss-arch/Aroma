@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  FileText,
   Calendar,
   BarChart3,
   Users,
@@ -11,7 +10,9 @@ import {
   Package,
   Star,
   AlertCircle,
-  HelpCircle,
+  ShoppingBag,
+  RefreshCw,
+  Boxes,
 } from 'lucide-react';
 import { api } from '../services/api.ts';
 import { ABCCurveItem, CustomerLoyaltyItem, Order } from '../../../shared/types/index.ts';
@@ -54,7 +55,7 @@ export const ReportsView: React.FC = () => {
   const [customersData, setCustomersData] = useState<CustomerLoyaltyItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Carrega relatório ao mudar de aba ou datas
+  // Carrega relatório ao mudar de aba
   useEffect(() => {
     fetchReport();
   }, [activeReport]);
@@ -73,7 +74,7 @@ export const ReportsView: React.FC = () => {
         setCustomersData(data);
       }
     } catch (err) {
-      console.error('Erro ao carregar relatório:', err);
+      console.error('Erro ao carregar dados analíticos:', err);
     } finally {
       setLoading(false);
     }
@@ -99,22 +100,23 @@ export const ReportsView: React.FC = () => {
 
   const handleExportSalesCSV = () => {
     if (!salesReportData) return;
-    const headers = ['Produto', 'Quantidade Vendida', 'Faturamento Total (R$)', 'Lucro Gerado (R$)'];
-    const rows = salesReportData.itemsSoldSummary.map((item) => [
-      `"${item.productName}"`,
-      item.quantity,
-      item.totalRevenue.toFixed(2),
-      item.totalProfit.toFixed(2),
+    const headers = ['Produto', 'Quantidade Vendida', 'Faturamento Total (R$)', 'Lucro Estimado (R$)'];
+    const rows = salesReportData.itemsSoldSummary.map((i) => [
+      `"${i.productName}"`,
+      i.quantity,
+      i.totalRevenue.toFixed(2),
+      i.totalProfit.toFixed(2),
     ]);
     exportToCSV(`relatorio_vendas_${startDate}_a_${endDate}`, headers, rows);
   };
 
   const handleExportABCCSV = () => {
     if (!abcData) return;
-    const headers = ['Produto', 'Classificação', 'Qtd Vendida', 'Faturamento (R$)', '% da Receita', '% Acumulado', 'Estoque Atual'];
+    const headers = ['Classe', 'Produto', 'Categoria', 'Quantidade Vendida', 'Faturamento (R$)', '% Receita', '% Acumulada', 'Estoque Atual'];
     const rows = abcData.items.map((i) => [
-      `"${i.productName}"`,
       i.classification,
+      `"${i.productName}"`,
+      `"${i.category}"`,
       i.quantitySold,
       i.totalRevenue.toFixed(2),
       `${i.percentageOfRevenue}%`,
@@ -138,103 +140,159 @@ export const ReportsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header da Área de Relatórios */}
-      <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center space-x-2">
-            <h2 className="text-base font-bold text-stone-900">
-              Área de Relatórios Gerenciais (Requisito 10)
-            </h2>
-            <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-full uppercase">
-              Mínimo 3 Relatórios
+    <div
+      className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 space-y-6 text-[#35312F]"
+      style={{ zoom: 1.2 }}
+    >
+      {/* 1. Cabeçalho de Analytics com Identidade Visual Aroma */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-stone-100">
+        <div className="space-y-0.5">
+          {/* Breadcrumb Discreto */}
+          <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
+            <span className="hover:text-[#35312F] transition">Painel</span>
+            <span>/</span>
+            <span className="text-[#850D2C] font-semibold">
+              {activeReport === 'sales'
+                ? 'Vendas por Período'
+                : activeReport === 'abc'
+                ? 'Curva ABC de Produtos'
+                : 'Clientes & Fidelidade'}
             </span>
-          </div>
-          <p className="text-xs text-stone-500 mt-1">
-            Análises estratégicas para tomada de decisão, giro de estoque e retenção de clientes.
+          </nav>
+
+          {/* Título com Fonte Amarego da Marca */}
+          <h1
+            className="text-2xl sm:text-3xl font-normal tracking-tight text-[#35312F] leading-tight"
+            style={{ fontFamily: "'Amarego', sans-serif" }}
+          >
+            Analytics & Indicadores
+          </h1>
+
+          {/* Subtítulo */}
+          <p className="text-xs text-stone-500 pt-0.5">
+            Análises estratégicas de faturamento, giro de estoque e comportamento de consumo.
           </p>
         </div>
 
-        {/* Abas dos 3 Relatórios */}
-        <div className="flex items-center bg-stone-100 p-1 rounded-xl self-start md:self-auto overflow-x-auto">
+        {/* Botão de Atualizar Dados com Animação */}
+        <div className="flex items-center space-x-2 self-start sm:self-center shrink-0">
           <button
-            onClick={() => setActiveReport('sales')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap ${
-              activeReport === 'sales'
-                ? 'bg-white text-stone-900 shadow-xs'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
+            onClick={fetchReport}
+            disabled={loading}
+            className="inline-flex items-center space-x-2 h-8.5 px-4 rounded-full text-xs font-semibold text-white bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] disabled:opacity-75 shadow-xs transition"
+            title="Sincronizar dados analíticos mais recentes"
           >
-            <Calendar className="w-3.5 h-3.5 text-amber-700" />
-            <span>1. Vendas por Período</span>
-          </button>
-          <button
-            onClick={() => setActiveReport('abc')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap ${
-              activeReport === 'abc'
-                ? 'bg-white text-stone-900 shadow-xs'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5 text-amber-700" />
-            <span>2. Curva ABC (Mais Vendidos)</span>
-          </button>
-          <button
-            onClick={() => setActiveReport('customers')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap ${
-              activeReport === 'customers'
-                ? 'bg-white text-stone-900 shadow-xs'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5 text-amber-700" />
-            <span>3. Clientes Mais Fiéis</span>
+            <RefreshCw className={`w-3.5 h-3.5 text-white ${loading ? 'animate-spin' : ''}`} />
+            <span>{loading ? 'Atualizando...' : 'Atualizar dados'}</span>
           </button>
         </div>
       </div>
 
-      {/* ================= RELATÓRIO 1: VENDAS POR PERÍODO ================= */}
-      {activeReport === 'sales' && (
+      {/* 2. Abas de Navegação Refinadas: Vinho apenas para indicar a aba ativa */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-0.5 pb-0.5">
+        <div className="inline-flex p-1 bg-stone-100/90 rounded-2xl border border-stone-200/80">
+          <button
+            type="button"
+            onClick={() => setActiveReport('sales')}
+            className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 ${
+              activeReport === 'sales'
+                ? 'bg-[#850D2C] text-white shadow-2xs'
+                : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
+            }`}
+            title="Relatório financeiro de vendas e lucratividade por período"
+          >
+            <Calendar className={`w-3.5 h-3.5 shrink-0 ${activeReport === 'sales' ? 'text-white' : 'text-stone-400'}`} />
+            <span>Vendas por Período</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveReport('abc')}
+            className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 ${
+              activeReport === 'abc'
+                ? 'bg-[#850D2C] text-white shadow-2xs'
+                : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
+            }`}
+            title="Classificação Curva ABC de produtos mais vendidos e faturamento"
+          >
+            <BarChart3 className={`w-3.5 h-3.5 shrink-0 ${activeReport === 'abc' ? 'text-white' : 'text-stone-400'}`} />
+            <span>Curva ABC (Mais Vendidos)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveReport('customers')}
+            className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 ${
+              activeReport === 'customers'
+                ? 'bg-[#850D2C] text-white shadow-2xs'
+                : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
+            }`}
+            title="Relatório de clientes mais fiéis e ticket médio individual"
+          >
+            <Users className={`w-3.5 h-3.5 shrink-0 ${activeReport === 'customers' ? 'text-white' : 'text-stone-400'}`} />
+            <span>Clientes Fiéis</span>
+          </button>
+        </div>
+
+        <span className="text-xs text-stone-400 hidden sm:inline">
+          {activeReport === 'sales'
+            ? 'Receitas brutas, custos e margem operacional'
+            : activeReport === 'abc'
+            ? 'Classificação 80/20 de itens no cardápio'
+            : 'Fidelização e recorrência de clientes'}
+        </span>
+      </div>
+
+      {/* Estado de Carregamento Suave */}
+      {loading && (
+        <div className="py-12 flex flex-col items-center justify-center space-y-2 text-stone-400">
+          <RefreshCw className="w-6 h-6 animate-spin text-[#850D2C]" />
+          <span className="text-xs font-medium">Carregando indicadores analíticos...</span>
+        </div>
+      )}
+
+      {/* ======================= ABA 1: VENDAS POR PERÍODO ======================= */}
+      {!loading && activeReport === 'sales' && (
         <div className="space-y-5 animate-in fade-in duration-150">
-          {/* Seletor de Período e Exportação */}
-          <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center space-x-2 text-xs">
-                <span className="font-bold text-stone-700">De:</span>
+          {/* Barra de Filtro de Período e Exportação */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 p-3.5 bg-[#F9F7F3] rounded-2xl border border-stone-200/80">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center space-x-1.5 text-xs">
+                <span className="text-stone-500 font-medium">De:</span>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="px-2.5 py-1.5 border border-stone-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  className="h-8 px-2.5 rounded-xl border border-stone-200 bg-white text-xs text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition"
                 />
               </div>
 
-              <div className="flex items-center space-x-2 text-xs">
-                <span className="font-bold text-stone-700">Até:</span>
+              <div className="flex items-center space-x-1.5 text-xs">
+                <span className="text-stone-500 font-medium">Até:</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="px-2.5 py-1.5 border border-stone-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  className="h-8 px-2.5 rounded-xl border border-stone-200 bg-white text-xs text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition"
                 />
               </div>
 
               <button
                 onClick={handleApplySalesFilter}
-                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1"
+                className="h-8 px-3.5 bg-[#850D2C] hover:bg-[#6e0a24] text-white rounded-xl text-xs font-semibold shadow-xs transition inline-flex items-center space-x-1.5"
               >
-                <Filter className="w-3.5 h-3.5" />
-                <span>Filtrar Período</span>
+                <Filter className="w-3 h-3" />
+                <span>Filtrar</span>
               </button>
 
-              {/* Atalhos Rápidos */}
-              <div className="flex items-center space-x-1 text-[11px]">
+              {/* Pílulas de Atalhos Rápidos */}
+              <div className="flex items-center space-x-1 pl-1">
                 <button
                   onClick={() => {
                     setStartDate(todayStr);
                     setEndDate(todayStr);
                   }}
-                  className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-md font-medium"
+                  className="h-7 px-2.5 rounded-full bg-white hover:bg-stone-100 text-stone-600 border border-stone-200 text-[11px] font-medium transition"
                 >
                   Hoje
                 </button>
@@ -243,118 +301,170 @@ export const ReportsView: React.FC = () => {
                     setStartDate(sevenDaysAgoStr);
                     setEndDate(todayStr);
                   }}
-                  className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-md font-medium"
+                  className="h-7 px-2.5 rounded-full bg-white hover:bg-stone-100 text-stone-600 border border-stone-200 text-[11px] font-medium transition"
                 >
-                  Últimos 7 dias
+                  7 dias
+                </button>
+                <button
+                  onClick={() => {
+                    const thirtyDaysAgo = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                    setStartDate(thirtyDaysAgo);
+                    setEndDate(todayStr);
+                  }}
+                  className="h-7 px-2.5 rounded-full bg-white hover:bg-stone-100 text-stone-600 border border-stone-200 text-[11px] font-medium transition"
+                >
+                  30 dias
                 </button>
               </div>
             </div>
 
+            {/* Exportar CSV */}
             <button
               onClick={handleExportSalesCSV}
-              className="px-3 py-1.5 bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-xs"
+              className="h-8 px-3.5 bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 rounded-xl text-xs font-medium transition inline-flex items-center space-x-1.5 shadow-2xs self-start lg:self-auto"
+              title="Exportar dados consolidados em planilha CSV"
             >
-              <Download className="w-3.5 h-3.5 text-stone-500" />
+              <Download className="w-3 h-3 text-stone-500" />
               <span>Exportar CSV</span>
             </button>
           </div>
 
-          {/* Cards Financeiros do Período */}
+          {/* Cards Financeiros do Período: Padrão Minimalista Aroma */}
           {salesReportData && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-xs">
-                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
-                  Faturamento no Período
-                </span>
-                <div className="text-2xl font-extrabold text-stone-900 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {/* Card 1: Faturamento */}
+              <div className="p-4 sm:py-4 sm:px-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 rounded-lg bg-stone-50 flex items-center justify-center text-[#850D2C] border border-stone-200">
+                      <DollarSign className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[#35312F] font-medium">Faturamento Total</span>
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
                   {formatCurrencyBRL(salesReportData.totalRevenue)}
                 </div>
-                <span className="text-[11px] text-stone-500">
-                  {salesReportData.totalOrders} pedidos realizados
-                </span>
+                <p className="text-[11px] text-stone-400 mt-1.5">
+                  {salesReportData.totalOrders} {salesReportData.totalOrders === 1 ? 'comanda finalizada' : 'comandas finalizadas'}
+                </p>
               </div>
 
-              <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-xs">
-                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
-                  Custo Estimado dos Insumos
-                </span>
-                <div className="text-2xl font-extrabold text-stone-700 mt-1">
+              {/* Card 2: Custos Estimados */}
+              <div className="p-4 sm:py-4 sm:px-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 rounded-lg bg-stone-50 flex items-center justify-center text-stone-600 border border-stone-200">
+                      <Package className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[#35312F] font-medium">Custo dos Insumos</span>
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-stone-700 mt-2 tracking-tight">
                   {formatCurrencyBRL(salesReportData.totalCost)}
                 </div>
-                <span className="text-[11px] text-stone-500">
-                  Baseado no preço de custo
-                </span>
+                <p className="text-[11px] text-stone-400 mt-1.5">
+                  Estimativa baseada no custo das matérias-primas
+                </p>
               </div>
 
-              <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-xs">
-                <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">
-                  Lucro Total no Período
-                </span>
-                <div className="text-2xl font-extrabold text-emerald-600 mt-1">
+              {/* Card 3: Lucro Total com Verde Oliva Suave */}
+              <div className="p-4 sm:py-4 sm:px-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 rounded-lg bg-[#858F6D]/10 flex items-center justify-center text-[#858F6D] border border-[#858F6D]/20">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[#35312F] font-medium">Lucro Operacional</span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-[#4c543c] bg-[#858F6D]/15 px-2 py-0.5 rounded-full border border-[#858F6D]/20">
+                    {salesReportData.totalRevenue > 0
+                      ? ((salesReportData.totalProfit / salesReportData.totalRevenue) * 100).toFixed(1)
+                      : 0}
+                    % margem
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-[#4c543c] mt-2 tracking-tight">
                   {formatCurrencyBRL(salesReportData.totalProfit)}
                 </div>
-                <span className="text-[11px] text-emerald-700 font-semibold">
-                  Margem: {salesReportData.totalRevenue > 0 ? ((salesReportData.totalProfit / salesReportData.totalRevenue) * 100).toFixed(1) : 0}%
-                </span>
+                <p className="text-[11px] text-stone-400 mt-1.5">
+                  Receita bruta menos custos diretos
+                </p>
               </div>
 
-              <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-xs">
-                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
-                  Ticket Médio Geral
-                </span>
-                <div className="text-2xl font-extrabold text-amber-900 mt-1">
+              {/* Card 4: Ticket Médio com Terracota Suave */}
+              <div className="p-4 sm:py-4 sm:px-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 rounded-lg bg-stone-50 flex items-center justify-center text-[#924529] border border-stone-200">
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[#35312F] font-medium">Ticket Médio</span>
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-[#924529] mt-2 tracking-tight">
                   {formatCurrencyBRL(salesReportData.averageTicket)}
                 </div>
-                <span className="text-[11px] text-stone-500">
-                  Média por comanda
-                </span>
+                <p className="text-[11px] text-stone-400 mt-1.5">
+                  Valor médio gasto por pedido atendido
+                </p>
               </div>
             </div>
           )}
 
           {/* Tabela de Produtos Vendidos no Período */}
-          <div className="bg-white rounded-2xl border border-stone-200/80 shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-stone-100 flex items-center justify-between">
+          <div className="rounded-2xl border border-stone-200/80 overflow-hidden shadow-2xs">
+            <div className="p-4 bg-white border-b border-stone-100 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-stone-900 text-sm">
-                  Itens Vendidos no Período Selecionado
+                <h3 className="font-semibold text-[#35312F] text-sm">
+                  Itens Vendidos no Período
                 </h3>
-                <p className="text-xs text-stone-500">
-                  Consolidado de unidades vendidas e retorno financeiro
+                <p className="text-xs text-stone-400">
+                  Consolidado de unidades comercializadas e faturamento individual
                 </p>
               </div>
-              <span className="text-xs text-stone-400">
-                {salesReportData?.itemsSoldSummary.length || 0} produtos vendidos
+              <span className="text-xs text-stone-400 font-medium">
+                {salesReportData?.itemsSoldSummary.length || 0} produtos comercializados
               </span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-stone-50 text-stone-500 font-bold uppercase text-[10px] tracking-wider border-b border-stone-200">
-                    <th className="py-2.5 px-4">Produto</th>
-                    <th className="py-2.5 px-4 text-center">Quantidade Vendida</th>
-                    <th className="py-2.5 px-4 text-right">Faturamento Total</th>
-                    <th className="py-2.5 px-4 text-right">Lucro Estimado</th>
+                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider whitespace-nowrap">
+                    <th className="py-3 px-4 font-semibold text-stone-600">Produto</th>
+                    <th className="py-3 px-4 text-center font-semibold text-stone-600">Quantidade Vendida</th>
+                    <th className="py-3 px-4 text-right font-semibold text-stone-600">Faturamento Total</th>
+                    <th className="py-3 px-4 text-right font-semibold text-stone-600">Lucro Estimado</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {salesReportData?.itemsSoldSummary.map((item) => (
-                    <tr key={item.productId} className="hover:bg-stone-50/80">
-                      <td className="py-2.5 px-4 font-bold text-stone-900">
-                        {item.productName}
-                      </td>
-                      <td className="py-2.5 px-4 text-center font-bold text-amber-800">
-                        {item.quantity} un.
-                      </td>
-                      <td className="py-2.5 px-4 text-right font-extrabold text-stone-900">
-                        {formatCurrencyBRL(item.totalRevenue)}
-                      </td>
-                      <td className="py-2.5 px-4 text-right font-bold text-emerald-600">
-                        {formatCurrencyBRL(item.totalProfit)}
+                <tbody className="divide-y divide-stone-100 bg-white">
+                  {!salesReportData || salesReportData.itemsSoldSummary.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-12 text-center text-stone-400">
+                        <Boxes className="w-8 h-8 mx-auto mb-2 text-stone-300" />
+                        <p className="text-sm font-semibold text-[#35312F]">Nenhuma venda registrada neste período</p>
+                        <p className="text-xs text-stone-400 mt-0.5">Tente selecionar outro intervalo de datas no filtro acima.</p>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    salesReportData.itemsSoldSummary.map((item) => (
+                      <tr key={item.productId} className="hover:bg-[#F9F7F3]/70 transition-colors duration-150">
+                        <td className="py-3 px-4 font-semibold text-[#35312F]">
+                          {item.productName}
+                        </td>
+                        <td className="py-3 px-4 text-center font-semibold text-[#35312F]">
+                          {item.quantity} <span className="text-[11px] text-stone-400 font-normal">un.</span>
+                        </td>
+                        <td className="py-3 px-4 text-right font-semibold text-[#35312F]">
+                          {formatCurrencyBRL(item.totalRevenue)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-semibold text-[#4c543c]">
+                          {formatCurrencyBRL(item.totalProfit)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -362,97 +472,132 @@ export const ReportsView: React.FC = () => {
         </div>
       )}
 
-      {/* ================= RELATÓRIO 2: CURVA ABC (MAIS VENDIDOS) ================= */}
-      {activeReport === 'abc' && (
+      {/* ======================= ABA 2: CURVA ABC (MAIS VENDIDOS) ======================= */}
+      {!loading && activeReport === 'abc' && (
         <div className="space-y-5 animate-in fade-in duration-150">
-          {/* Box de Conceito da Curva ABC */}
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-            <div className="flex items-start space-x-3">
-              <div className="p-2 bg-amber-600 text-white rounded-xl shrink-0 mt-0.5">
-                <BarChart3 className="w-5 h-5" />
+          {/* Card Conceitual Minimalista (Princípio de Pareto) */}
+          <div className="p-4 bg-[#F9F7F3] rounded-2xl border border-stone-200/80 space-y-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-7 h-7 rounded-xl bg-stone-100 flex items-center justify-center text-stone-600 border border-stone-200 shrink-0">
+                <BarChart3 className="w-4 h-4 text-stone-600" />
               </div>
               <div>
-                <h3 className="font-bold text-stone-900 text-sm">
-                  O que é o Relatório de Curva ABC? (Requisito 10)
+                <h3 className="font-semibold text-[#35312F] text-xs">
+                  Princípio de Pareto 80/20 aplicado ao Cardápio
                 </h3>
-                <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-                  Baseado no Princípio de Pareto (80/20). Ele classifica os produtos do café em 3 grupos estratégicos:
+                <p className="text-[11px] text-stone-400">
+                  Classificação estratégica do cardápio em 3 grupos prioritários para gestão de compras e estoque.
                 </p>
-                <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                  <div className="p-2 bg-emerald-100/70 border border-emerald-300 rounded-lg text-emerald-950">
-                    <strong className="block text-emerald-900">Classe A (Mais Vendidos)</strong>
-                    Representam até 80% do faturamento. Nunca podem faltar no estoque!
-                  </div>
-                  <div className="p-2 bg-amber-100/70 border border-amber-300 rounded-lg text-amber-950">
-                    <strong className="block text-amber-900">Classe B (Giro Médio)</strong>
-                    Representam os próximos 15% (acumulado até 95%). Manter estoque equilibrado.
-                  </div>
-                  <div className="p-2 bg-rose-100/70 border border-rose-300 rounded-lg text-rose-950">
-                    <strong className="block text-rose-900">Classe C (Baixo Giro / Encalhados)</strong>
-                    Últimos 5% da receita. Itens com pouca saída que podem estar retendo capital.
-                  </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+              <div className="p-3 bg-white border border-stone-200/80 rounded-xl">
+                <div className="flex items-center space-x-2">
+                  <span className="w-5 h-5 rounded-md bg-[#858F6D]/20 text-[#4c543c] border border-[#858F6D]/30 inline-flex items-center justify-center font-extrabold text-[10px]">
+                    A
+                  </span>
+                  <span className="font-semibold text-xs text-[#35312F]">Classe A • Mais Vendidos</span>
                 </div>
+                <p className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
+                  Concentram <strong>até 80% do faturamento</strong>. Devem ter prioridade absoluta e nunca podem faltar no estoque.
+                </p>
+              </div>
+
+              <div className="p-3 bg-white border border-stone-200/80 rounded-xl">
+                <div className="flex items-center space-x-2">
+                  <span className="w-5 h-5 rounded-md bg-amber-50 text-[#924529] border border-[#924529]/30 inline-flex items-center justify-center font-extrabold text-[10px]">
+                    B
+                  </span>
+                  <span className="font-semibold text-xs text-[#35312F]">Classe B • Giro Moderado</span>
+                </div>
+                <p className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
+                  Representam os <strong>próximos 15%</strong> (acumulado até 95%). Manter estoque equilibrado e compras regulares.
+                </p>
+              </div>
+
+              <div className="p-3 bg-white border border-stone-200/80 rounded-xl">
+                <div className="flex items-center space-x-2">
+                  <span className="w-5 h-5 rounded-md bg-rose-50 text-[#850D2C] border border-[#850D2C]/30 inline-flex items-center justify-center font-extrabold text-[10px]">
+                    C
+                  </span>
+                  <span className="font-semibold text-xs text-[#35312F]">Classe C • Menor Saída</span>
+                </div>
+                <p className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
+                  Últimos <strong>5% da receita</strong>. Itens de baixo giro que exigem cautela para evitar capital parado e vencimentos.
+                </p>
               </div>
             </div>
           </div>
 
           {/* Cards de Resumo das Classes */}
           {abcData && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 shadow-xs">
-                <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider">
-                  Classe A • Mais Vendidos
-                </span>
-                <div className="text-2xl font-extrabold text-emerald-950 mt-1">
-                  {abcData.classASummary.count} produtos
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div className="p-4 sm:py-4 sm:px-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                  <span className="font-medium text-[#35312F]">Produtos Classe A</span>
+                  <span className="w-5 h-5 rounded-md bg-[#858F6D]/20 text-[#4c543c] border border-[#858F6D]/30 inline-flex items-center justify-center font-extrabold text-[10px]">
+                    A
+                  </span>
                 </div>
-                <div className="text-xs text-emerald-800 mt-1 font-semibold">
+                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+                  {abcData.classASummary.count} <span className="text-xs font-normal text-stone-400">itens</span>
+                </div>
+                <p className="text-[11px] text-[#4c543c] font-semibold mt-1.5">
                   {formatCurrencyBRL(abcData.classASummary.revenue)} gerados
-                </div>
+                </p>
               </div>
 
-              <div className="bg-amber-50/70 p-4 rounded-2xl border border-amber-200 shadow-xs">
-                <span className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wider">
-                  Classe B • Giro Moderado
-                </span>
-                <div className="text-2xl font-extrabold text-amber-950 mt-1">
-                  {abcData.classBSummary.count} produtos
+              <div className="p-4 sm:py-4 sm:px-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                  <span className="font-medium text-[#35312F]">Produtos Classe B</span>
+                  <span className="w-5 h-5 rounded-md bg-amber-50 text-[#924529] border border-[#924529]/30 inline-flex items-center justify-center font-extrabold text-[10px]">
+                    B
+                  </span>
                 </div>
-                <div className="text-xs text-amber-800 mt-1 font-semibold">
+                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+                  {abcData.classBSummary.count} <span className="text-xs font-normal text-stone-400">itens</span>
+                </div>
+                <p className="text-[11px] text-[#924529] font-semibold mt-1.5">
                   {formatCurrencyBRL(abcData.classBSummary.revenue)} gerados
-                </div>
+                </p>
               </div>
 
-              <div className="bg-rose-50/70 p-4 rounded-2xl border border-rose-200 shadow-xs">
-                <span className="text-[10px] font-extrabold text-rose-800 uppercase tracking-wider">
-                  Classe C • Itens Encalhados / Baixo Giro
-                </span>
-                <div className="text-2xl font-extrabold text-rose-950 mt-1">
-                  {abcData.classCSummary.count} produtos
+              <div className="p-4 sm:py-4 sm:px-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                  <span className="font-medium text-[#35312F]">Produtos Classe C</span>
+                  <span className="w-5 h-5 rounded-md bg-rose-50 text-[#850D2C] border border-[#850D2C]/30 inline-flex items-center justify-center font-extrabold text-[10px]">
+                    C
+                  </span>
                 </div>
-                <div className="text-xs text-rose-800 mt-1 font-semibold">
+                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+                  {abcData.classCSummary.count} <span className="text-xs font-normal text-stone-400">itens</span>
+                </div>
+                <p className="text-[11px] text-[#850D2C] font-semibold mt-1.5">
                   {formatCurrencyBRL(abcData.classCSummary.revenue)} gerados
-                </div>
+                </p>
               </div>
             </div>
           )}
 
-          {/* Tabela da Curva ABC */}
-          <div className="bg-white rounded-2xl border border-stone-200/80 shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-stone-100 flex items-center justify-between">
+          {/* Tabela Curva ABC */}
+          <div className="rounded-2xl border border-stone-200/80 overflow-hidden shadow-2xs">
+            <div className="p-4 bg-white border-b border-stone-100 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-stone-900 text-sm">
+                <h3 className="font-semibold text-[#35312F] text-sm">
                   Classificação Analítica dos Produtos (Curva ABC)
                 </h3>
-                <p className="text-xs text-stone-500">
-                  Ordenado por maior faturamento e percentual acumulado
+                <p className="text-xs text-stone-400">
+                  Ordenado por relevância financeira e percentual acumulado sobre a receita total
                 </p>
               </div>
+
               <button
                 onClick={handleExportABCCSV}
-                className="px-3 py-1.5 bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 rounded-xl text-xs font-bold transition flex items-center space-x-1 shadow-xs"
+                className="h-8 px-3.5 bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 rounded-xl text-xs font-medium transition inline-flex items-center space-x-1.5 shadow-2xs"
+                title="Exportar classificação ABC em CSV"
               >
-                <Download className="w-3.5 h-3.5 text-stone-500" />
+                <Download className="w-3 h-3 text-stone-500" />
                 <span>Exportar CSV</span>
               </button>
             </div>
@@ -460,29 +605,29 @@ export const ReportsView: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-stone-50 text-stone-500 font-bold uppercase text-[10px] tracking-wider border-b border-stone-200">
-                    <th className="py-2.5 px-4">Classe</th>
-                    <th className="py-2.5 px-4">Produto</th>
-                    <th className="py-2.5 px-4 text-center">Unidades Vendidas</th>
-                    <th className="py-2.5 px-4 text-right">Faturamento Total</th>
-                    <th className="py-2.5 px-4 text-right">% Receita</th>
-                    <th className="py-2.5 px-4 text-right">% Acumulada</th>
-                    <th className="py-2.5 px-4 text-center">Estoque Atual</th>
+                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider whitespace-nowrap">
+                    <th className="py-3 px-4 font-semibold text-stone-600 text-center">Classe</th>
+                    <th className="py-3 px-4 font-semibold text-stone-600">Produto</th>
+                    <th className="py-3 px-4 text-center font-semibold text-stone-600">Unidades Vendidas</th>
+                    <th className="py-3 px-4 text-right font-semibold text-stone-600">Faturamento Total</th>
+                    <th className="py-3 px-4 text-right font-semibold text-stone-600">% Receita</th>
+                    <th className="py-3 px-4 text-right font-semibold text-stone-600">% Acumulada</th>
+                    <th className="py-3 px-4 text-center font-semibold text-stone-600">Estoque Atual</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-stone-100 bg-white">
                   {abcData?.items.map((item) => {
                     const badgeClasses = {
-                      A: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-                      B: 'bg-amber-100 text-amber-800 border-amber-300',
-                      C: 'bg-rose-100 text-rose-800 border-rose-300',
+                      A: 'bg-[#858F6D]/20 text-[#4c543c] border-[#858F6D]/40',
+                      B: 'bg-amber-50 text-[#924529] border-[#924529]/30',
+                      C: 'bg-rose-50 text-[#850D2C] border-[#850D2C]/30',
                     };
 
                     return (
-                      <tr key={item.productId} className="hover:bg-stone-50/80">
-                        <td className="py-3 px-4">
+                      <tr key={item.productId} className="hover:bg-[#F9F7F3]/70 transition-colors duration-150">
+                        <td className="py-3 px-4 text-center">
                           <span
-                            className={`w-7 h-7 rounded-lg inline-flex items-center justify-center font-extrabold text-xs border ${
+                            className={`w-6 h-6 rounded-md inline-flex items-center justify-center font-extrabold text-xs border ${
                               badgeClasses[item.classification]
                             }`}
                           >
@@ -490,33 +635,33 @@ export const ReportsView: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3 px-4">
-                          <span className="font-bold text-stone-900 block">
+                          <span className="font-semibold text-[#35312F] block">
                             {item.productName}
                           </span>
                           <span className="text-[11px] text-stone-400">
                             {item.category}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center font-bold text-stone-800">
-                          {item.quantitySold} un.
+                        <td className="py-3 px-4 text-center font-medium text-[#35312F]">
+                          {item.quantitySold} <span className="text-[11px] text-stone-400">un.</span>
                         </td>
-                        <td className="py-3 px-4 text-right font-extrabold text-stone-900">
+                        <td className="py-3 px-4 text-right font-semibold text-[#35312F]">
                           {formatCurrencyBRL(item.totalRevenue)}
                         </td>
-                        <td className="py-3 px-4 text-right text-stone-600 font-medium">
+                        <td className="py-3 px-4 text-right text-stone-500 font-medium">
                           {item.percentageOfRevenue}%
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-amber-900">
+                        <td className="py-3 px-4 text-right font-semibold text-[#850D2C]">
                           {item.cumulativePercentage}%
                         </td>
                         <td className="py-3 px-4 text-center">
                           <span
-                            className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
                               item.currentStock <= 0
-                                ? 'bg-rose-100 text-rose-700'
+                                ? 'bg-rose-50 text-[#850D2C] border-[#850D2C]/20'
                                 : item.currentStock <= 5
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-stone-100 text-stone-700'
+                                ? 'bg-amber-50 text-[#924529] border-[#924529]/20'
+                                : 'bg-stone-50 text-stone-600 border-stone-200'
                             }`}
                           >
                             {item.currentStock} un.
@@ -532,53 +677,55 @@ export const ReportsView: React.FC = () => {
         </div>
       )}
 
-      {/* ================= RELATÓRIO 3: CLIENTES MAIS FIÉIS ================= */}
-      {activeReport === 'customers' && (
+      {/* ======================= ABA 3: CLIENTES MAIS FIÉIS ======================= */}
+      {!loading && activeReport === 'customers' && (
         <div className="space-y-5 animate-in fade-in duration-150">
-          <div className="bg-white p-4 rounded-2xl border border-stone-200/80 shadow-xs flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-stone-900 text-sm">
-                Relatório de Clientes & Fidelidade (Requisito 10)
-              </h3>
-              <p className="text-xs text-stone-500">
-                Identifique quem são os clientes que mais consom e o ticket médio individual.
-              </p>
-            </div>
-            <button
-              onClick={handleExportCustomersCSV}
-              className="px-3 py-1.5 bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 rounded-xl text-xs font-bold transition flex items-center space-x-1 shadow-xs"
-            >
-              <Download className="w-3.5 h-3.5 text-stone-500" />
-              <span>Exportar CSV</span>
-            </button>
-          </div>
+          <div className="rounded-2xl border border-stone-200/80 overflow-hidden shadow-2xs">
+            <div className="p-4 bg-white border-b border-stone-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-[#35312F] text-sm">
+                  Relatório de Clientes & Fidelidade
+                </h3>
+                <p className="text-xs text-stone-400">
+                  Identifique os clientes com maior frequência de pedidos e maior ticket médio
+                </p>
+              </div>
 
-          <div className="bg-white rounded-2xl border border-stone-200/80 shadow-xs overflow-hidden">
+              <button
+                onClick={handleExportCustomersCSV}
+                className="h-8 px-3.5 bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 rounded-xl text-xs font-medium transition inline-flex items-center space-x-1.5 shadow-2xs"
+                title="Exportar lista de fidelidade em CSV"
+              >
+                <Download className="w-3 h-3 text-stone-500" />
+                <span>Exportar CSV</span>
+              </button>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-stone-50 text-stone-500 font-bold uppercase text-[10px] tracking-wider border-b border-stone-200">
-                    <th className="py-2.5 px-4">Posição</th>
-                    <th className="py-2.5 px-4">Cliente</th>
-                    <th className="py-2.5 px-4 text-center">Total de Pedidos</th>
-                    <th className="py-2.5 px-4 text-right">Total Gasto</th>
-                    <th className="py-2.5 px-4 text-right">Ticket Médio</th>
-                    <th className="py-2.5 px-4">Item Predileto</th>
-                    <th className="py-2.5 px-4 text-right">Última Compra</th>
+                  <tr className="bg-[#F9F7F3] border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider whitespace-nowrap">
+                    <th className="py-3 px-4 text-center font-semibold text-stone-600">Posição</th>
+                    <th className="py-3 px-4 font-semibold text-stone-600">Cliente</th>
+                    <th className="py-3 px-4 text-center font-semibold text-stone-600">Total de Pedidos</th>
+                    <th className="py-3 px-4 text-right font-semibold text-stone-600">Total Gasto</th>
+                    <th className="py-3 px-4 text-right font-semibold text-stone-600">Ticket Médio</th>
+                    <th className="py-3 px-4 font-semibold text-stone-600">Item Predileto</th>
+                    <th className="py-3 px-4 text-right font-semibold text-stone-600">Última Visita</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-stone-100 bg-white">
                   {customersData.map((customer, index) => (
-                    <tr key={customer.customerName} className="hover:bg-stone-50/80">
-                      <td className="py-3 px-4">
+                    <tr key={customer.customerName} className="hover:bg-[#F9F7F3]/70 transition-colors duration-150">
+                      <td className="py-3 px-4 text-center">
                         <span
-                          className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-extrabold text-[11px] ${
+                          className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-bold text-[11px] ${
                             index === 0
-                              ? 'bg-amber-500 text-white shadow-xs'
+                              ? 'bg-[#850D2C] text-white shadow-2xs'
                               : index === 1
-                              ? 'bg-stone-400 text-white'
+                              ? 'bg-stone-300 text-stone-800'
                               : index === 2
-                              ? 'bg-amber-700 text-white'
+                              ? 'bg-amber-100 text-[#924529] border border-amber-300'
                               : 'bg-stone-100 text-stone-600'
                           }`}
                         >
@@ -586,7 +733,7 @@ export const ReportsView: React.FC = () => {
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 font-bold text-stone-900">
+                      <td className="py-3 px-4 font-semibold text-[#35312F]">
                         <div className="flex items-center space-x-2">
                           <span>{customer.customerName}</span>
                           {index === 0 && (
@@ -595,29 +742,29 @@ export const ReportsView: React.FC = () => {
                         </div>
                       </td>
 
-                      <td className="py-3 px-4 text-center font-bold text-stone-800">
-                        {customer.totalOrders} pedidos
+                      <td className="py-3 px-4 text-center font-medium text-[#35312F]">
+                        {customer.totalOrders} <span className="text-[11px] text-stone-400">pedidos</span>
                       </td>
 
-                      <td className="py-3 px-4 text-right font-extrabold text-stone-900 text-sm">
+                      <td className="py-3 px-4 text-right font-semibold text-[#35312F]">
                         {formatCurrencyBRL(customer.totalSpent)}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-bold text-amber-900">
+                      <td className="py-3 px-4 text-right font-semibold text-[#850D2C]">
                         {formatCurrencyBRL(customer.averageTicket)}
                       </td>
 
-                      <td className="py-3 px-4 text-stone-600 font-medium">
+                      <td className="py-3 px-4">
                         {customer.favoriteProduct ? (
-                          <span className="inline-block bg-amber-50 text-amber-900 px-2 py-0.5 rounded-md text-[11px] border border-amber-200">
+                          <span className="inline-block bg-stone-100 text-stone-700 px-2.5 py-0.5 rounded-full text-[11px] border border-stone-200">
                             {customer.favoriteProduct}
                           </span>
                         ) : (
-                          '—'
+                          <span className="text-stone-300">—</span>
                         )}
                       </td>
 
-                      <td className="py-3 px-4 text-right text-stone-400">
+                      <td className="py-3 px-4 text-right text-stone-400 font-normal">
                         {new Date(customer.lastOrderDate).toLocaleDateString('pt-BR')}
                       </td>
                     </tr>
