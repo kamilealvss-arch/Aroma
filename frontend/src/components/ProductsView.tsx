@@ -674,16 +674,16 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                       {product.description || 'Preparo artesanal com insumos selecionados.'}
                     </p>
 
-                    {/* Ações "Editar" e "Desativar" posicionadas no espaço entre a descrição e as tags */}
-                    <div className="flex items-center gap-2 pt-2.5">
+                    {/* Ações "Editar" e "Desativar" com design suave e harmonioso */}
+                    <div className="flex items-center gap-2 pt-2">
                       {isInactive ? (
                         <button
                           type="button"
                           onClick={() => onRestoreProduct(product.id)}
-                          className="h-7 px-3 rounded-lg text-xs font-semibold bg-[#858F6D] hover:bg-[#6e7759] text-white shadow-2xs inline-flex items-center space-x-1.5 transition cursor-pointer"
+                          className="h-6.5 px-3 rounded-full text-[11px] font-medium bg-[#858F6D]/15 hover:bg-[#858F6D]/25 text-[#4c543c] border border-[#858F6D]/20 inline-flex items-center space-x-1.5 transition cursor-pointer"
                           title="Reativar produto no cardápio"
                         >
-                          <RotateCcw className="w-3 h-3" />
+                          <RotateCcw className="w-2.5 h-2.5" />
                           <span>Reativar no cardápio</span>
                         </button>
                       ) : (
@@ -691,19 +691,19 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(product)}
-                            className="h-7 px-3 rounded-lg text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-[#35312F] border border-stone-200/80 inline-flex items-center space-x-1.5 shadow-2xs transition cursor-pointer"
+                            className="h-6.5 px-3 rounded-full text-[11px] font-medium bg-[#F5F3EF] hover:bg-[#EDE9E1] text-[#35312F] hover:text-[#850D2C] border border-stone-200/50 inline-flex items-center space-x-1.5 transition cursor-pointer"
                             title="Editar preço, foto ou parâmetros do produto"
                           >
-                            <Edit2 className="w-3 h-3 text-[#850D2C]" />
+                            <Edit2 className="w-2.5 h-2.5 text-stone-400" />
                             <span>Editar</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setProductToDelete(product)}
-                            className="h-7 px-2.5 rounded-lg text-xs font-medium text-stone-500 hover:text-[#850D2C] hover:bg-rose-50 border border-transparent hover:border-rose-200 inline-flex items-center space-x-1 transition cursor-pointer"
+                            className="h-6.5 px-2.5 rounded-full text-[11px] font-medium text-stone-400 hover:text-[#850D2C] hover:bg-rose-50/70 transition cursor-pointer inline-flex items-center space-x-1"
                             title="Desativar do cardápio"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-2.5 h-2.5" />
                             <span>Desativar</span>
                           </button>
                         </>
