@@ -391,11 +391,20 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     setImageActionNotice('Imagem original restaurada.');
   };
 
-  // Salvar a imagem editada (exporta em PNG ou WebP com transparência)
+  // Salvar a imagem editada (exporta em PNG ou WebP com transparência e disposição padronizada)
   const handleApplyEditedImage = async (): Promise<string> => {
     try {
       setError(null);
-      const finalDataUrl = await renderEditedProductImage(workingImageUrl, {
+      let sourceToRender = workingImageUrl;
+      if (hasRemovedBg && offsetX === 0 && offsetY === 0) {
+        try {
+          sourceToRender = await autoTrimAndCenterProduct(workingImageUrl, 0.09);
+          setWorkingImageUrl(sourceToRender);
+        } catch {
+          sourceToRender = workingImageUrl;
+        }
+      }
+      const finalDataUrl = await renderEditedProductImage(sourceToRender, {
         zoom,
         offsetX,
         offsetY,
@@ -406,7 +415,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setImageUrl(finalDataUrl);
       setIsEditorOpen(false);
       setImageActionNotice(
-        `Imagem editada aplicada em formato ${
+        `Imagem editada e padronizada em formato ${
           exportFormat === 'image/png' ? 'PNG' : 'WebP'
         } com transparência preservada.`
       );
@@ -600,7 +609,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
       if (hasTransformAdjustments && workingImageUrl) {
         try {
-          finalProductImage = await renderEditedProductImage(workingImageUrl, {
+          let sourceToRender = workingImageUrl;
+          if (hasRemovedBg && offsetX === 0 && offsetY === 0) {
+            try {
+              sourceToRender = await autoTrimAndCenterProduct(workingImageUrl, 0.09);
+            } catch {
+              sourceToRender = workingImageUrl;
+            }
+          }
+          finalProductImage = await renderEditedProductImage(sourceToRender, {
             zoom,
             offsetX,
             offsetY,

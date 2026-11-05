@@ -557,30 +557,36 @@ export async function detectProductBoundingBox(imageSrc: string): Promise<Boundi
 }
 
 /**
- * Recorta automaticamente as sobras transparentes ao redor do produto e centraliza com margem equilibrada
+ * Recorta automaticamente as sobras transparentes ao redor do produto e normaliza
+ * em um canvas padrão 640x640 com o produto ocupando proporção uniforme (~82%) exatamente no centro.
  */
 export async function autoTrimAndCenterProduct(
   imageSrc: string,
-  paddingRatio: number = 0.08
+  paddingRatio: number = 0.09
 ): Promise<string> {
   const img = await loadImageElement(imageSrc);
   const bbox = await detectProductBoundingBox(imageSrc);
   if (!bbox) return imageSrc;
 
-  const side = Math.max(bbox.width, bbox.height);
-  const pad = Math.round(side * paddingRatio);
-  const outSize = side + pad * 2;
+  const STANDARD_SIZE = 640;
+  const targetOccupancy = Math.max(0.5, Math.min(0.92, 1 - paddingRatio * 2)); // ~82% da área
+  const maxProductDim = Math.max(bbox.width, bbox.height, 1);
+  const scale = (STANDARD_SIZE * targetOccupancy) / maxProductDim;
+
+  const drawW = Math.round(bbox.width * scale);
+  const drawH = Math.round(bbox.height * scale);
+  const destX = Math.round((STANDARD_SIZE - drawW) / 2);
+  const destY = Math.round((STANDARD_SIZE - drawH) / 2);
 
   const canvas = document.createElement('canvas');
-  canvas.width = outSize;
-  canvas.height = outSize;
+  canvas.width = STANDARD_SIZE;
+  canvas.height = STANDARD_SIZE;
   const ctx = canvas.getContext('2d');
   if (!ctx) return imageSrc;
 
-  ctx.clearRect(0, 0, outSize, outSize);
-
-  const destX = Math.round((outSize - bbox.width) / 2);
-  const destY = Math.round((outSize - bbox.height) / 2);
+  ctx.clearRect(0, 0, STANDARD_SIZE, STANDARD_SIZE);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
   ctx.drawImage(
     img,
@@ -590,8 +596,8 @@ export async function autoTrimAndCenterProduct(
     bbox.height,
     destX,
     destY,
-    bbox.width,
-    bbox.height
+    drawW,
+    drawH
   );
 
   return canvas.toDataURL('image/png');

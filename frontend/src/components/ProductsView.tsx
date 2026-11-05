@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Product } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -571,8 +572,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           )}
         </div>
       ) : viewMode === 'GRID' ? (
-        /* ======================= VISUALIZAÇÃO EM GRADE (CARDS REFINADOS) ======================= */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        /* ======================= VISUALIZAÇÃO EM GRADE (MODELO A - IMAGEM 1) ======================= */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {paginatedProducts.map((product) => {
             const isInactive = product.status === 'inativo';
             const isOutOfStock = product.stockQuantity <= 0;
@@ -584,151 +585,147 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               product.price > 0
                 ? Math.round(((product.price - product.costPrice) / product.price) * 100)
                 : 0;
+            const isTransparentCutout =
+              product.imageUrl.startsWith('data:image/png') ||
+              product.imageUrl.startsWith('data:image/webp');
 
             return (
               <div
                 key={product.id}
-                className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden flex flex-col justify-between shadow-2xs hover:shadow-md group ${
+                className={`bg-white rounded-[30px] p-2.5 border transition-all duration-200 flex flex-col justify-between shadow-sm hover:shadow-md group ${
                   isInactive
-                    ? 'border-stone-200/90 bg-stone-50/40 opacity-80'
-                    : 'border-stone-200/80 hover:border-stone-300'
+                    ? 'border-stone-200/90 bg-stone-50/60 opacity-80'
+                    : 'border-stone-200/90 hover:border-stone-300'
                 }`}
               >
-                <div>
-                  {/* Imagem do Produto com Badges Discretos (Suporta fotos normais e PNG/WebP com fundo transparente) */}
-                  <div className="relative h-42 w-full bg-[#F9F7F3] overflow-hidden border-b border-stone-100 flex items-center justify-center">
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      loading="lazy"
-                      className={`w-full h-full transition duration-500 ${
-                        product.imageUrl.startsWith('data:image/png') ||
-                        product.imageUrl.startsWith('data:image/webp')
-                          ? 'object-contain p-2.5'
-                          : 'object-cover'
-                      } ${isInactive ? 'grayscale-60' : 'group-hover:scale-105'}`}
-                    />
-                    {/* Sombra suave no topo apenas para fotos com fundo preenchido */}
-                    {!product.imageUrl.startsWith('data:image/png') &&
-                      !product.imageUrl.startsWith('data:image/webp') && (
-                        <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/25 to-transparent pointer-events-none" />
-                      )}
-
-                    {/* Categoria Badge */}
-                    <span className="absolute top-3 left-3 bg-white/95 backdrop-blur-xs text-[#35312F] border border-stone-200/80 text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-2xs">
-                      {product.category}
+                {/* Moldura Interna de Imagem (Modelo A: cantos arredondados, preço recortado no canto superior direito e faixa inferior) */}
+                <div className="relative rounded-[22px] overflow-hidden bg-[#EBE7DF] flex flex-col">
+                  {/* Etiqueta de Preço Recortada no Canto Superior Direito (Idêntico ao "10$" do Modelo A) */}
+                  <div className="absolute top-0 right-0 z-10 bg-white pl-4 pr-3.5 pt-1.5 pb-2 rounded-bl-[20px] shadow-2xs flex items-center justify-center">
+                    <span className="text-base font-extrabold text-[#35312F] tracking-tight">
+                      {formatCurrencyBRL(product.price)}
                     </span>
-
-                    {/* Status Badge */}
-                    <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
-                      {isInactive ? (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50/95 backdrop-blur-xs text-[#850D2C] border border-[#850D2C]/25 shadow-2xs">
-                          <EyeOff className="w-3 h-3 text-[#850D2C]" />
-                          <span>Inativo</span>
-                        </span>
-                      ) : isOutOfStock ? (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50/95 backdrop-blur-xs text-[#850D2C] border border-[#850D2C]/25 shadow-2xs">
-                          <ArrowDownCircle className="w-3 h-3 text-[#850D2C]" />
-                          <span>Esgotado</span>
-                        </span>
-                      ) : isLowStock ? (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50/95 backdrop-blur-xs text-[#924529] border border-[#924529]/25 shadow-2xs">
-                          <AlertTriangle className="w-3 h-3 text-[#924529]" />
-                          <span>Repor ({product.stockQuantity} un.)</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#f6f8f0]/95 backdrop-blur-xs text-[#4c543c] border border-[#858F6D]/30 shadow-2xs">
-                          <CheckCircle className="w-3 h-3 text-[#858F6D]" />
-                          <span>No Cardápio</span>
-                        </span>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Corpo do Card */}
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-2.5">
-                      <h3 className="font-bold text-[#35312F] text-sm leading-snug">
-                        {product.name}
-                      </h3>
-                      <span className="text-base font-extrabold text-[#850D2C] shrink-0 tracking-tight">
-                        {formatCurrencyBRL(product.price)}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed min-h-[2rem]">
-                      {product.description || 'Sem descrição cadastrada.'}
-                    </p>
-
-                    {/* Faixa de Indicadores do Produto: Estoque, Custo e Margem */}
-                    <div className="mt-3.5 pt-3 border-t border-stone-100 grid grid-cols-3 gap-2 text-[11px]">
-                      <div>
-                        <span className="text-[10px] text-stone-400 block">Estoque</span>
-                        <strong
-                          className={`font-semibold ${
-                            isOutOfStock
-                              ? 'text-[#850D2C]'
-                              : isLowStock
-                              ? 'text-[#924529]'
-                              : 'text-[#35312F]'
+                  {/* Palco Central Padronizado da Imagem */}
+                  <div className="relative h-52 w-full flex items-center justify-center overflow-hidden">
+                    {isTransparentCutout ? (
+                      <div className="w-38 h-38 flex items-center justify-center">
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          loading="lazy"
+                          className={`w-full h-full object-contain drop-shadow-[0_12px_16px_rgba(53,49,47,0.2)] transition duration-500 ${
+                            isInactive ? 'grayscale-60' : 'group-hover:scale-105'
                           }`}
-                        >
-                          {product.stockQuantity} un.
-                        </strong>
+                        />
                       </div>
+                    ) : (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        loading="lazy"
+                        className={`w-full h-full object-cover transition duration-500 ${
+                          isInactive ? 'grayscale-60' : 'group-hover:scale-105'
+                        }`}
+                      />
+                    )}
+                  </div>
 
-                      <div>
-                        <span className="text-[10px] text-stone-400 block">Custo un.</span>
-                        <span className="font-medium text-stone-600">
-                          {formatCurrencyBRL(product.costPrice)}
-                        </span>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-[10px] text-stone-400 block">Margem</span>
-                        <span className="font-semibold text-[#4c543c]">
-                          {marginPercent}% ({formatCurrencyBRL(profit)})
-                        </span>
-                      </div>
-                    </div>
+                  {/* Faixa Inferior da Moldura de Imagem (Idêntico à barra inferior da foto no Modelo A) */}
+                  <div
+                    className={`w-full py-1.5 px-3 text-center text-[11px] font-semibold tracking-wide transition ${
+                      isInactive
+                        ? 'bg-stone-500 text-white'
+                        : isOutOfStock
+                        ? 'bg-[#850D2C] text-white'
+                        : isLowStock
+                        ? 'bg-[#924529] text-white'
+                        : 'bg-[#858F6D] text-white'
+                    }`}
+                  >
+                    {isInactive
+                      ? `Inativo no Cardápio • Estoque: ${product.stockQuantity} un.`
+                      : isOutOfStock
+                      ? 'Esgotado no Cardápio • 0 un. disponíveis'
+                      : isLowStock
+                      ? `Repor Estoque • Restam ${product.stockQuantity} un. (mín. ${product.minStockThreshold})`
+                      : `No Cardápio • Disponível (${product.stockQuantity} un.)`}
                   </div>
                 </div>
 
-                {/* Rodapé de Ações do Card */}
-                <div className="px-4 py-2.5 bg-[#F9F7F3] border-t border-stone-200/70 flex items-center justify-between gap-2">
-                  {isInactive ? (
-                    <button
-                      type="button"
-                      onClick={() => onRestoreProduct(product.id)}
-                      className="w-full h-8 px-3 bg-[#858F6D] hover:bg-[#6e7759] text-white rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-1.5 shadow-2xs cursor-pointer"
-                      title="Tornar o produto novamente visível no cardápio digital"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Reativar no Cardápio</span>
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(product)}
-                        className="flex-1 h-8 px-3 bg-white hover:bg-stone-50 text-[#35312F] border border-stone-200/90 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-1.5 shadow-2xs cursor-pointer"
-                        title="Editar preço, foto ou detalhes do produto"
-                      >
-                        <Edit2 className="w-3.5 h-3.5 text-[#924529]" />
-                        <span>Editar</span>
-                      </button>
+                {/* Parte Inferior do Card (Título + Ação estilo "Order Now ↗" + Pílulas de Informações) */}
+                <div className="px-2.5 pt-3 pb-1.5 flex-1 flex flex-col justify-between space-y-2.5">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-bold text-[#35312F] text-base leading-tight truncate">
+                        {product.name}
+                      </h3>
 
-                      <button
-                        type="button"
-                        onClick={() => setProductToDelete(product)}
-                        className="h-8 px-3 bg-white hover:bg-rose-50 text-stone-500 hover:text-[#850D2C] border border-stone-200/90 hover:border-[#850D2C]/25 rounded-xl text-xs font-semibold transition flex items-center space-x-1.5 shadow-2xs cursor-pointer"
-                        title="Desativar do cardápio (Exclusão Lógica)"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Desativar</span>
-                      </button>
-                    </>
-                  )}
+                      {/* Ações Rápidas Estilo Link Sublinhado ("Order Now ↗" do Modelo A) */}
+                      <div className="flex items-center space-x-2.5 shrink-0">
+                        {isInactive ? (
+                          <button
+                            type="button"
+                            onClick={() => onRestoreProduct(product.id)}
+                            className="inline-flex items-center space-x-0.5 text-xs font-semibold text-[#4c543c] hover:text-[#35312F] underline underline-offset-4 decoration-[#858F6D] transition cursor-pointer"
+                            title="Reativar produto no cardápio"
+                          >
+                            <span>Reativar</span>
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(product)}
+                              className="inline-flex items-center space-x-0.5 text-xs font-semibold text-[#35312F] hover:text-[#850D2C] underline underline-offset-4 decoration-stone-400 hover:decoration-[#850D2C] transition cursor-pointer"
+                              title="Editar produto"
+                            >
+                              <span>Editar</span>
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setProductToDelete(product)}
+                              className="text-[11px] font-medium text-stone-400 hover:text-[#850D2C] transition cursor-pointer"
+                              title="Desativar do cardápio"
+                            >
+                              Desativar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-stone-500 mt-1 line-clamp-1 leading-relaxed">
+                      {product.description || 'Sem descrição cadastrada.'}
+                    </p>
+                  </div>
+
+                  {/* Pílulas Inferiores de Informações (Idêntico às tags [Matcha] [Ice Cubes] [Honey] [Milk] do Modelo A) */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-[#35312F] text-[10px] font-semibold">
+                      {product.category}
+                    </span>
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold ${
+                        isOutOfStock
+                          ? 'bg-rose-100 text-[#850D2C]'
+                          : isLowStock
+                          ? 'bg-amber-100 text-[#924529]'
+                          : 'bg-[#EFECE6] text-[#35312F]'
+                      }`}
+                    >
+                      Estoque: {product.stockQuantity} un.
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-stone-600 text-[10px] font-semibold">
+                      Custo: {formatCurrencyBRL(product.costPrice)}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-[#858F6D]/15 text-[#4c543c] text-[10px] font-semibold">
+                      Margem: {marginPercent}% ({formatCurrencyBRL(profit)})
+                    </span>
+                  </div>
                 </div>
               </div>
             );

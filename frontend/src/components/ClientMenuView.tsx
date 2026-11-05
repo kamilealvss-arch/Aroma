@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Clock,
   Flame,
+  Heart,
 } from 'lucide-react';
 import { Product, ProductCategory, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -44,6 +45,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [cart, setCart] = useState<{ [productId: string]: number }>({});
+  const [favorites, setFavorites] = useState<{ [productId: string]: boolean }>({});
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [customerName, setCustomerName] = useState('João Silva');
   const [tableOrTakeaway, setTableOrTakeaway] = useState('Mesa 04');
@@ -292,109 +294,149 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         </div>
       </div>
 
-      {/* Grid de Produtos do Cardápio */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* Grid de Produtos do Cardápio - Disposição Padronizada (Imagem 2) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProducts.map((product) => {
           const isOutOfStock = product.stockQuantity <= 0; // Regra de Estoque Zero (RF04)
           const inCartQty = cart[product.id] || 0;
+          const isFavorite = !!favorites[product.id];
+          const isTransparentCutout =
+            product.imageUrl.startsWith('data:image/png') ||
+            product.imageUrl.startsWith('data:image/webp');
 
           return (
             <div
               key={product.id}
-              className={`bg-white rounded-2xl border transition overflow-hidden flex flex-col justify-between shadow-xs ${
-                isOutOfStock
-                  ? 'border-stone-200 bg-stone-50/60 opacity-80'
-                  : 'border-stone-200 hover:shadow-lg hover:border-amber-400/50'
+              className={`bg-white rounded-[34px] p-5 sm:p-6 border border-stone-200/80 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between group ${
+                isOutOfStock ? 'opacity-75' : ''
               }`}
             >
               <div>
-                {/* Foto do Produto (Suporta fotos tradicionais e recortes PNG/WebP transparentes) */}
-                <div className="relative h-44 w-full bg-[#F9F7F3] overflow-hidden flex items-center justify-center">
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className={`w-full h-full transition duration-300 ${
-                      product.imageUrl.startsWith('data:image/png') ||
-                      product.imageUrl.startsWith('data:image/webp')
-                        ? 'object-contain p-2.5'
-                        : 'object-cover'
-                    } ${isOutOfStock ? 'grayscale-70' : 'hover:scale-105'}`}
-                  />
-
-                  {/* Badge de Categoria */}
-                  <span className="absolute top-3 left-3 bg-stone-900/80 backdrop-blur-xs text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                {/* 1. Área Padronizada de Imagem do Prato / Bebida (Imagem 2) */}
+                <div className="relative w-full h-48 flex items-center justify-center mb-2">
+                  {/* Categoria Discreta */}
+                  <span className="absolute top-0 left-0 bg-stone-100/90 text-stone-600 text-[10px] font-semibold px-2.5 py-0.5 rounded-full z-10">
                     {product.category}
                   </span>
 
-                  {/* ⭐ REQUISITO 19 (RF04): Se estoque == 0, exibe automaticamente como Esgotado */}
+                  {/* Disposição padrão centralizada: mesmo tamanho fixo para todos os pratos */}
+                  <div className="relative w-40 h-40 flex items-center justify-center transition duration-500 group-hover:scale-105">
+                    {isTransparentCutout ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className={`w-full h-full object-contain drop-shadow-[0_14px_18px_rgba(0,0,0,0.18)] ${
+                          isOutOfStock ? 'grayscale-70' : ''
+                        }`}
+                      />
+                    ) : (
+                      <div className="w-38 h-38 rounded-full overflow-hidden shadow-md border-2 border-white flex items-center justify-center bg-stone-100">
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className={`w-full h-full object-cover ${
+                            isOutOfStock ? 'grayscale-70' : ''
+                          }`}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Badge de Esgotado */}
                   {isOutOfStock && (
-                    <div className="absolute inset-0 bg-stone-950/60 backdrop-blur-[1px] flex items-center justify-center p-4">
-                      <span className="bg-rose-600 text-white font-extrabold text-xs px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg border border-white/20">
-                        Esgotado no Momento
+                    <div className="absolute inset-0 flex items-center justify-center z-20">
+                      <span className="bg-[#850D2C] text-white font-bold text-[11px] px-3 py-1 rounded-full shadow-md">
+                        Esgotado no momento
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* Conteúdo */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-bold text-stone-900 text-sm leading-snug">
-                      {product.name}
-                    </h3>
-                    <span className="text-base font-extrabold text-amber-900 shrink-0">
-                      {formatCurrencyBRL(product.price)}
-                    </span>
-                  </div>
+                {/* 2. Informações do Produto (Nome & Descrição idênticos ao layout da Imagem 2) */}
+                <div className="space-y-1.5 pt-1">
+                  <h3 className="font-extrabold text-stone-950 text-lg leading-snug tracking-tight">
+                    {product.name}
+                  </h3>
 
-                  <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed">
-                    {product.description}
+                  <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed min-h-[2rem]">
+                    {product.description || 'Preparo gourmet com ingredientes selecionados do dia.'}
                   </p>
                 </div>
               </div>
 
-              {/* Botões de Ação do Cliente */}
-              <div className="p-4 pt-0">
-                {isOutOfStock ? (
-                  /* Botão Bloqueado para Produto Esgotado (RF04) */
-                  <button
-                    disabled
-                    className="w-full py-2 bg-stone-200 text-stone-500 rounded-xl text-xs font-bold cursor-not-allowed text-center"
-                  >
-                    Produto Indisponível
-                  </button>
-                ) : inCartQty > 0 ? (
-                  /* Seletor de Quantidade */
-                  <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl p-1">
+              {/* 3. Rodapé do Card: Preço em destaque + Botões Circulares (+ e Coração) */}
+              <div className="pt-4 mt-2">
+                <div className="text-lg font-extrabold text-stone-950 tracking-tight mb-3">
+                  {formatCurrencyBRL(product.price)}
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  {/* Botão de Adicionar ao Pedido / Controle de Quantidade */}
+                  {isOutOfStock ? (
                     <button
-                      onClick={() => handleRemoveFromCart(product.id)}
-                      className="w-8 h-8 rounded-lg bg-white text-stone-800 shadow-xs flex items-center justify-center font-bold hover:bg-stone-100 transition"
+                      disabled
+                      className="h-11 px-4 bg-stone-100 text-stone-400 rounded-full text-xs font-semibold cursor-not-allowed"
                     >
-                      <Minus className="w-3.5 h-3.5" />
+                      Indisponível
                     </button>
-                    <span className="text-xs font-extrabold text-amber-950">
-                      {inCartQty} no carrinho
-                    </span>
+                  ) : inCartQty > 0 ? (
+                    <div className="h-11 inline-flex items-center space-x-2 bg-stone-100 rounded-full px-2 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFromCart(product.id)}
+                        className="w-8 h-8 rounded-full bg-white text-stone-900 shadow-2xs flex items-center justify-center font-bold hover:bg-stone-50 transition cursor-pointer"
+                        title="Diminuir quantidade"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-xs font-extrabold text-stone-900 px-1">
+                        {inCartQty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleAddToCart(product)}
+                        disabled={inCartQty >= product.stockQuantity}
+                        className="w-8 h-8 rounded-full bg-stone-950 text-white shadow-2xs flex items-center justify-center font-bold hover:bg-stone-800 transition disabled:opacity-40 cursor-pointer"
+                        title="Aumentar quantidade"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
                     <button
+                      type="button"
                       onClick={() => handleAddToCart(product)}
-                      disabled={inCartQty >= product.stockQuantity}
-                      className="w-8 h-8 rounded-lg bg-amber-600 text-white shadow-xs flex items-center justify-center font-bold hover:bg-amber-700 transition disabled:opacity-40"
+                      aria-label={`Adicionar ${product.name} ao Pedido`}
+                      className="w-11 h-11 rounded-full bg-stone-950 hover:bg-stone-800 text-white flex items-center justify-center shadow-md active:scale-95 transition cursor-pointer"
+                      title="Adicionar ao pedido"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-5 h-5 stroke-[2.5]" />
                     </button>
-                  </div>
-                ) : (
-                  /* Botão Adicionar */
+                  )}
+
+                  {/* Botão Circular de Favorito (Coração idêntico à Imagem 2) */}
                   <button
-                    onClick={() => handleAddToCart(product)}
-                    aria-label={`Adicionar ${product.name} ao Pedido`}
-                    data-testid={`add-to-cart-${product.id}`}
-                    className="w-full py-2 bg-stone-900 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-sm"
+                    type="button"
+                    onClick={() =>
+                      setFavorites((prev) => ({
+                        ...prev,
+                        [product.id]: !prev[product.id],
+                      }))
+                    }
+                    className={`w-11 h-11 rounded-full flex items-center justify-center transition cursor-pointer shadow-2xs ${
+                      isFavorite
+                        ? 'bg-rose-50 text-[#850D2C] border border-rose-200'
+                        : 'bg-stone-100 text-stone-600 hover:text-stone-950 hover:bg-stone-200/80'
+                    }`}
+                    title={isFavorite ? 'Remover dos favoritos' : 'Favoritar item'}
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Adicionar ao Pedido</span>
+                    <Heart
+                      className={`w-5 h-5 transition ${
+                        isFavorite ? 'fill-[#850D2C] text-[#850D2C]' : ''
+                      }`}
+                    />
                   </button>
-                )}
+                </div>
               </div>
             </div>
           );
