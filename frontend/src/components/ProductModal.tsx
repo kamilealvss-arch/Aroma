@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Image as ImageIcon, Sparkles, AlertCircle } from 'lucide-react';
+import {
+  X,
+  Upload,
+  Image as ImageIcon,
+  AlertCircle,
+  RefreshCw,
+  Plus,
+  Check,
+} from 'lucide-react';
 import { Product, ProductCategory } from '../../../shared/types/index.ts';
+import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: Partial<Product>) => Promise<void>;
   productToEdit?: Product | null;
+  categories?: string[];
+  onCreateCategory?: (newCategory: string) => void;
 }
 
-const CATEGORIES: ProductCategory[] = [
+export const DEFAULT_CATEGORIES: ProductCategory[] = [
   'Cafés Especiais',
   'Bebidas Geladas',
   'Doces & Bolos',
@@ -17,46 +28,16 @@ const CATEGORIES: ProductCategory[] = [
   'Combos & Brunch',
 ];
 
-const PRESET_IMAGES = [
-  {
-    name: 'Café Expresso',
-    url: 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    name: 'Cappuccino',
-    url: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    name: 'Pão de Queijo',
-    url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    name: 'Bolo de Cenoura',
-    url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    name: 'Croissant Francês',
-    url: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    name: 'Frapê Gelado',
-    url: 'https://images.unsplash.com/photo-1577968897966-3d4325b36b61?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    name: 'Torta Holandesa',
-    url: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    name: 'Soda Italiana',
-    url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=600&auto=format&fit=crop&q=80',
-  },
-];
+const DEFAULT_IMAGE_URL =
+  'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=600&auto=format&fit=crop&q=80';
 
 export const ProductModal: React.FC<ProductModalProps> = ({
   isOpen,
   onClose,
   onSave,
   productToEdit,
+  categories = DEFAULT_CATEGORIES,
+  onCreateCategory,
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -65,9 +46,18 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [category, setCategory] = useState<ProductCategory>('Cafés Especiais');
   const [stockQuantity, setStockQuantity] = useState('50');
   const [minStockThreshold, setMinStockThreshold] = useState('5');
-  const [imageUrl, setImageUrl] = useState(PRESET_IMAGES[0].url);
+  const [imageUrl, setImageUrl] = useState(DEFAULT_IMAGE_URL);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Estado para criação de nova categoria diretamente no modal
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Garante que todas as categorias (padrão + existentes + atual) apareçam no select
+  const allCategories = Array.from(
+    new Set([...DEFAULT_CATEGORIES, ...categories, ...(category ? [category] : [])])
+  );
 
   useEffect(() => {
     if (productToEdit) {
@@ -84,17 +74,31 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setDescription('');
       setPrice('12.00');
       setCostPrice('4.00');
-      setCategory('Cafés Especiais');
+      setCategory(categories[0] || 'Cafés Especiais');
       setStockQuantity('50');
       setMinStockThreshold('5');
-      setImageUrl(PRESET_IMAGES[0].url);
+      setImageUrl(DEFAULT_IMAGE_URL);
     }
+    setIsCreatingCategory(false);
+    setNewCategoryName('');
     setError(null);
   }, [productToEdit, isOpen]);
 
   if (!isOpen) return null;
 
-  // Upload de arquivo de foto (Requisito 16)
+  // Confirma a criação de uma nova categoria no modal
+  const handleConfirmNewCategory = () => {
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return;
+    if (onCreateCategory) {
+      onCreateCategory(trimmed);
+    }
+    setCategory(trimmed);
+    setNewCategoryName('');
+    setIsCreatingCategory(false);
+  };
+
+  // Upload de arquivo de foto
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -118,6 +122,20 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       return;
     }
 
+    // Se o usuário digitou uma categoria nova no campo aberto e clicou direto em Salvar
+    let finalCategory = category;
+    if (isCreatingCategory && newCategoryName.trim()) {
+      finalCategory = newCategoryName.trim();
+      if (onCreateCategory) {
+        onCreateCategory(finalCategory);
+      }
+    }
+
+    if (!finalCategory || !finalCategory.trim()) {
+      setError('Por favor, selecione ou crie uma categoria.');
+      return;
+    }
+
     const numPrice = parseFloat(price);
     const numCost = parseFloat(costPrice);
     const numStock = parseInt(stockQuantity, 10);
@@ -137,10 +155,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         description: description.trim(),
         price: numPrice,
         costPrice: isNaN(numCost) ? numPrice * 0.4 : numCost,
-        category,
+        category: finalCategory,
         stockQuantity: isNaN(numStock) ? 0 : numStock,
         minStockThreshold: isNaN(numMin) ? 5 : numMin,
-        imageUrl: imageUrl || PRESET_IMAGES[0].url,
+        imageUrl: imageUrl || DEFAULT_IMAGE_URL,
       });
       onClose();
     } catch (err: any) {
@@ -150,41 +168,49 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     }
   };
 
+  const parsedPrice = parseFloat(price) || 0;
+  const parsedCost = parseFloat(costPrice) || 0;
+  const estimatedProfit = Math.max(0, parsedPrice - parsedCost);
+  const estimatedMargin =
+    parsedPrice > 0 ? Math.round(((parsedPrice - parsedCost) / parsedPrice) * 100) : 0;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-stone-200 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
-        {/* Header do Modal */}
-        <div className="flex items-center justify-between px-6 py-4 bg-stone-900 text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-stone-200 p-6 sm:p-7 relative my-8 animate-in fade-in zoom-in-95 duration-150 text-[#35312F]">
+        {/* Cabeçalho do Modal no padrão Aroma */}
+        <div className="flex items-center justify-between pb-4 border-b border-stone-100">
           <div>
-            <h3 className="font-bold text-base text-amber-100">
-              {productToEdit ? 'Editar Produto do Cardápio' : 'Novo Produto para o Cardápio'}
+            <h3 className="font-bold text-[#35312F] text-base">
+              {productToEdit ? 'Editar Produto do Cardápio' : 'Cadastrar Novo Produto'}
             </h3>
             <p className="text-xs text-stone-400">
               {productToEdit
-                ? 'Atualize preços, estoque ou detalhes (Requisito 1 & 11)'
-                : 'Cadastre um novo item gastronômico (Requisito 16)'}
+                ? 'Atualize informações, precificação, foto ou parâmetros de estoque'
+                : 'Adicione um novo item gastronômico ao catálogo digital da cafeteria'}
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition"
+            className="text-stone-400 hover:text-stone-600 p-1.5 rounded-full hover:bg-stone-100 transition cursor-pointer"
+            title="Fechar"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-[#850D2C] rounded-xl text-xs flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-[#850D2C]" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Nome & Categoria */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          {/* Nome & Categoria (com opção de criar nova categoria) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
                 Nome do Produto *
               </label>
               <input
@@ -193,50 +219,111 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Pão de Queijo Mineiro"
-                className="w-full px-3 py-2 text-sm border border-stone-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
-                Categoria *
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as ProductCategory)}
-                className="w-full px-3 py-2 text-sm border border-stone-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white"
-              >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider">
+                  Categoria *
+                </label>
+                {!isCreatingCategory ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsCreatingCategory(true)}
+                    className="inline-flex items-center space-x-1 text-[11px] font-semibold text-[#850D2C] hover:text-[#6e0a24] transition cursor-pointer"
+                    title="Criar uma nova categoria de cardápio"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Nova categoria</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingCategory(false);
+                      setNewCategoryName('');
+                    }}
+                    className="text-[11px] font-medium text-stone-400 hover:text-stone-600 transition cursor-pointer"
+                  >
+                    Selecionar existente
+                  </button>
+                )}
+              </div>
+
+              {!isCreatingCategory ? (
+                <select
+                  value={category}
+                  onChange={(e) => {
+                    if (e.target.value === '__NEW__') {
+                      setIsCreatingCategory(true);
+                    } else {
+                      setCategory(e.target.value as ProductCategory);
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] font-medium focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition cursor-pointer"
+                >
+                  {allCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                  <option value="__NEW__">+ Criar nova categoria...</option>
+                </select>
+              ) : (
+                <div className="flex items-center space-x-1.5">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleConfirmNewCategory();
+                      }
+                    }}
+                    placeholder="Ex: Chás & Infusões"
+                    className="flex-1 px-3 py-2.5 text-xs border border-[#850D2C] rounded-xl bg-white text-[#35312F] placeholder-stone-400 focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition font-medium"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleConfirmNewCategory}
+                    disabled={!newCategoryName.trim()}
+                    className="h-9 px-3 rounded-xl bg-[#850D2C] hover:bg-[#6e0a24] disabled:opacity-40 text-white text-xs font-semibold inline-flex items-center space-x-1 transition cursor-pointer shrink-0"
+                    title="Adicionar categoria"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Criar</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Descrição */}
           <div>
-            <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
-              Descrição Apetitosa
+            <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+              Descrição no Cardápio
             </label>
             <textarea
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descreva os ingredientes, origem dos grãos e sabor..."
-              className="w-full px-3 py-2 text-sm border border-stone-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none"
+              placeholder="Descreva os ingredientes, notas sensoriais e preparo artesanal..."
+              className="w-full px-3.5 py-2 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] placeholder-stone-400 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none resize-none transition"
             />
           </div>
 
-          {/* Preço de Venda & Preço de Custo */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Preço de Venda, Preço de Custo e Margem Estimada */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <div>
-              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
                 Preço de Venda (R$) *
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-stone-400 text-sm font-semibold">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-xs font-semibold">
                   R$
                 </span>
                 <input
@@ -246,20 +333,20 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   required
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm font-bold text-stone-900 border border-stone-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  className="w-full pl-8 pr-3 py-2.5 text-xs font-bold text-[#35312F] border border-stone-300 rounded-xl bg-stone-50/50 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
                 />
               </div>
               <span className="text-[10px] text-stone-400 mt-0.5 block">
-                Alterações de preço geram log de auditoria
+                Auditado automaticamente
               </span>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
-                Preço de Custo (R$)
+              <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                Custo Unitário (R$)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-stone-400 text-sm font-semibold">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-xs font-semibold">
                   R$
                 </span>
                 <input
@@ -268,20 +355,37 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   min="0"
                   value={costPrice}
                   onChange={(e) => setCostPrice(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm text-stone-700 border border-stone-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  className="w-full pl-8 pr-3 py-2.5 text-xs font-semibold text-stone-700 border border-stone-300 rounded-xl bg-stone-50/50 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
                 />
               </div>
               <span className="text-[10px] text-stone-400 mt-0.5 block">
-                Usado para relatórios de lucro líquido
+                Base para cálculo de lucro
+              </span>
+            </div>
+
+            <div className="bg-[#F9F7F3] border border-stone-200/80 rounded-xl px-3.5 py-2 flex flex-col justify-center">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+                Lucro / Margem Bruta
+              </span>
+              <div className="flex items-baseline space-x-1.5 mt-0.5">
+                <span className="text-sm font-extrabold text-[#4c543c]">
+                  {formatCurrencyBRL(estimatedProfit)}
+                </span>
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#858F6D]/15 text-[#4c543c]">
+                  {estimatedMargin}%
+                </span>
+              </div>
+              <span className="text-[10px] text-stone-400 mt-0.5">
+                Retorno estimado por un.
               </span>
             </div>
           </div>
 
-          {/* Estoque Atual & Estoque Mínimo (Requisito 19) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-stone-50 p-3.5 rounded-xl border border-stone-200">
+          {/* Estoque Inicial / Atual & Limite de Estoque Baixo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 bg-[#F9F7F3] rounded-2xl border border-stone-200/80">
             <div>
-              <label className="block text-xs font-bold text-stone-800 uppercase tracking-wider mb-1">
-                Estoque Inicial / Atual *
+              <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                Estoque Disponível (un.) *
               </label>
               <input
                 type="number"
@@ -289,16 +393,16 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 required
                 value={stockQuantity}
                 onChange={(e) => setStockQuantity(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-bold border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white"
+                className="w-full px-3.5 py-2 text-xs font-bold border border-stone-300 rounded-xl bg-white text-[#35312F] focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
               />
-              <span className="text-[10px] text-stone-500 mt-0.5 block">
-                Se chegar a 0, fica esgotado automaticamente
+              <span className="text-[10px] text-stone-400 mt-0.5 block">
+                Se chegar a 0, bloqueia vendas no cardápio
               </span>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-stone-800 uppercase tracking-wider mb-1">
-                Limite de Estoque Baixo (Alerta) *
+              <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
+                Limite Mínimo de Alerta (un.) *
               </label>
               <input
                 type="number"
@@ -306,26 +410,26 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 required
                 value={minStockThreshold}
                 onChange={(e) => setMinStockThreshold(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-bold border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white"
+                className="w-full px-3.5 py-2 text-xs font-bold border border-stone-300 rounded-xl bg-white text-[#35312F] focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
               />
-              <span className="text-[10px] text-stone-500 mt-0.5 block">
-                Dispara aviso no dashboard ao atingir este valor
+              <span className="text-[10px] text-stone-400 mt-0.5 block">
+                Exibe aviso de reposição quando ≤ este limite
               </span>
             </div>
           </div>
 
-          {/* Upload de Foto (Requisito 16) */}
+          {/* Upload de Foto (Limpo, sem falsas tags de sugestão) */}
           <div>
-            <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-              <span>Upload da Foto do Produto (Requisito 16)</span>
-              <span className="text-[10px] font-normal text-amber-800">
-                Arquivo local ou galeria rápida
+            <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1.5 flex items-center justify-between">
+              <span>Fotografia do Produto</span>
+              <span className="text-[10px] font-normal text-stone-400 normal-case">
+                Arquivo do computador ou link de imagem
               </span>
             </label>
 
-            <div className="flex flex-col sm:flex-row gap-3 items-start">
+            <div className="flex flex-col sm:flex-row gap-3.5 items-center p-3 bg-stone-50/60 rounded-2xl border border-stone-200/80">
               {/* Preview */}
-              <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-amber-600/40 shrink-0 bg-stone-100 flex items-center justify-center shadow-xs">
+              <div className="w-16 h-16 rounded-xl overflow-hidden border border-stone-200/90 shrink-0 bg-stone-100 flex items-center justify-center shadow-2xs">
                 {imageUrl ? (
                   <img
                     src={imageUrl}
@@ -333,82 +437,55 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <ImageIcon className="w-8 h-8 text-stone-400" />
+                  <ImageIcon className="w-6 h-6 text-stone-400" />
                 )}
               </div>
 
-              {/* Botões de upload e link */}
-              <div className="flex-1 space-y-2 w-full">
-                <div className="flex items-center space-x-2">
-                  <label className="cursor-pointer px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition">
-                    <Upload className="w-3.5 h-3.5 text-amber-700" />
-                    <span>Carregar Arquivo</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </label>
-                  <span className="text-xs text-stone-400">ou use URL direta:</span>
-                </div>
-
+              {/* Controles de Imagem */}
+              <div className="flex-1 flex flex-wrap items-center gap-2 w-full">
+                <label className="cursor-pointer h-9 px-3.5 bg-white hover:bg-stone-100 text-[#35312F] border border-stone-300 rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition shadow-2xs shrink-0">
+                  <Upload className="w-3.5 h-3.5 text-[#850D2C]" />
+                  <span>Enviar foto</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
                 <input
                   type="url"
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3 py-1.5 text-xs border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  placeholder="Ou cole a URL da imagem (https://...)"
+                  className="flex-1 min-w-[180px] h-9 px-3 text-xs border border-stone-300 rounded-xl bg-white text-[#35312F] placeholder-stone-400 focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
                 />
-
-                {/* Galeria de Fotos Rápidas */}
-                <div className="pt-1">
-                  <span className="text-[11px] text-stone-500 block mb-1 font-medium">
-                    Fotos de alta resolução recomendadas:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {PRESET_IMAGES.map((preset) => (
-                      <button
-                        type="button"
-                        key={preset.name}
-                        onClick={() => setImageUrl(preset.url)}
-                        className={`text-[10px] px-2 py-0.5 rounded-full border transition ${
-                          imageUrl === preset.url
-                            ? 'bg-amber-600 text-white border-amber-600'
-                            : 'bg-stone-100 text-stone-700 hover:bg-stone-200 border-stone-200'
-                        }`}
-                      >
-                        {preset.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Footer com botões */}
-          <div className="pt-4 border-t border-stone-200 flex items-center justify-end space-x-3">
+          {/* Rodapé do Modal */}
+          <div className="pt-3 border-t border-stone-100 flex items-center justify-end space-x-3">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 rounded-xl hover:bg-stone-100 transition"
+              className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-[#35312F] rounded-xl hover:bg-stone-100 transition cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md shadow-amber-900/20 transition flex items-center space-x-1.5 disabled:opacity-50"
+              className="px-5 py-2 text-xs font-semibold text-white bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] rounded-xl shadow-xs transition inline-flex items-center space-x-1.5 disabled:opacity-75 cursor-pointer"
             >
               {isSubmitting ? (
-                <span>Salvando...</span>
-              ) : (
                 <>
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{productToEdit ? 'Atualizar Produto' : 'Cadastrar Produto'}</span>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Salvando...</span>
                 </>
+              ) : (
+                <span>{productToEdit ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
               )}
             </button>
           </div>

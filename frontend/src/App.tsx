@@ -150,6 +150,18 @@ export default function App() {
     }
   };
 
+  const handleCreateIngredient = async (data: Omit<Ingredient, 'id' | 'updatedAt'>) => {
+    try {
+      const ing = await api.createIngredient(data);
+      showToast(`Insumo "${ing.name}" cadastrado com sucesso!`);
+      await refreshAllData();
+      return ing;
+    } catch (err: any) {
+      showToast(err.message, 'error');
+      throw err;
+    }
+  };
+
   const handleQuickRestock = async (productId: string, quantityToAdd: number) => {
     const prod = products.find((p) => p.id === productId);
     if (!prod) return;
@@ -275,6 +287,7 @@ export default function App() {
                 alerts={alerts}
                 onAdjustStock={handleAdjustStock}
                 onAdjustIngredientStock={handleAdjustIngredientStock}
+                onCreateIngredient={handleCreateIngredient}
                 onRefresh={refreshAllData}
               />
             )}

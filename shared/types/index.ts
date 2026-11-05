@@ -3,7 +3,8 @@ export type ProductCategory =
   | 'Bebidas Geladas'
   | 'Doces & Bolos'
   | 'Salgados Artesanais'
-  | 'Combos & Brunch';
+  | 'Combos & Brunch'
+  | (string & {});
 
 export type ProductStatus = 'ativo' | 'inativo';
 

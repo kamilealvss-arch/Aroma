@@ -226,6 +226,43 @@ class DatabaseStore {
     return { ...ingredient };
   }
 
+  public createIngredient(data: Omit<Ingredient, 'id' | 'updatedAt'>): Ingredient {
+    if (!data.name || data.name.trim() === '') {
+      throw new Error('Nome do insumo ou matéria-prima é obrigatório');
+    }
+
+    const id = `ing_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date().toISOString();
+
+    const newIngredient: Ingredient = {
+      id,
+      name: data.name.trim(),
+      category: data.category,
+      unit: data.unit,
+      currentStock: Math.max(0, Number(data.currentStock) || 0),
+      minStockThreshold: Math.max(0, Number(data.minStockThreshold) || 0),
+      costPerUnit: Math.max(0, Number(data.costPerUnit) || 0),
+      supplier: data.supplier ? data.supplier.trim() : undefined,
+      updatedAt: now,
+    };
+
+    this.ingredients.unshift(newIngredient);
+
+    const currentUser = this.getCurrentUser();
+    const auditLog = createAuditLog(
+      currentUser,
+      'ESTOQUE_AJUSTADO',
+      'Estoque',
+      `Novo insumo "${newIngredient.name}" cadastrado com estoque inicial de ${newIngredient.currentStock} ${newIngredient.unit} e limite mínimo de ${newIngredient.minStockThreshold} ${newIngredient.unit} pelo usuário ${currentUser.name} (${currentUser.role}).`,
+      newIngredient.id,
+      undefined,
+      newIngredient.currentStock
+    );
+    this.auditLogs.unshift(auditLog);
+
+    return { ...newIngredient };
+  }
+
   // ===================== PEDIDOS =====================
   public getOrders(): Order[] {
     // Retorna ordenados pelos mais recentes primeiro
