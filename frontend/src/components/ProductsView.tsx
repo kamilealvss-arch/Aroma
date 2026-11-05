@@ -662,57 +662,57 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   </div>
                 </div>
 
-                {/* 2. Informações Inferiores (Nome, Ações "Editar ↗" e Pílulas de Ingredientes/Métricas) */}
-                <div className="pt-3.5 pb-1 flex-1 flex flex-col justify-between space-y-2.5">
+                {/* 2. Informações Inferiores (Nome, Descrição, Ações Editar/Desativar e Pílulas) */}
+                <div className="pt-3 pb-1 flex-1 flex flex-col justify-between space-y-2.5">
                   <div>
-                    {/* Linha com Nome do Produto e Link de Ação (Estilo "Order Now ↗") */}
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-extrabold text-[#35312F] text-base leading-tight truncate">
-                        {product.name}
-                      </h3>
+                    {/* Nome do Produto com largura total para evitar truncamentos desnecessários */}
+                    <h3 className="font-extrabold text-[#35312F] text-base leading-tight">
+                      {product.name}
+                    </h3>
 
-                      <div className="flex items-center space-x-2 shrink-0">
-                        {isInactive ? (
-                          <button
-                            type="button"
-                            onClick={() => onRestoreProduct(product.id)}
-                            className="inline-flex items-center space-x-0.5 text-xs font-bold text-[#4c543c] hover:text-[#35312F] underline underline-offset-4 decoration-[#858F6D] transition cursor-pointer"
-                            title="Reativar produto no cardápio"
-                          >
-                            <span>Reativar</span>
-                            <ArrowUpRight className="w-3.5 h-3.5" />
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEdit(product)}
-                              className="inline-flex items-center space-x-0.5 text-xs font-bold text-[#35312F] hover:text-[#850D2C] underline underline-offset-4 decoration-stone-400 hover:decoration-[#850D2C] transition cursor-pointer"
-                              title="Editar preço, foto ou parâmetros do produto"
-                            >
-                              <span>Editar</span>
-                              <ArrowUpRight className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setProductToDelete(product)}
-                              className="text-[10px] font-medium text-stone-400 hover:text-[#850D2C] transition cursor-pointer"
-                              title="Desativar do cardápio"
-                            >
-                              Desativar
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <p className="text-[11px] text-stone-500 mt-1 line-clamp-1 leading-relaxed">
+                    <p className="text-[11px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
                       {product.description || 'Preparo artesanal com insumos selecionados.'}
                     </p>
+
+                    {/* Ações "Editar" e "Desativar" posicionadas no espaço entre a descrição e as tags */}
+                    <div className="flex items-center gap-2 pt-2.5">
+                      {isInactive ? (
+                        <button
+                          type="button"
+                          onClick={() => onRestoreProduct(product.id)}
+                          className="h-7 px-3 rounded-lg text-xs font-semibold bg-[#858F6D] hover:bg-[#6e7759] text-white shadow-2xs inline-flex items-center space-x-1.5 transition cursor-pointer"
+                          title="Reativar produto no cardápio"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Reativar no cardápio</span>
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(product)}
+                            className="h-7 px-3 rounded-lg text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-[#35312F] border border-stone-200/80 inline-flex items-center space-x-1.5 shadow-2xs transition cursor-pointer"
+                            title="Editar preço, foto ou parâmetros do produto"
+                          >
+                            <Edit2 className="w-3 h-3 text-[#850D2C]" />
+                            <span>Editar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setProductToDelete(product)}
+                            className="h-7 px-2.5 rounded-lg text-xs font-medium text-stone-500 hover:text-[#850D2C] hover:bg-rose-50 border border-transparent hover:border-rose-200 inline-flex items-center space-x-1 transition cursor-pointer"
+                            title="Desativar do cardápio"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Desativar</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Pílulas Inferiores com Métricas (Idêntico aos chips [Matcha] [Ice Cubes] da imagem) */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  {/* Pílulas Inferiores com Métricas (Ingredientes / Estoque / Custo / Margem) */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-stone-100">
                     <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-[#35312F] text-[10px] font-semibold">
                       {product.category}
                     </span>
