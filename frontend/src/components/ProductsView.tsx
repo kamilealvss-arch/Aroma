@@ -572,7 +572,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           )}
         </div>
       ) : viewMode === 'GRID' ? (
-        /* ======================= VISUALIZAÇÃO EM GRADE (CARD RETANGULAR VERMELHO AROMA #820b28) ======================= */
+        /* ======================= VISUALIZAÇÃO EM GRADE (CARD RETANGULAR BRANCO - ESTILO REFERÊNCIA A) ======================= */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {paginatedProducts.map((product) => {
             const isInactive = product.status === 'inativo';
@@ -592,15 +592,15 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
             return (
               <div
                 key={product.id}
-                className={`bg-[#820b28] rounded-[28px] p-3.5 sm:p-4 border border-[#680920] shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-white group min-h-[460px] ${
-                  isInactive ? 'opacity-75 grayscale-30' : ''
+                className={`bg-white rounded-[28px] p-3.5 sm:p-4 border border-stone-200/90 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between text-[#35312F] group min-h-[460px] ${
+                  isInactive ? 'opacity-75 grayscale-30 bg-stone-50/50' : ''
                 }`}
               >
                 {/* 1. Moldura Retangular de Imagem com Preço no Canto Superior Direito (Idêntico ao 10$) */}
-                <div className="relative h-60 w-full rounded-[22px] overflow-hidden bg-[#F9F7F3] flex flex-col justify-between shadow-inner">
+                <div className="relative h-60 w-full rounded-[22px] overflow-hidden bg-[#EBE7DF] flex flex-col justify-between shadow-inner">
                   {/* Categoria Badge no topo esquerdo da foto */}
                   <div className="p-3 z-10 flex items-center justify-between">
-                    <span className="bg-stone-900/75 backdrop-blur-xs text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-2xs">
+                    <span className="bg-white/95 backdrop-blur-xs text-[#35312F] text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-2xs border border-stone-200/60">
                       {product.category}
                     </span>
                     {isInactive && (
@@ -610,8 +610,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                     )}
                   </div>
 
-                  {/* Valor em Cima no Canto Superior Direito (Idêntico à Imagem de Referência) */}
-                  <div className="absolute top-0 right-0 z-20 bg-[#820b28] text-white pl-4 pr-3.5 pt-1.5 pb-2 rounded-bl-[20px] flex items-center justify-center shadow-xs">
+                  {/* Valor em Cima no Canto Superior Direito (Idêntico ao 10$ da Referência) */}
+                  <div className="absolute top-0 right-0 z-20 bg-white text-[#35312F] pl-4 pr-3.5 pt-1.5 pb-2 rounded-bl-[20px] flex items-center justify-center shadow-2xs">
                     <span className="text-sm sm:text-base font-black tracking-tight">
                       {formatCurrencyBRL(product.price)}
                     </span>
@@ -644,12 +644,12 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   <div
                     className={`w-full py-1.5 px-3 text-center text-[10px] font-bold tracking-wider uppercase z-10 transition ${
                       isInactive
-                        ? 'bg-stone-800/90 text-stone-300'
+                        ? 'bg-stone-500 text-white'
                         : isOutOfStock
-                        ? 'bg-[#58071c]/95 text-rose-200'
+                        ? 'bg-[#850D2C] text-white'
                         : isLowStock
-                        ? 'bg-[#924529]/95 text-amber-200'
-                        : 'bg-black/45 backdrop-blur-xs text-white'
+                        ? 'bg-[#924529] text-white'
+                        : 'bg-[#858F6D] text-white'
                     }`}
                   >
                     {isInactive
@@ -663,11 +663,11 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 </div>
 
                 {/* 2. Informações Inferiores (Nome, Ações "Editar ↗" e Pílulas de Ingredientes/Métricas) */}
-                <div className="pt-3 pb-1 flex-1 flex flex-col justify-between space-y-2.5">
+                <div className="pt-3.5 pb-1 flex-1 flex flex-col justify-between space-y-2.5">
                   <div>
                     {/* Linha com Nome do Produto e Link de Ação (Estilo "Order Now ↗") */}
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-extrabold text-white text-base leading-tight truncate">
+                      <h3 className="font-extrabold text-[#35312F] text-base leading-tight truncate">
                         {product.name}
                       </h3>
 
@@ -676,7 +676,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                           <button
                             type="button"
                             onClick={() => onRestoreProduct(product.id)}
-                            className="inline-flex items-center space-x-0.5 text-xs font-bold text-emerald-300 hover:text-white underline underline-offset-4 transition cursor-pointer"
+                            className="inline-flex items-center space-x-0.5 text-xs font-bold text-[#4c543c] hover:text-[#35312F] underline underline-offset-4 decoration-[#858F6D] transition cursor-pointer"
                             title="Reativar produto no cardápio"
                           >
                             <span>Reativar</span>
@@ -687,7 +687,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(product)}
-                              className="inline-flex items-center space-x-0.5 text-xs font-bold text-white hover:text-amber-200 underline underline-offset-4 transition cursor-pointer"
+                              className="inline-flex items-center space-x-0.5 text-xs font-bold text-[#35312F] hover:text-[#850D2C] underline underline-offset-4 decoration-stone-400 hover:decoration-[#850D2C] transition cursor-pointer"
                               title="Editar preço, foto ou parâmetros do produto"
                             >
                               <span>Editar</span>
@@ -696,7 +696,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                             <button
                               type="button"
                               onClick={() => setProductToDelete(product)}
-                              className="text-[10px] font-medium text-white/60 hover:text-rose-200 transition cursor-pointer"
+                              className="text-[10px] font-medium text-stone-400 hover:text-[#850D2C] transition cursor-pointer"
                               title="Desativar do cardápio"
                             >
                               Desativar
@@ -706,31 +706,31 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                       </div>
                     </div>
 
-                    <p className="text-[11px] text-white/75 mt-1 line-clamp-1 leading-relaxed">
+                    <p className="text-[11px] text-stone-500 mt-1 line-clamp-1 leading-relaxed">
                       {product.description || 'Preparo artesanal com insumos selecionados.'}
                     </p>
                   </div>
 
                   {/* Pílulas Inferiores com Métricas (Idêntico aos chips [Matcha] [Ice Cubes] da imagem) */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="px-2.5 py-1 rounded-lg bg-white/15 text-white text-[10px] font-semibold">
+                    <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-[#35312F] text-[10px] font-semibold">
                       {product.category}
                     </span>
                     <span
                       className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold ${
                         isOutOfStock
-                          ? 'bg-rose-950/60 text-rose-200 border border-rose-500/30'
+                          ? 'bg-rose-100 text-[#850D2C]'
                           : isLowStock
-                          ? 'bg-amber-950/60 text-amber-200 border border-amber-500/30'
-                          : 'bg-white/15 text-white'
+                          ? 'bg-amber-100 text-[#924529]'
+                          : 'bg-[#EFECE6] text-[#35312F]'
                       }`}
                     >
                       Estoque: {product.stockQuantity} un.
                     </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-white/15 text-white/90 text-[10px] font-semibold">
+                    <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-stone-600 text-[10px] font-semibold">
                       Custo: {formatCurrencyBRL(product.costPrice)}
                     </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-400/20 text-emerald-200 text-[10px] font-semibold">
+                    <span className="px-2.5 py-1 rounded-lg bg-[#858F6D]/15 text-[#4c543c] text-[10px] font-semibold">
                       Margem: {marginPercent}% ({formatCurrencyBRL(profit)})
                     </span>
                   </div>
