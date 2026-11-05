@@ -389,7 +389,7 @@ export const api = {
     consumptionType?: Order['consumptionType'];
     notes?: string;
     paymentMethod: Order['paymentMethod'];
-    items: Array<{ productId: string; quantity: number; notes?: string }>;
+    items: Array<{ productId: string; quantity: number; notes?: string; selectedSize?: string }>;
   }) => {
     const created = await request<Order>('/api/orders', {
       method: 'POST',

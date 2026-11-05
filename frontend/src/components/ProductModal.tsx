@@ -17,8 +17,9 @@ import {
   Move,
   Sparkles,
   Eraser,
+  Coffee,
 } from 'lucide-react';
-import { Product, ProductCategory } from '../../../shared/types/index.ts';
+import { Product, ProductCategory, ProductSizeOption } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 import {
   validateImageFile,
@@ -84,6 +85,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
+  // ================= ESTADO DE OPÇÃO DE TAMANHOS (CAFÉS & BEBIDAS) =================
+  const [hasSizes, setHasSizes] = useState<boolean>(false);
+  const [sizes, setSizes] = useState<ProductSizeOption[]>([
+    { name: 'P (150ml)', price: 8.00 },
+    { name: 'M (300ml)', price: 12.00 },
+    { name: 'G (450ml)', price: 16.00 },
+  ]);
+
   // ================= ESTADOS DO ESTÚDIO DE EDIÇÃO DE IMAGEM & IA =================
   const [originalImageUrl, setOriginalImageUrl] = useState<string>(DEFAULT_IMAGE_URL);
   const [workingImageUrl, setWorkingImageUrl] = useState<string>(DEFAULT_IMAGE_URL);
@@ -143,6 +152,16 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setStockQuantity(productToEdit.stockQuantity.toString());
       setMinStockThreshold(productToEdit.minStockThreshold.toString());
       setImageUrl(initialImg);
+      setHasSizes(!!productToEdit.hasSizes);
+      setSizes(
+        productToEdit.sizes && productToEdit.sizes.length > 0
+          ? productToEdit.sizes
+          : [
+              { name: 'P (150ml)', price: productToEdit.price },
+              { name: 'M (300ml)', price: Number((productToEdit.price * 1.3).toFixed(2)) },
+              { name: 'G (450ml)', price: Number((productToEdit.price * 1.6).toFixed(2)) },
+            ]
+      );
     } else {
       setName('');
       setDescription('');
@@ -152,6 +171,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setStockQuantity('50');
       setMinStockThreshold('5');
       setImageUrl(initialImg);
+      setHasSizes(false);
+      setSizes([
+        { name: 'P (150ml)', price: 8.00 },
+        { name: 'M (300ml)', price: 12.00 },
+        { name: 'G (450ml)', price: 16.00 },
+      ]);
     }
 
     setOriginalImageUrl(initialImg);
@@ -630,15 +655,21 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         }
       }
 
+      const cleanedSizes = hasSizes
+        ? sizes.filter((s) => s.name.trim() && s.price > 0)
+        : undefined;
+
       await onSave({
         name: name.trim(),
         description: description.trim(),
-        price: numPrice,
+        price: hasSizes && cleanedSizes && cleanedSizes.length > 0 ? cleanedSizes[0].price : numPrice,
         costPrice: isNaN(numCost) ? numPrice * 0.4 : numCost,
         category: finalCategory,
         stockQuantity: isNaN(numStock) ? 0 : numStock,
         minStockThreshold: isNaN(numMin) ? 5 : numMin,
         imageUrl: finalProductImage,
+        hasSizes: hasSizes && cleanedSizes && cleanedSizes.length > 0,
+        sizes: cleanedSizes,
       });
       onClose();
     } catch (err: any) {
@@ -885,6 +916,113 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 Retorno estimado por un.
               </span>
             </div>
+          </div>
+
+          {/* ================= OPÇÃO DE TAMANHOS (CAFÉS & BEBIDAS) ================= */}
+          <div className="p-3.5 bg-stone-50/80 rounded-2xl border border-stone-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Coffee className="w-4 h-4 text-[#850D2C]" />
+                <div>
+                  <span className="text-xs font-bold text-[#35312F]">
+                    Opções de Tamanho (Cafés e Bebidas)
+                  </span>
+                  <p className="text-[10px] text-stone-500">
+                    Habilite para oferecer variações de volume (ex: P, M, G) com preços específicos
+                  </p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasSizes}
+                  onChange={(e) => setHasSizes(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#850D2C]"></div>
+              </label>
+            </div>
+
+            {hasSizes && (
+              <div className="space-y-2 pt-2 border-t border-stone-200/60 animate-in fade-in duration-150">
+                <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-stone-400 uppercase tracking-wider px-1">
+                  <div className="col-span-6">Identificação do Tamanho</div>
+                  <div className="col-span-4">Preço (R$)</div>
+                  <div className="col-span-2 text-right">Ação</div>
+                </div>
+
+                {sizes.map((s, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-6">
+                      <input
+                        type="text"
+                        value={s.name}
+                        onChange={(e) => {
+                          const updated = [...sizes];
+                          updated[index].name = e.target.value;
+                          setSizes(updated);
+                        }}
+                        placeholder="Ex: P (150ml)"
+                        className="w-full px-2.5 py-1.5 text-xs border border-stone-300 rounded-xl bg-white font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none"
+                      />
+                    </div>
+                    <div className="col-span-4 relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs font-semibold">
+                        R$
+                      </span>
+                      <input
+                        type="number"
+                        step="0.10"
+                        min="0.10"
+                        value={s.price}
+                        onChange={(e) => {
+                          const updated = [...sizes];
+                          const newP = parseFloat(e.target.value) || 0;
+                          updated[index].price = newP;
+                          setSizes(updated);
+                          if (index === 0) setPrice(e.target.value);
+                        }}
+                        className="w-full pl-7 pr-2 py-1.5 text-xs font-bold border border-stone-300 rounded-xl bg-white focus:ring-1 focus:ring-[#850D2C] focus:outline-none"
+                      />
+                    </div>
+                    <div className="col-span-2 text-right">
+                      {sizes.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setSizes(sizes.filter((_, i) => i !== index))}
+                          className="p-1.5 text-stone-400 hover:text-[#850D2C] hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          title="Remover tamanho"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSizes((prev) => [
+                        ...prev,
+                        {
+                          name: `Tamanho ${prev.length + 1}`,
+                          price: Number(((prev[prev.length - 1]?.price || 10) + 4).toFixed(2)),
+                        },
+                      ])
+                    }
+                    className="inline-flex items-center space-x-1 text-xs font-semibold text-[#850D2C] hover:underline cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Adicionar outro tamanho</span>
+                  </button>
+                  <span className="text-[10px] text-stone-400">
+                    O cliente poderá escolher o tamanho diretamente no cardápio digital.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Estoque Inicial / Atual & Limite de Estoque Baixo */}

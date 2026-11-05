@@ -8,6 +8,12 @@ export type ProductCategory =
 
 export type ProductStatus = 'ativo' | 'inativo';
 
+export interface ProductSizeOption {
+  name: string; // Ex: 'P (150ml)', 'M (300ml)', 'G (450ml)'
+  price: number;
+  costPrice?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -19,6 +25,8 @@ export interface Product {
   stockQuantity: number;
   minStockThreshold: number; // Ex: 5 unidades para aviso de estoque baixo
   status: ProductStatus;     // 'ativo' ou 'inativo' (Exclusão Lógica - Requisito 4)
+  hasSizes?: boolean;        // Se possui opções de tamanho (ex: cafés e bebidas)
+  sizes?: ProductSizeOption[]; // Lista opcional de tamanhos disponíveis
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +67,7 @@ export interface StockAlert {
 export interface OrderItem {
   productId: string;
   productName: string;
+  selectedSize?: string; // Ex: 'M (300ml)'
   unitPrice: number;
   costPrice: number;
   quantity: number;

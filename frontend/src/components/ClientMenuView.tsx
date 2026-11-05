@@ -29,7 +29,7 @@ interface ClientMenuViewProps {
     consumptionType?: Order['consumptionType'];
     notes?: string;
     paymentMethod: PaymentMethod;
-    items: Array<{ productId: string; quantity: number }>;
+    items: Array<{ productId: string; quantity: number; notes?: string; selectedSize?: string }>;
   }) => Promise<Order>;
   onOrderSuccess: () => void;
 }
@@ -44,7 +44,8 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   const activeProducts = products.filter((p) => p.status === 'ativo');
 
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [cart, setCart] = useState<{ [productId: string]: number }>({});
+  const [cart, setCart] = useState<{ [cartKey: string]: number }>({});
+  const [selectedProductSizes, setSelectedProductSizes] = useState<{ [productId: string]: string }>({});
   const [favorites, setFavorites] = useState<{ [productId: string]: boolean }>({});
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [customerName, setCustomerName] = useState('João Silva');
@@ -65,16 +66,31 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
   const cartItemCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
 
-  const cartTotal = Object.entries(cart).reduce((sum, [pId, qty]) => {
-    const prod = activeProducts.find((p) => p.id === pId);
-    return sum + (prod ? prod.price * qty : 0);
+  const cartTotal = Object.entries(cart).reduce((sum, [cartKey, qty]) => {
+    const [productId, sizeName] = cartKey.split('__');
+    const prod = activeProducts.find((p) => p.id === productId);
+    if (!prod) return sum;
+    let unitP = prod.price;
+    if (sizeName && prod.sizes && prod.sizes.length > 0) {
+      const foundSz = prod.sizes.find((s) => s.name === sizeName);
+      if (foundSz) unitP = foundSz.price;
+    }
+    return sum + unitP * qty;
   }, 0);
 
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = (product: Product, chosenSize?: string) => {
     // Se estiver esgotado (estoque <= 0), bloqueia
     if (product.stockQuantity <= 0) return;
 
-    const currentQty = cart[product.id] || 0;
+    const sizeName =
+      chosenSize ||
+      selectedProductSizes[product.id] ||
+      (product.hasSizes && product.sizes && product.sizes.length > 0
+        ? product.sizes[0].name
+        : undefined);
+
+    const cartKey = sizeName ? `${product.id}__${sizeName}` : product.id;
+    const currentQty = cart[cartKey] || 0;
     if (currentQty >= product.stockQuantity) {
       alert(`Quantidade máxima disponível em estoque atingida (${product.stockQuantity} un.)`);
       return;
@@ -82,17 +98,17 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
     setCart((prev) => ({
       ...prev,
-      [product.id]: currentQty + 1,
+      [cartKey]: currentQty + 1,
     }));
   };
 
-  const handleRemoveFromCart = (productId: string) => {
+  const handleRemoveFromCart = (cartKey: string) => {
     setCart((prev) => {
       const next = { ...prev };
-      if (next[productId] > 1) {
-        next[productId] -= 1;
+      if (next[cartKey] > 1) {
+        next[cartKey] -= 1;
       } else {
-        delete next[productId];
+        delete next[cartKey];
       }
       return next;
     });
@@ -105,10 +121,14 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const itemsPayload = Object.entries(cart).map(([productId, quantity]) => ({
-      productId,
-      quantity,
-    }));
+    const itemsPayload = Object.entries(cart).map(([cartKey, quantity]) => {
+      const [productId, sizeName] = cartKey.split('__');
+      return {
+        productId,
+        quantity,
+        selectedSize: sizeName || undefined,
+      };
+    });
 
     let consumptionType: Order['consumptionType'] = 'MESA';
     const tableLower = tableOrTakeaway.toLowerCase();
@@ -298,11 +318,21 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20 pt-16">
         {filteredProducts.map((product) => {
           const isOutOfStock = product.stockQuantity <= 0; // Regra de Estoque Zero (RF04)
-          const inCartQty = cart[product.id] || 0;
           const isFavorite = !!favorites[product.id];
           const isTransparentCutout =
             product.imageUrl.startsWith('data:image/png') ||
             product.imageUrl.startsWith('data:image/webp');
+
+          const hasSizes = !!(product.hasSizes && product.sizes && product.sizes.length > 0);
+          const currentSizeName =
+            selectedProductSizes[product.id] || (hasSizes ? product.sizes![0].name : undefined);
+          const currentSizeOption = hasSizes
+            ? product.sizes!.find((s) => s.name === currentSizeName) || product.sizes![0]
+            : undefined;
+          const activePrice = currentSizeOption ? currentSizeOption.price : product.price;
+
+          const cartKey = currentSizeName ? `${product.id}__${currentSizeName}` : product.id;
+          const inCartQty = cart[cartKey] || 0;
 
           return (
             <div
@@ -361,12 +391,45 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed min-h-[2.25rem]">
                   {product.description || 'Preparo artesanal com insumos selecionados.'}
                 </p>
+
+                {/* Opções de Tamanho Opcionais para Cafés & Bebidas */}
+                {hasSizes && (
+                  <div className="pt-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">
+                      Escolha o tamanho:
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {product.sizes!.map((sz) => {
+                        const isSelected = sz.name === currentSizeName;
+                        return (
+                          <button
+                            key={sz.name}
+                            type="button"
+                            onClick={() =>
+                              setSelectedProductSizes((prev) => ({
+                                ...prev,
+                                [product.id]: sz.name,
+                              }))
+                            }
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer ${
+                              isSelected
+                                ? 'bg-stone-900 text-white shadow-2xs'
+                                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                            }`}
+                          >
+                            <span>{sz.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 3. Rodapé do Card: Preço em destaque + Ações circulares (+ e Coração) */}
               <div className="pt-4 mt-1 border-t border-stone-100/80">
                 <div className="text-lg font-black text-stone-950 tracking-tight mb-3">
-                  {formatCurrencyBRL(product.price)}
+                  {formatCurrencyBRL(activePrice)}
                 </div>
 
                 <div className="flex items-center justify-between gap-3">
@@ -382,7 +445,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                     <div className="h-11 inline-flex items-center space-x-2 bg-stone-100 rounded-full px-2 shadow-2xs">
                       <button
                         type="button"
-                        onClick={() => handleRemoveFromCart(product.id)}
+                        onClick={() => handleRemoveFromCart(cartKey)}
                         className="w-8 h-8 rounded-full bg-white text-stone-900 shadow-2xs flex items-center justify-center font-bold hover:bg-stone-50 transition cursor-pointer"
                         title="Diminuir quantidade"
                       >
@@ -393,7 +456,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                       </span>
                       <button
                         type="button"
-                        onClick={() => handleAddToCart(product)}
+                        onClick={() => handleAddToCart(product, currentSizeName)}
                         disabled={inCartQty >= product.stockQuantity}
                         className="w-8 h-8 rounded-full bg-stone-950 text-white shadow-2xs flex items-center justify-center font-bold hover:bg-stone-800 transition disabled:opacity-40 cursor-pointer"
                         title="Aumentar quantidade"
@@ -404,7 +467,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleAddToCart(product)}
+                      onClick={() => handleAddToCart(product, currentSizeName)}
                       aria-label={`Adicionar ${product.name} ao Pedido`}
                       className="w-11 h-11 rounded-full bg-stone-950 hover:bg-stone-800 active:scale-95 text-white flex items-center justify-center shadow-md transition cursor-pointer"
                       title="Adicionar ao pedido"
@@ -503,24 +566,37 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
                   Itens Selecionados
                 </span>
-                {Object.entries(cart).map(([productId, quantity]) => {
+                {Object.entries(cart).map(([cartKey, quantity]) => {
+                  const [productId, sizeName] = cartKey.split('__');
                   const product = activeProducts.find((p) => p.id === productId);
                   if (!product) return null;
+                  let unitPrice = product.price;
+                  if (sizeName && product.sizes && product.sizes.length > 0) {
+                    const foundSz = product.sizes.find((s) => s.name === sizeName);
+                    if (foundSz) unitPrice = foundSz.price;
+                  }
                   return (
                     <div
-                      key={productId}
+                      key={cartKey}
                       className="flex items-center justify-between text-xs py-1.5"
                     >
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
                           {quantity}x
                         </span>
-                        <span className="font-semibold text-stone-800">
-                          {product.name}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-stone-800">
+                            {product.name}
+                          </span>
+                          {sizeName && (
+                            <span className="text-[10px] text-amber-700 font-medium">
+                              Tamanho: {sizeName}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <span className="font-bold text-stone-900">
-                        {formatCurrencyBRL(product.price * quantity)}
+                        {formatCurrencyBRL(unitPrice * quantity)}
                       </span>
                     </div>
                   );

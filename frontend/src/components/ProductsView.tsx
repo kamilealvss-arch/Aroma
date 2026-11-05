@@ -613,7 +613,9 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   {/* Valor em Cima no Canto Superior Direito (Idêntico ao 10$ da Referência) */}
                   <div className="absolute top-0 right-0 z-20 bg-white text-[#35312F] pl-4 pr-3.5 pt-1.5 pb-2 rounded-bl-[20px] flex items-center justify-center shadow-2xs">
                     <span className="text-sm sm:text-base font-black tracking-tight">
-                      {formatCurrencyBRL(product.price)}
+                      {product.hasSizes && product.sizes && product.sizes.length > 1
+                        ? `A partir de ${formatCurrencyBRL(Math.min(...product.sizes.map((s) => s.price)))}`
+                        : formatCurrencyBRL(product.price)}
                     </span>
                   </div>
 
@@ -716,6 +718,11 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                     <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-[#35312F] text-[10px] font-semibold">
                       {product.category}
                     </span>
+                    {product.hasSizes && product.sizes && product.sizes.length > 0 && (
+                      <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-[#924529] border border-amber-200/60 text-[10px] font-semibold">
+                        Tamanhos: {product.sizes.map((s) => s.name.split(' ')[0]).join(', ')}
+                      </span>
+                    )}
                     <span
                       className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold ${
                         isOutOfStock
