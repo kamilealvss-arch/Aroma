@@ -596,10 +596,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   isInactive ? 'opacity-75 grayscale-30' : ''
                 }`}
               >
-                {/* 1. Moldura Retangular de Imagem no Topo */}
-                <div className="relative h-60 w-full rounded-[20px] overflow-hidden bg-[#F9F7F3] flex flex-col justify-between shadow-inner">
+                {/* 1. Moldura Retangular de Imagem com Preço no Canto Superior Direito (Idêntico ao 10$) */}
+                <div className="relative h-60 w-full rounded-[22px] overflow-hidden bg-[#F9F7F3] flex flex-col justify-between shadow-inner">
                   {/* Categoria Badge no topo esquerdo da foto */}
-                  <div className="p-3 flex items-center justify-between z-10">
+                  <div className="p-3 z-10 flex items-center justify-between">
                     <span className="bg-stone-900/75 backdrop-blur-xs text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-2xs">
                       {product.category}
                     </span>
@@ -608,6 +608,13 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                         Inativo
                       </span>
                     )}
+                  </div>
+
+                  {/* Valor em Cima no Canto Superior Direito (Idêntico à Imagem de Referência) */}
+                  <div className="absolute top-0 right-0 z-20 bg-[#820b28] text-white pl-4 pr-3.5 pt-1.5 pb-2 rounded-bl-[20px] flex items-center justify-center shadow-xs">
+                    <span className="text-sm sm:text-base font-black tracking-tight">
+                      {formatCurrencyBRL(product.price)}
+                    </span>
                   </div>
 
                   {/* Imagem Centralizada com Escala e Proporção Padronizadas */}
@@ -655,26 +662,16 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   </div>
                 </div>
 
-                {/* 2. Informações e Ações com Divisão (Estilo Referência B) */}
-                <div className="pt-3.5 pb-1 flex-1 flex flex-col justify-between">
-                  <div className="flex items-start justify-between gap-3">
-                    {/* Lado Esquerdo: Nome e Descrição */}
-                    <div className="flex-1 min-w-0">
+                {/* 2. Informações Inferiores (Nome, Ações "Editar ↗" e Pílulas de Ingredientes/Métricas) */}
+                <div className="pt-3 pb-1 flex-1 flex flex-col justify-between space-y-2.5">
+                  <div>
+                    {/* Linha com Nome do Produto e Link de Ação (Estilo "Order Now ↗") */}
+                    <div className="flex items-center justify-between gap-2">
                       <h3 className="font-extrabold text-white text-base leading-tight truncate">
                         {product.name}
                       </h3>
-                      <p className="text-[11px] text-white/75 mt-1 line-clamp-2 leading-relaxed">
-                        {product.description || 'Preparo artesanal com insumos selecionados.'}
-                      </p>
-                    </div>
 
-                    {/* Lado Direito: Preço em Destaque e Ação "Editar ↗" */}
-                    <div className="border-l border-white/20 pl-3.5 flex flex-col items-end justify-between shrink-0 min-w-[95px] text-right">
-                      <span className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                        {formatCurrencyBRL(product.price)}
-                      </span>
-
-                      <div className="mt-1 flex flex-col items-end space-y-0.5">
+                      <div className="flex items-center space-x-2 shrink-0">
                         {isInactive ? (
                           <button
                             type="button"
@@ -708,15 +705,19 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                         )}
                       </div>
                     </div>
+
+                    <p className="text-[11px] text-white/75 mt-1 line-clamp-1 leading-relaxed">
+                      {product.description || 'Preparo artesanal com insumos selecionados.'}
+                    </p>
                   </div>
 
-                  {/* Pílulas Inferiores com Métricas (Ingredientes/Métricas) */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-3 mt-2 border-t border-white/15">
-                    <span className="px-2 py-0.5 rounded-md bg-white/15 text-white text-[10px] font-semibold">
+                  {/* Pílulas Inferiores com Métricas (Idêntico aos chips [Matcha] [Ice Cubes] da imagem) */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="px-2.5 py-1 rounded-lg bg-white/15 text-white text-[10px] font-semibold">
                       {product.category}
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold ${
                         isOutOfStock
                           ? 'bg-rose-950/60 text-rose-200 border border-rose-500/30'
                           : isLowStock
@@ -726,10 +727,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                     >
                       Estoque: {product.stockQuantity} un.
                     </span>
-                    <span className="px-2 py-0.5 rounded-md bg-white/15 text-white/90 text-[10px] font-semibold">
+                    <span className="px-2.5 py-1 rounded-lg bg-white/15 text-white/90 text-[10px] font-semibold">
                       Custo: {formatCurrencyBRL(product.costPrice)}
                     </span>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-400/20 text-emerald-200 text-[10px] font-semibold">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-400/20 text-emerald-200 text-[10px] font-semibold">
                       Margem: {marginPercent}% ({formatCurrencyBRL(profit)})
                     </span>
                   </div>
