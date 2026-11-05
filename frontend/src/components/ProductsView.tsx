@@ -572,8 +572,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           )}
         </div>
       ) : viewMode === 'GRID' ? (
-        /* ======================= VISUALIZAÇÃO EM GRADE (MODELO A - IMAGEM 1) ======================= */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        /* ======================= VISUALIZAÇÃO EM GRADE (CARD RETANGULAR VERMELHO AROMA #820b28) ======================= */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {paginatedProducts.map((product) => {
             const isInactive = product.status === 'inativo';
             const isOutOfStock = product.stockQuantity <= 0;
@@ -592,83 +592,94 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
             return (
               <div
                 key={product.id}
-                className={`bg-white rounded-[30px] p-2.5 border transition-all duration-200 flex flex-col justify-between shadow-sm hover:shadow-md group ${
-                  isInactive
-                    ? 'border-stone-200/90 bg-stone-50/60 opacity-80'
-                    : 'border-stone-200/90 hover:border-stone-300'
+                className={`bg-[#820b28] rounded-[28px] p-3.5 sm:p-4 border border-[#680920] shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-white group min-h-[460px] ${
+                  isInactive ? 'opacity-75 grayscale-30' : ''
                 }`}
               >
-                {/* Moldura Interna de Imagem (Modelo A: cantos arredondados, preço recortado no canto superior direito e faixa inferior) */}
-                <div className="relative rounded-[22px] overflow-hidden bg-[#EBE7DF] flex flex-col">
-                  {/* Etiqueta de Preço Recortada no Canto Superior Direito (Idêntico ao "10$" do Modelo A) */}
-                  <div className="absolute top-0 right-0 z-10 bg-white pl-4 pr-3.5 pt-1.5 pb-2 rounded-bl-[20px] shadow-2xs flex items-center justify-center">
-                    <span className="text-base font-extrabold text-[#35312F] tracking-tight">
-                      {formatCurrencyBRL(product.price)}
+                {/* 1. Moldura Retangular de Imagem no Topo */}
+                <div className="relative h-60 w-full rounded-[20px] overflow-hidden bg-[#F9F7F3] flex flex-col justify-between shadow-inner">
+                  {/* Categoria Badge no topo esquerdo da foto */}
+                  <div className="p-3 flex items-center justify-between z-10">
+                    <span className="bg-stone-900/75 backdrop-blur-xs text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-2xs">
+                      {product.category}
                     </span>
+                    {isInactive && (
+                      <span className="bg-stone-800 text-stone-200 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                        Inativo
+                      </span>
+                    )}
                   </div>
 
-                  {/* Palco Central Padronizado da Imagem */}
-                  <div className="relative h-52 w-full flex items-center justify-center overflow-hidden">
+                  {/* Imagem Centralizada com Escala e Proporção Padronizadas */}
+                  <div className="absolute inset-0 flex items-center justify-center p-3">
                     {isTransparentCutout ? (
-                      <div className="w-38 h-38 flex items-center justify-center">
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          loading="lazy"
-                          className={`w-full h-full object-contain drop-shadow-[0_12px_16px_rgba(53,49,47,0.2)] transition duration-500 ${
-                            isInactive ? 'grayscale-60' : 'group-hover:scale-105'
-                          }`}
-                        />
-                      </div>
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        loading="lazy"
+                        className={`w-44 h-44 object-contain drop-shadow-[0_14px_18px_rgba(53,49,47,0.22)] transition duration-500 group-hover:scale-105 ${
+                          isInactive ? 'grayscale-60' : ''
+                        }`}
+                      />
                     ) : (
                       <img
                         src={product.imageUrl}
                         alt={product.name}
                         loading="lazy"
-                        className={`w-full h-full object-cover transition duration-500 ${
-                          isInactive ? 'grayscale-60' : 'group-hover:scale-105'
+                        className={`w-full h-full object-cover transition duration-500 group-hover:scale-105 ${
+                          isInactive ? 'grayscale-60' : ''
                         }`}
                       />
                     )}
                   </div>
 
-                  {/* Faixa Inferior da Moldura de Imagem (Idêntico à barra inferior da foto no Modelo A) */}
+                  {/* Faixa Inferior da Moldura com Status e Estoque */}
                   <div
-                    className={`w-full py-1.5 px-3 text-center text-[11px] font-semibold tracking-wide transition ${
+                    className={`w-full py-1.5 px-3 text-center text-[10px] font-bold tracking-wider uppercase z-10 transition ${
                       isInactive
-                        ? 'bg-stone-500 text-white'
+                        ? 'bg-stone-800/90 text-stone-300'
                         : isOutOfStock
-                        ? 'bg-[#850D2C] text-white'
+                        ? 'bg-[#58071c]/95 text-rose-200'
                         : isLowStock
-                        ? 'bg-[#924529] text-white'
-                        : 'bg-[#858F6D] text-white'
+                        ? 'bg-[#924529]/95 text-amber-200'
+                        : 'bg-black/45 backdrop-blur-xs text-white'
                     }`}
                   >
                     {isInactive
-                      ? `Inativo no Cardápio • Estoque: ${product.stockQuantity} un.`
+                      ? `Inativo • Estoque: ${product.stockQuantity} un.`
                       : isOutOfStock
-                      ? 'Esgotado no Cardápio • 0 un. disponíveis'
+                      ? 'Esgotado • 0 un. disponíveis'
                       : isLowStock
-                      ? `Repor Estoque • Restam ${product.stockQuantity} un. (mín. ${product.minStockThreshold})`
-                      : `No Cardápio • Disponível (${product.stockQuantity} un.)`}
+                      ? `Repor • Restam ${product.stockQuantity} un. (mín. ${product.minStockThreshold})`
+                      : `No Cardápio • ${product.stockQuantity} un. disponíveis`}
                   </div>
                 </div>
 
-                {/* Parte Inferior do Card (Título + Ação estilo "Order Now ↗" + Pílulas de Informações) */}
-                <div className="px-2.5 pt-3 pb-1.5 flex-1 flex flex-col justify-between space-y-2.5">
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-bold text-[#35312F] text-base leading-tight truncate">
+                {/* 2. Informações e Ações com Divisão (Estilo Referência B) */}
+                <div className="pt-3.5 pb-1 flex-1 flex flex-col justify-between">
+                  <div className="flex items-start justify-between gap-3">
+                    {/* Lado Esquerdo: Nome e Descrição */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-extrabold text-white text-base leading-tight truncate">
                         {product.name}
                       </h3>
+                      <p className="text-[11px] text-white/75 mt-1 line-clamp-2 leading-relaxed">
+                        {product.description || 'Preparo artesanal com insumos selecionados.'}
+                      </p>
+                    </div>
 
-                      {/* Ações Rápidas Estilo Link Sublinhado ("Order Now ↗" do Modelo A) */}
-                      <div className="flex items-center space-x-2.5 shrink-0">
+                    {/* Lado Direito: Preço em Destaque e Ação "Editar ↗" */}
+                    <div className="border-l border-white/20 pl-3.5 flex flex-col items-end justify-between shrink-0 min-w-[95px] text-right">
+                      <span className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                        {formatCurrencyBRL(product.price)}
+                      </span>
+
+                      <div className="mt-1 flex flex-col items-end space-y-0.5">
                         {isInactive ? (
                           <button
                             type="button"
                             onClick={() => onRestoreProduct(product.id)}
-                            className="inline-flex items-center space-x-0.5 text-xs font-semibold text-[#4c543c] hover:text-[#35312F] underline underline-offset-4 decoration-[#858F6D] transition cursor-pointer"
+                            className="inline-flex items-center space-x-0.5 text-xs font-bold text-emerald-300 hover:text-white underline underline-offset-4 transition cursor-pointer"
                             title="Reativar produto no cardápio"
                           >
                             <span>Reativar</span>
@@ -679,8 +690,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(product)}
-                              className="inline-flex items-center space-x-0.5 text-xs font-semibold text-[#35312F] hover:text-[#850D2C] underline underline-offset-4 decoration-stone-400 hover:decoration-[#850D2C] transition cursor-pointer"
-                              title="Editar produto"
+                              className="inline-flex items-center space-x-0.5 text-xs font-bold text-white hover:text-amber-200 underline underline-offset-4 transition cursor-pointer"
+                              title="Editar preço, foto ou parâmetros do produto"
                             >
                               <span>Editar</span>
                               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -688,7 +699,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                             <button
                               type="button"
                               onClick={() => setProductToDelete(product)}
-                              className="text-[11px] font-medium text-stone-400 hover:text-[#850D2C] transition cursor-pointer"
+                              className="text-[10px] font-medium text-white/60 hover:text-rose-200 transition cursor-pointer"
                               title="Desativar do cardápio"
                             >
                               Desativar
@@ -697,32 +708,28 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                         )}
                       </div>
                     </div>
-
-                    <p className="text-[11px] text-stone-500 mt-1 line-clamp-1 leading-relaxed">
-                      {product.description || 'Sem descrição cadastrada.'}
-                    </p>
                   </div>
 
-                  {/* Pílulas Inferiores de Informações (Idêntico às tags [Matcha] [Ice Cubes] [Honey] [Milk] do Modelo A) */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-[#35312F] text-[10px] font-semibold">
+                  {/* Pílulas Inferiores com Métricas (Ingredientes/Métricas) */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-3 mt-2 border-t border-white/15">
+                    <span className="px-2 py-0.5 rounded-md bg-white/15 text-white text-[10px] font-semibold">
                       {product.category}
                     </span>
                     <span
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold ${
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${
                         isOutOfStock
-                          ? 'bg-rose-100 text-[#850D2C]'
+                          ? 'bg-rose-950/60 text-rose-200 border border-rose-500/30'
                           : isLowStock
-                          ? 'bg-amber-100 text-[#924529]'
-                          : 'bg-[#EFECE6] text-[#35312F]'
+                          ? 'bg-amber-950/60 text-amber-200 border border-amber-500/30'
+                          : 'bg-white/15 text-white'
                       }`}
                     >
                       Estoque: {product.stockQuantity} un.
                     </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-stone-600 text-[10px] font-semibold">
+                    <span className="px-2 py-0.5 rounded-md bg-white/15 text-white/90 text-[10px] font-semibold">
                       Custo: {formatCurrencyBRL(product.costPrice)}
                     </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-[#858F6D]/15 text-[#4c543c] text-[10px] font-semibold">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-400/20 text-emerald-200 text-[10px] font-semibold">
                       Margem: {marginPercent}% ({formatCurrencyBRL(profit)})
                     </span>
                   </div>
