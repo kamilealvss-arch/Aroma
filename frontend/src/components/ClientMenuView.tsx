@@ -294,8 +294,8 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         </div>
       </div>
 
-      {/* Grid de Produtos do Cardápio - Disposição Padronizada (Imagem 2) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Grid de Produtos do Cardápio - Disposição Padronizada com Prato Sobreposto (Metade para fora do card) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20 pt-16">
         {filteredProducts.map((product) => {
           const isOutOfStock = product.stockQuantity <= 0; // Regra de Estoque Zero (RF04)
           const inCartQty = cart[product.id] || 0;
@@ -307,66 +307,65 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
           return (
             <div
               key={product.id}
-              className={`bg-white rounded-[34px] p-5 sm:p-6 border border-stone-200/80 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between group ${
-                isOutOfStock ? 'opacity-75' : ''
+              className={`relative bg-white rounded-[34px] pt-20 pb-5 px-5 sm:px-6 border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group ${
+                isOutOfStock ? 'opacity-80' : ''
               }`}
             >
-              <div>
-                {/* 1. Área Padronizada de Imagem do Prato / Bebida (Imagem 2) */}
-                <div className="relative w-full h-48 flex items-center justify-center mb-2">
-                  {/* Categoria Discreta */}
-                  <span className="absolute top-0 left-0 bg-stone-100/90 text-stone-600 text-[10px] font-semibold px-2.5 py-0.5 rounded-full z-10">
+              {/* 1. Imagem Flutuante: O card pega apenas a metade inferior, e a metade superior fica para fora do card */}
+              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-36 h-36 sm:w-40 sm:h-40 z-20 flex items-center justify-center">
+                {isTransparentCutout ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className={`w-full h-full object-contain drop-shadow-[0_16px_22px_rgba(0,0,0,0.22)] transition-transform duration-500 group-hover:scale-105 ${
+                      isOutOfStock ? 'grayscale-70' : ''
+                    }`}
+                  />
+                ) : (
+                  <div className="w-full h-full rounded-full overflow-hidden shadow-lg border-[3.5px] border-white bg-white flex items-center justify-center">
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                        isOutOfStock ? 'grayscale-70' : ''
+                      }`}
+                    />
+                  </div>
+                )}
+
+                {/* Badge de Esgotado sobreposto ao prato */}
+                {isOutOfStock && (
+                  <span className="absolute bottom-1 bg-[#850D2C] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
+                    Esgotado
+                  </span>
+                )}
+              </div>
+
+              {/* 2. Informações do Produto (Nome, Categoria e Descrição - Layout Imagem 2) */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
                     {product.category}
                   </span>
-
-                  {/* Disposição padrão centralizada: mesmo tamanho fixo para todos os pratos */}
-                  <div className="relative w-40 h-40 flex items-center justify-center transition duration-500 group-hover:scale-105">
-                    {isTransparentCutout ? (
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className={`w-full h-full object-contain drop-shadow-[0_14px_18px_rgba(0,0,0,0.18)] ${
-                          isOutOfStock ? 'grayscale-70' : ''
-                        }`}
-                      />
-                    ) : (
-                      <div className="w-38 h-38 rounded-full overflow-hidden shadow-md border-2 border-white flex items-center justify-center bg-stone-100">
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className={`w-full h-full object-cover ${
-                            isOutOfStock ? 'grayscale-70' : ''
-                          }`}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Badge de Esgotado */}
-                  {isOutOfStock && (
-                    <div className="absolute inset-0 flex items-center justify-center z-20">
-                      <span className="bg-[#850D2C] text-white font-bold text-[11px] px-3 py-1 rounded-full shadow-md">
-                        Esgotado no momento
-                      </span>
-                    </div>
+                  {product.stockQuantity > 0 && product.stockQuantity <= 5 && (
+                    <span className="text-[10px] font-semibold text-[#924529] bg-amber-50 px-2 py-0.5 rounded-full">
+                      Últimas {product.stockQuantity} un.
+                    </span>
                   )}
                 </div>
 
-                {/* 2. Informações do Produto (Nome & Descrição idênticos ao layout da Imagem 2) */}
-                <div className="space-y-1.5 pt-1">
-                  <h3 className="font-extrabold text-stone-950 text-lg leading-snug tracking-tight">
-                    {product.name}
-                  </h3>
+                <h3 className="font-extrabold text-stone-950 text-lg leading-tight tracking-tight">
+                  {product.name}
+                </h3>
 
-                  <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed min-h-[2rem]">
-                    {product.description || 'Preparo gourmet com ingredientes selecionados do dia.'}
-                  </p>
-                </div>
+                <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed min-h-[2.25rem]">
+                  {product.description || 'Preparo artesanal com insumos selecionados.'}
+                </p>
               </div>
 
-              {/* 3. Rodapé do Card: Preço em destaque + Botões Circulares (+ e Coração) */}
-              <div className="pt-4 mt-2">
-                <div className="text-lg font-extrabold text-stone-950 tracking-tight mb-3">
+              {/* 3. Rodapé do Card: Preço em destaque + Ações circulares (+ e Coração) */}
+              <div className="pt-4 mt-1 border-t border-stone-100/80">
+                <div className="text-lg font-black text-stone-950 tracking-tight mb-3">
                   {formatCurrencyBRL(product.price)}
                 </div>
 
@@ -407,14 +406,14 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                       type="button"
                       onClick={() => handleAddToCart(product)}
                       aria-label={`Adicionar ${product.name} ao Pedido`}
-                      className="w-11 h-11 rounded-full bg-stone-950 hover:bg-stone-800 text-white flex items-center justify-center shadow-md active:scale-95 transition cursor-pointer"
+                      className="w-11 h-11 rounded-full bg-stone-950 hover:bg-stone-800 active:scale-95 text-white flex items-center justify-center shadow-md transition cursor-pointer"
                       title="Adicionar ao pedido"
                     >
                       <Plus className="w-5 h-5 stroke-[2.5]" />
                     </button>
                   )}
 
-                  {/* Botão Circular de Favorito (Coração idêntico à Imagem 2) */}
+                  {/* Botão Circular de Favorito (Coração) */}
                   <button
                     type="button"
                     onClick={() =>
