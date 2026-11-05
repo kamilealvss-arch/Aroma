@@ -308,14 +308,17 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
               }`}
             >
               <div>
-                {/* Foto do Produto */}
-                <div className="relative h-44 w-full bg-stone-100 overflow-hidden">
+                {/* Foto do Produto (Suporta fotos tradicionais e recortes PNG/WebP transparentes) */}
+                <div className="relative h-44 w-full bg-[#F9F7F3] overflow-hidden flex items-center justify-center">
                   <img
                     src={product.imageUrl}
                     alt={product.name}
-                    className={`w-full h-full object-cover transition duration-300 ${
-                      isOutOfStock ? 'grayscale-70' : 'hover:scale-105'
-                    }`}
+                    className={`w-full h-full transition duration-300 ${
+                      product.imageUrl.startsWith('data:image/png') ||
+                      product.imageUrl.startsWith('data:image/webp')
+                        ? 'object-contain p-2.5'
+                        : 'object-cover'
+                    } ${isOutOfStock ? 'grayscale-70' : 'hover:scale-105'}`}
                   />
 
                   {/* Badge de Categoria */}

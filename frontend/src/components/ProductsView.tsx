@@ -595,18 +595,24 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 }`}
               >
                 <div>
-                  {/* Imagem do Produto com Badges Discretos */}
-                  <div className="relative h-42 w-full bg-stone-100 overflow-hidden border-b border-stone-100">
+                  {/* Imagem do Produto com Badges Discretos (Suporta fotos normais e PNG/WebP com fundo transparente) */}
+                  <div className="relative h-42 w-full bg-[#F9F7F3] overflow-hidden border-b border-stone-100 flex items-center justify-center">
                     <img
                       src={product.imageUrl}
                       alt={product.name}
                       loading="lazy"
-                      className={`w-full h-full object-cover transition duration-500 ${
-                        isInactive ? 'grayscale-60' : 'group-hover:scale-105'
-                      }`}
+                      className={`w-full h-full transition duration-500 ${
+                        product.imageUrl.startsWith('data:image/png') ||
+                        product.imageUrl.startsWith('data:image/webp')
+                          ? 'object-contain p-2.5'
+                          : 'object-cover'
+                      } ${isInactive ? 'grayscale-60' : 'group-hover:scale-105'}`}
                     />
-                    {/* Sombra suave no topo para leitura limpa dos badges */}
-                    <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/30 to-transparent pointer-events-none" />
+                    {/* Sombra suave no topo apenas para fotos com fundo preenchido */}
+                    {!product.imageUrl.startsWith('data:image/png') &&
+                      !product.imageUrl.startsWith('data:image/webp') && (
+                        <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/25 to-transparent pointer-events-none" />
+                      )}
 
                     {/* Categoria Badge */}
                     <span className="absolute top-3 left-3 bg-white/95 backdrop-blur-xs text-[#35312F] border border-stone-200/80 text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-2xs">

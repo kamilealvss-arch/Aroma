@@ -16,7 +16,80 @@ const STORAGE_KEYS = {
   CREATED_ORDERS: 'aroma_created_orders_v1',
   CURRENT_USER_ID: 'aroma_current_user_id_v1',
   CREATED_INGREDIENTS: 'aroma_created_ingredients_v1',
+  CREATED_PRODUCTS: 'aroma_created_products_v1',
+  PRODUCT_OVERRIDES: 'aroma_product_overrides_v1',
 };
+
+function getCreatedProductsLocal(): Product[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.CREATED_PRODUCTS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCreatedProductLocal(product: Product): void {
+  try {
+    const current = getCreatedProductsLocal().filter((p) => p.id !== product.id);
+    current.unshift(product);
+    localStorage.setItem(STORAGE_KEYS.CREATED_PRODUCTS, JSON.stringify(current));
+  } catch {
+    // ignore
+  }
+}
+
+function getProductOverridesLocal(): Record<string, Partial<Product>> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PRODUCT_OVERRIDES);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveProductOverrideLocal(id: string, updates: Partial<Product>): void {
+  try {
+    const current = getProductOverridesLocal();
+    current[id] = { ...(current[id] || {}), ...updates };
+    localStorage.setItem(STORAGE_KEYS.PRODUCT_OVERRIDES, JSON.stringify(current));
+
+    const created = getCreatedProductsLocal();
+    const idx = created.findIndex((p) => p.id === id);
+    if (idx !== -1) {
+      created[idx] = { ...created[idx], ...updates };
+      localStorage.setItem(STORAGE_KEYS.CREATED_PRODUCTS, JSON.stringify(created));
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function applyProductOverrides(serverProducts: Product[], includeInactive: boolean): Product[] {
+  const createdLocal = getCreatedProductsLocal();
+  const overrides = getProductOverridesLocal();
+  const mergedMap = new Map<string, Product>();
+
+  for (const prod of serverProducts) {
+    mergedMap.set(prod.id, { ...prod });
+  }
+  for (const localProd of createdLocal) {
+    if (!mergedMap.has(localProd.id)) {
+      mergedMap.set(localProd.id, { ...localProd });
+    }
+  }
+
+  const result: Product[] = [];
+  for (const prod of mergedMap.values()) {
+    const ov = overrides[prod.id];
+    const finalProd = ov ? { ...prod, ...ov } : prod;
+    if (includeInactive || finalProd.status === 'ativo') {
+      result.push(finalProd);
+    }
+  }
+
+  return result;
+}
 
 interface OrderStatusOverride {
   status: Order['status'];
@@ -70,6 +143,8 @@ function clearLocalOverrides(): void {
     localStorage.removeItem(STORAGE_KEYS.CREATED_ORDERS);
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
     localStorage.removeItem(STORAGE_KEYS.CREATED_INGREDIENTS);
+    localStorage.removeItem(STORAGE_KEYS.CREATED_PRODUCTS);
+    localStorage.removeItem(STORAGE_KEYS.PRODUCT_OVERRIDES);
   } catch {
     // ignore
   }
@@ -195,34 +270,57 @@ export const api = {
   },
 
   // Produtos
-  getProducts: (includeInactive: boolean = false) =>
-    request<Product[]>(`/api/products?includeInactive=${includeInactive}`),
-  createProduct: (data: Partial<Product>) =>
-    request<Product>('/api/products', {
+  getProducts: async (includeInactive: boolean = false) => {
+    const serverProducts = await request<Product[]>(`/api/products?includeInactive=true`);
+    return applyProductOverrides(serverProducts, includeInactive);
+  },
+  createProduct: async (data: Partial<Product>) => {
+    const created = await request<Product>('/api/products', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
-  updateProduct: (id: string, updates: Partial<Product>) =>
-    request<Product>(`/api/products/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    }),
+    });
+    saveCreatedProductLocal(created);
+    return created;
+  },
+  updateProduct: async (id: string, updates: Partial<Product>) => {
+    try {
+      const updated = await request<Product>(`/api/products/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      saveProductOverrideLocal(id, updated);
+      return updated;
+    } catch (err) {
+      saveProductOverrideLocal(id, { ...updates, updatedAt: new Date().toISOString() });
+      const all = applyProductOverrides([], true);
+      const found = all.find((p) => p.id === id);
+      if (found) return found;
+      throw err;
+    }
+  },
   // ⭐ Exclusão Lógica
-  softDeleteProduct: (id: string) =>
-    request<{ message: string; product: Product }>(`/api/products/${id}`, {
+  softDeleteProduct: async (id: string) => {
+    saveProductOverrideLocal(id, { status: 'inativo', updatedAt: new Date().toISOString() });
+    return request<{ message: string; product: Product }>(`/api/products/${id}`, {
       method: 'DELETE',
-    }),
-  restoreProduct: (id: string) =>
-    request<{ message: string; product: Product }>(`/api/products/${id}/restore`, {
+    });
+  },
+  restoreProduct: async (id: string) => {
+    saveProductOverrideLocal(id, { status: 'ativo', updatedAt: new Date().toISOString() });
+    return request<{ message: string; product: Product }>(`/api/products/${id}/restore`, {
       method: 'POST',
-    }),
+    });
+  },
 
   // Estoque
-  adjustStock: (id: string, newStock: number, reason?: string) =>
-    request<Product>(`/api/products/${id}/stock`, {
+  adjustStock: async (id: string, newStock: number, reason?: string) => {
+    const updated = await request<Product>(`/api/products/${id}/stock`, {
       method: 'POST',
       body: JSON.stringify({ newStock, reason }),
-    }),
+    });
+    saveProductOverrideLocal(id, { stockQuantity: updated.stockQuantity, updatedAt: updated.updatedAt });
+    return updated;
+  },
   getStockAlerts: () => request<StockAlert[]>('/api/stock/alerts'),
 
   // Ingredientes & Insumos
