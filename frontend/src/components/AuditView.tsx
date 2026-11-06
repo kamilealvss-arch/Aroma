@@ -161,98 +161,74 @@ export const AuditView: React.FC = () => {
           </div>
         </div>
 
-        {/* 4 Cards de Resumo de Auditoria (Mesmo estilo da Home com border-t-4) */}
+        {/* 4 Cards de Resumo de Auditoria com o padrão da página de Relatórios */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
           {/* Card 1: Total Auditado */}
           <div
             onClick={() => setFilterType('ALL')}
-            className="bg-white p-4 sm:p-5 rounded-2xl border border-stone-200/90 border-t-4 border-t-[#7e8b60] shadow-xs hover:shadow-md transition-all cursor-pointer"
+            className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all cursor-pointer"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                Total Auditado
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-[#7e8b60]/15 text-[#7e8b60] border border-[#7e8b60]/25 flex items-center justify-center">
-                <Shield className="w-4 h-4" />
-              </div>
+            <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+              <span>Total Auditado</span>
+              <Shield className="w-4 h-4 text-[#850D2C]" />
             </div>
-            <div className="mt-2.5">
-              <div className="text-2xl font-extrabold text-stone-900 tracking-tight">
-                {totalLogsCount} eventos
-              </div>
-              <p className="text-[11px] text-stone-500 mt-0.5">
-                Rastreabilidade completa por perfil
-              </p>
+            <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+              {totalLogsCount}
             </div>
+            <p className="text-[11px] text-stone-400 mt-2 font-medium">
+              Rastreabilidade completa por perfil
+            </p>
           </div>
 
           {/* Card 2: Movimentações de Estoque */}
           <div
             onClick={() => setFilterType('ESTOQUE_AJUSTADO')}
-            className="bg-white p-4 sm:p-5 rounded-2xl border border-stone-200/90 border-t-4 border-t-[#c68e5b] shadow-xs hover:shadow-md transition-all cursor-pointer"
+            className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all cursor-pointer"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                Ajustes de Estoque
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-[#c68e5b]/15 text-[#924529] border border-[#c68e5b]/30 flex items-center justify-center">
-                <Package className="w-4 h-4" />
-              </div>
+            <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+              <span>Ajustes de Estoque</span>
+              <Package className="w-4 h-4 text-[#924529]" />
             </div>
-            <div className="mt-2.5">
-              <div className="text-2xl font-extrabold text-stone-900 tracking-tight">
-                {stockLogsCount} registros
-              </div>
-              <p className="text-[11px] text-stone-500 mt-0.5">
-                Entradas de lote e contagens físicas
-              </p>
+            <div className="text-2xl sm:text-3xl font-extrabold text-[#924529] mt-2 tracking-tight">
+              {stockLogsCount}
             </div>
+            <p className="text-[11px] text-stone-500 mt-2 font-medium">
+              Entradas de lote e contagens físicas
+            </p>
           </div>
 
           {/* Card 3: Preços e Cardápio */}
           <div
             onClick={() => setFilterType('PRECO_ALTERADO')}
-            className="bg-white p-4 sm:p-5 rounded-2xl border border-stone-200/90 border-t-4 border-t-[#924529] shadow-xs hover:shadow-md transition-all cursor-pointer"
+            className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all cursor-pointer"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                Preços & Cardápio
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-[#924529]/12 text-[#924529] border border-[#924529]/25 flex items-center justify-center">
-                <DollarSign className="w-4 h-4" />
-              </div>
+            <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+              <span>Preços & Cardápio</span>
+              <DollarSign className="w-4 h-4 text-[#858F6D]" />
             </div>
-            <div className="mt-2.5">
-              <div className="text-2xl font-extrabold text-stone-900 tracking-tight">
-                {priceLogsCount} alterações
-              </div>
-              <p className="text-[11px] text-stone-500 mt-0.5">
-                Histórico de valor anterior e novo
-              </p>
+            <div className="text-2xl sm:text-3xl font-extrabold text-[#4c543c] mt-2 tracking-tight">
+              {priceLogsCount}
             </div>
+            <p className="text-[11px] text-[#4c543c] mt-2 font-semibold">
+              Histórico de valor anterior e novo
+            </p>
           </div>
 
           {/* Card 4: Exclusões Lógicas */}
           <div
             onClick={() => setFilterType('EXCLUSAO_LOGICA')}
-            className="bg-white p-4 sm:p-5 rounded-2xl border border-stone-200/90 border-t-4 border-t-[#820b28] shadow-xs hover:shadow-md transition-all cursor-pointer"
+            className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all cursor-pointer"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                Exclusão Lógica
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-[#820b28]/10 text-[#820b28] border border-[#820b28]/20 flex items-center justify-center">
-                <AlertTriangle className="w-4 h-4" />
-              </div>
+            <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+              <span>Exclusão Lógica</span>
+              <AlertTriangle className="w-4 h-4 text-stone-600" />
             </div>
-            <div className="mt-2.5">
-              <div className="text-2xl font-extrabold text-stone-900 tracking-tight">
-                {criticalLogsCount} {criticalLogsCount === 1 ? 'ação' : 'ações'}
-              </div>
-              <p className="text-[11px] text-stone-500 mt-0.5">
-                Inativações sem perda de histórico
-              </p>
+            <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+              {criticalLogsCount}
             </div>
+            <p className="text-[11px] text-stone-400 mt-2 font-medium">
+              Inativações sem perda de histórico
+            </p>
           </div>
         </div>
 
