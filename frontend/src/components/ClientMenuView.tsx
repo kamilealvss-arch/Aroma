@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Clock,
   Flame,
+  Heart,
 } from 'lucide-react';
 import { Product, ProductCategory, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -28,7 +29,7 @@ interface ClientMenuViewProps {
     consumptionType?: Order['consumptionType'];
     notes?: string;
     paymentMethod: PaymentMethod;
-    items: Array<{ productId: string; quantity: number }>;
+    items: Array<{ productId: string; quantity: number; notes?: string; selectedSize?: string }>;
   }) => Promise<Order>;
   onOrderSuccess: () => void;
 }
@@ -43,7 +44,9 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   const activeProducts = products.filter((p) => p.status === 'ativo');
 
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [cart, setCart] = useState<{ [productId: string]: number }>({});
+  const [cart, setCart] = useState<{ [cartKey: string]: number }>({});
+  const [selectedProductSizes, setSelectedProductSizes] = useState<{ [productId: string]: string }>({});
+  const [favorites, setFavorites] = useState<{ [productId: string]: boolean }>({});
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [customerName, setCustomerName] = useState('João Silva');
   const [tableOrTakeaway, setTableOrTakeaway] = useState('Mesa 04');
@@ -63,16 +66,31 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
   const cartItemCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
 
-  const cartTotal = Object.entries(cart).reduce((sum, [pId, qty]) => {
-    const prod = activeProducts.find((p) => p.id === pId);
-    return sum + (prod ? prod.price * qty : 0);
+  const cartTotal = Object.entries(cart).reduce((sum, [cartKey, qty]) => {
+    const [productId, sizeName] = cartKey.split('__');
+    const prod = activeProducts.find((p) => p.id === productId);
+    if (!prod) return sum;
+    let unitP = prod.price;
+    if (sizeName && prod.sizes && prod.sizes.length > 0) {
+      const foundSz = prod.sizes.find((s) => s.name === sizeName);
+      if (foundSz) unitP = foundSz.price;
+    }
+    return sum + unitP * qty;
   }, 0);
 
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = (product: Product, chosenSize?: string) => {
     // Se estiver esgotado (estoque <= 0), bloqueia
     if (product.stockQuantity <= 0) return;
 
-    const currentQty = cart[product.id] || 0;
+    const sizeName =
+      chosenSize ||
+      selectedProductSizes[product.id] ||
+      (product.hasSizes && product.sizes && product.sizes.length > 0
+        ? product.sizes[0].name
+        : undefined);
+
+    const cartKey = sizeName ? `${product.id}__${sizeName}` : product.id;
+    const currentQty = cart[cartKey] || 0;
     if (currentQty >= product.stockQuantity) {
       alert(`Quantidade máxima disponível em estoque atingida (${product.stockQuantity} un.)`);
       return;
@@ -80,17 +98,17 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
     setCart((prev) => ({
       ...prev,
-      [product.id]: currentQty + 1,
+      [cartKey]: currentQty + 1,
     }));
   };
 
-  const handleRemoveFromCart = (productId: string) => {
+  const handleRemoveFromCart = (cartKey: string) => {
     setCart((prev) => {
       const next = { ...prev };
-      if (next[productId] > 1) {
-        next[productId] -= 1;
+      if (next[cartKey] > 1) {
+        next[cartKey] -= 1;
       } else {
-        delete next[productId];
+        delete next[cartKey];
       }
       return next;
     });
@@ -103,10 +121,14 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const itemsPayload = Object.entries(cart).map(([productId, quantity]) => ({
-      productId,
-      quantity,
-    }));
+    const itemsPayload = Object.entries(cart).map(([cartKey, quantity]) => {
+      const [productId, sizeName] = cartKey.split('__');
+      return {
+        productId,
+        quantity,
+        selectedSize: sizeName || undefined,
+      };
+    });
 
     let consumptionType: Order['consumptionType'] = 'MESA';
     const tableLower = tableOrTakeaway.toLowerCase();
@@ -292,106 +314,191 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         </div>
       </div>
 
-      {/* Grid de Produtos do Cardápio */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* Grid de Produtos do Cardápio - Disposição Padronizada com Prato Sobreposto (Metade para fora do card) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20 pt-16">
         {filteredProducts.map((product) => {
           const isOutOfStock = product.stockQuantity <= 0; // Regra de Estoque Zero (RF04)
-          const inCartQty = cart[product.id] || 0;
+          const isFavorite = !!favorites[product.id];
+          const isTransparentCutout =
+            product.imageUrl.startsWith('data:image/png') ||
+            product.imageUrl.startsWith('data:image/webp');
+
+          const hasSizes = !!(product.hasSizes && product.sizes && product.sizes.length > 0);
+          const currentSizeName =
+            selectedProductSizes[product.id] || (hasSizes ? product.sizes![0].name : undefined);
+          const currentSizeOption = hasSizes
+            ? product.sizes!.find((s) => s.name === currentSizeName) || product.sizes![0]
+            : undefined;
+          const activePrice = currentSizeOption ? currentSizeOption.price : product.price;
+
+          const cartKey = currentSizeName ? `${product.id}__${currentSizeName}` : product.id;
+          const inCartQty = cart[cartKey] || 0;
 
           return (
             <div
               key={product.id}
-              className={`bg-white rounded-2xl border transition overflow-hidden flex flex-col justify-between shadow-xs ${
-                isOutOfStock
-                  ? 'border-stone-200 bg-stone-50/60 opacity-80'
-                  : 'border-stone-200 hover:shadow-lg hover:border-amber-400/50'
+              className={`relative bg-white rounded-[34px] pt-20 pb-5 px-5 sm:px-6 border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group ${
+                isOutOfStock ? 'opacity-80' : ''
               }`}
             >
-              <div>
-                {/* Foto do Produto */}
-                <div className="relative h-44 w-full bg-stone-100 overflow-hidden">
+              {/* 1. Imagem Flutuante: O card pega apenas a metade inferior, e a metade superior fica para fora do card */}
+              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-36 h-36 sm:w-40 sm:h-40 z-20 flex items-center justify-center">
+                {isTransparentCutout ? (
                   <img
                     src={product.imageUrl}
                     alt={product.name}
-                    className={`w-full h-full object-cover transition duration-300 ${
-                      isOutOfStock ? 'grayscale-70' : 'hover:scale-105'
+                    className={`w-full h-full object-contain drop-shadow-[0_16px_22px_rgba(0,0,0,0.22)] transition-transform duration-500 group-hover:scale-105 ${
+                      isOutOfStock ? 'grayscale-70' : ''
                     }`}
                   />
+                ) : (
+                  <div className="w-full h-full rounded-full overflow-hidden shadow-lg border-[3.5px] border-white bg-white flex items-center justify-center">
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                        isOutOfStock ? 'grayscale-70' : ''
+                      }`}
+                    />
+                  </div>
+                )}
 
-                  {/* Badge de Categoria */}
-                  <span className="absolute top-3 left-3 bg-stone-900/80 backdrop-blur-xs text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                {/* Badge de Esgotado sobreposto ao prato */}
+                {isOutOfStock && (
+                  <span className="absolute bottom-1 bg-[#850D2C] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
+                    Esgotado
+                  </span>
+                )}
+              </div>
+
+              {/* 2. Informações do Produto (Nome, Categoria e Descrição - Layout Imagem 2) */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
                     {product.category}
                   </span>
-
-                  {/* ⭐ REQUISITO 19 (RF04): Se estoque == 0, exibe automaticamente como Esgotado */}
-                  {isOutOfStock && (
-                    <div className="absolute inset-0 bg-stone-950/60 backdrop-blur-[1px] flex items-center justify-center p-4">
-                      <span className="bg-rose-600 text-white font-extrabold text-xs px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg border border-white/20">
-                        Esgotado no Momento
-                      </span>
-                    </div>
+                  {product.stockQuantity > 0 && product.stockQuantity <= 5 && (
+                    <span className="text-[10px] font-semibold text-[#924529] bg-amber-50 px-2 py-0.5 rounded-full">
+                      Últimas {product.stockQuantity} un.
+                    </span>
                   )}
                 </div>
 
-                {/* Conteúdo */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-bold text-stone-900 text-sm leading-snug">
-                      {product.name}
-                    </h3>
-                    <span className="text-base font-extrabold text-amber-900 shrink-0">
-                      {formatCurrencyBRL(product.price)}
-                    </span>
-                  </div>
+                <h3 className="font-extrabold text-stone-950 text-lg leading-tight tracking-tight">
+                  {product.name}
+                </h3>
 
-                  <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed">
-                    {product.description}
-                  </p>
-                </div>
+                <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed min-h-[2.25rem]">
+                  {product.description || 'Preparo artesanal com insumos selecionados.'}
+                </p>
+
+                {/* Opções de Tamanho Opcionais para Cafés & Bebidas */}
+                {hasSizes && (
+                  <div className="pt-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">
+                      Escolha o tamanho:
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {product.sizes!.map((sz) => {
+                        const isSelected = sz.name === currentSizeName;
+                        return (
+                          <button
+                            key={sz.name}
+                            type="button"
+                            onClick={() =>
+                              setSelectedProductSizes((prev) => ({
+                                ...prev,
+                                [product.id]: sz.name,
+                              }))
+                            }
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer ${
+                              isSelected
+                                ? 'bg-stone-900 text-white shadow-2xs'
+                                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                            }`}
+                          >
+                            <span>{sz.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Botões de Ação do Cliente */}
-              <div className="p-4 pt-0">
-                {isOutOfStock ? (
-                  /* Botão Bloqueado para Produto Esgotado (RF04) */
-                  <button
-                    disabled
-                    className="w-full py-2 bg-stone-200 text-stone-500 rounded-xl text-xs font-bold cursor-not-allowed text-center"
-                  >
-                    Produto Indisponível
-                  </button>
-                ) : inCartQty > 0 ? (
-                  /* Seletor de Quantidade */
-                  <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl p-1">
+              {/* 3. Rodapé do Card: Preço em destaque + Ações circulares (+ e Coração) */}
+              <div className="pt-4 mt-1 border-t border-stone-100/80">
+                <div className="text-lg font-black text-stone-950 tracking-tight mb-3">
+                  {formatCurrencyBRL(activePrice)}
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  {/* Botão de Adicionar ao Pedido / Controle de Quantidade */}
+                  {isOutOfStock ? (
                     <button
-                      onClick={() => handleRemoveFromCart(product.id)}
-                      className="w-8 h-8 rounded-lg bg-white text-stone-800 shadow-xs flex items-center justify-center font-bold hover:bg-stone-100 transition"
+                      disabled
+                      className="h-11 px-4 bg-stone-100 text-stone-400 rounded-full text-xs font-semibold cursor-not-allowed"
                     >
-                      <Minus className="w-3.5 h-3.5" />
+                      Indisponível
                     </button>
-                    <span className="text-xs font-extrabold text-amber-950">
-                      {inCartQty} no carrinho
-                    </span>
+                  ) : inCartQty > 0 ? (
+                    <div className="h-11 inline-flex items-center space-x-2 bg-stone-100 rounded-full px-2 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFromCart(cartKey)}
+                        className="w-8 h-8 rounded-full bg-white text-stone-900 shadow-2xs flex items-center justify-center font-bold hover:bg-stone-50 transition cursor-pointer"
+                        title="Diminuir quantidade"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-xs font-extrabold text-stone-900 px-1">
+                        {inCartQty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleAddToCart(product, currentSizeName)}
+                        disabled={inCartQty >= product.stockQuantity}
+                        className="w-8 h-8 rounded-full bg-stone-950 text-white shadow-2xs flex items-center justify-center font-bold hover:bg-stone-800 transition disabled:opacity-40 cursor-pointer"
+                        title="Aumentar quantidade"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
                     <button
-                      onClick={() => handleAddToCart(product)}
-                      disabled={inCartQty >= product.stockQuantity}
-                      className="w-8 h-8 rounded-lg bg-amber-600 text-white shadow-xs flex items-center justify-center font-bold hover:bg-amber-700 transition disabled:opacity-40"
+                      type="button"
+                      onClick={() => handleAddToCart(product, currentSizeName)}
+                      aria-label={`Adicionar ${product.name} ao Pedido`}
+                      className="w-11 h-11 rounded-full bg-stone-950 hover:bg-stone-800 active:scale-95 text-white flex items-center justify-center shadow-md transition cursor-pointer"
+                      title="Adicionar ao pedido"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-5 h-5 stroke-[2.5]" />
                     </button>
-                  </div>
-                ) : (
-                  /* Botão Adicionar */
+                  )}
+
+                  {/* Botão Circular de Favorito (Coração) */}
                   <button
-                    onClick={() => handleAddToCart(product)}
-                    aria-label={`Adicionar ${product.name} ao Pedido`}
-                    data-testid={`add-to-cart-${product.id}`}
-                    className="w-full py-2 bg-stone-900 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-sm"
+                    type="button"
+                    onClick={() =>
+                      setFavorites((prev) => ({
+                        ...prev,
+                        [product.id]: !prev[product.id],
+                      }))
+                    }
+                    className={`w-11 h-11 rounded-full flex items-center justify-center transition cursor-pointer shadow-2xs ${
+                      isFavorite
+                        ? 'bg-rose-50 text-[#850D2C] border border-rose-200'
+                        : 'bg-stone-100 text-stone-600 hover:text-stone-950 hover:bg-stone-200/80'
+                    }`}
+                    title={isFavorite ? 'Remover dos favoritos' : 'Favoritar item'}
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Adicionar ao Pedido</span>
+                    <Heart
+                      className={`w-5 h-5 transition ${
+                        isFavorite ? 'fill-[#850D2C] text-[#850D2C]' : ''
+                      }`}
+                    />
                   </button>
-                )}
+                </div>
               </div>
             </div>
           );
@@ -459,24 +566,37 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
                   Itens Selecionados
                 </span>
-                {Object.entries(cart).map(([productId, quantity]) => {
+                {Object.entries(cart).map(([cartKey, quantity]) => {
+                  const [productId, sizeName] = cartKey.split('__');
                   const product = activeProducts.find((p) => p.id === productId);
                   if (!product) return null;
+                  let unitPrice = product.price;
+                  if (sizeName && product.sizes && product.sizes.length > 0) {
+                    const foundSz = product.sizes.find((s) => s.name === sizeName);
+                    if (foundSz) unitPrice = foundSz.price;
+                  }
                   return (
                     <div
-                      key={productId}
+                      key={cartKey}
                       className="flex items-center justify-between text-xs py-1.5"
                     >
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
                           {quantity}x
                         </span>
-                        <span className="font-semibold text-stone-800">
-                          {product.name}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-stone-800">
+                            {product.name}
+                          </span>
+                          {sizeName && (
+                            <span className="text-[10px] text-amber-700 font-medium">
+                              Tamanho: {sizeName}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <span className="font-bold text-stone-900">
-                        {formatCurrencyBRL(product.price * quantity)}
+                        {formatCurrencyBRL(unitPrice * quantity)}
                       </span>
                     </div>
                   );

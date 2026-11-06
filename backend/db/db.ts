@@ -283,7 +283,7 @@ class DatabaseStore {
     consumptionType?: Order['consumptionType'];
     notes?: string;
     paymentMethod: Order['paymentMethod'];
-    items: Array<{ productId: string; quantity: number; notes?: string }>;
+    items: Array<{ productId: string; quantity: number; notes?: string; selectedSize?: string }>;
   }): Order {
     const currentUser = this.getCurrentUser();
     const orderItems: Order['items'] = [];
@@ -305,14 +305,25 @@ class DatabaseStore {
         );
       }
 
-      const subtotal = product.price * itemReq.quantity;
+      let itemPrice = product.price;
+      let itemName = product.name;
+      if (itemReq.selectedSize && product.sizes && product.sizes.length > 0) {
+        const foundSize = product.sizes.find((s) => s.name === itemReq.selectedSize);
+        if (foundSize) {
+          itemPrice = foundSize.price;
+          itemName = `${product.name} (${foundSize.name})`;
+        }
+      }
+
+      const subtotal = itemPrice * itemReq.quantity;
       totalAmount += subtotal;
       totalCost += product.costPrice * itemReq.quantity;
 
       orderItems.push({
         productId: product.id,
-        productName: product.name,
-        unitPrice: product.price,
+        productName: itemName,
+        selectedSize: itemReq.selectedSize,
+        unitPrice: itemPrice,
         costPrice: product.costPrice,
         quantity: itemReq.quantity,
         subtotal,
