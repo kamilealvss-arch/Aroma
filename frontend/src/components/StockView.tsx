@@ -532,35 +532,21 @@ export const StockView: React.FC<StockViewProps> = ({
       {activeTab === 'PRODUCTS' && (
         <>
           {/* 1. Cards de Indicadores: Bordas Cinza-Claro Padronizadas, Altura Reduzida e Números em Destaque */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Card 1: Itens Monitorados */}
             <div
               onClick={() => setFilter('ALL')}
-              className={`cursor-pointer p-4 sm:py-4 sm:px-5 rounded-2xl border transition-all duration-150 flex flex-col justify-between bg-white shadow-xs group ${
-                filter === 'ALL'
-                  ? 'border-stone-400 ring-1 ring-stone-300'
-                  : 'border-stone-200/80 hover:border-stone-400'
-              }`}
+              className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all cursor-pointer"
               title="Filtrar todos os produtos monitorados"
             >
-              <div>
-                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-6 h-6 rounded-lg bg-stone-50 flex items-center justify-center text-stone-600 border border-stone-200">
-                      <Package className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[#35312F] font-medium">Itens monitorados</span>
-                  </div>
-                  <span className="text-[10px] font-medium text-stone-500 bg-stone-50 px-2 py-0.5 rounded-full border border-stone-200">
-                    Total
-                  </span>
-                </div>
-                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
-                  {totalActive}{' '}
-                  <span className="text-xs font-normal text-stone-400">produtos</span>
-                </div>
+              <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                <span>Itens monitorados</span>
+                <Package className="w-4 h-4 text-[#850D2C]" />
               </div>
-              <p className="text-[11px] text-stone-400 mt-1.5">
+              <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+                {totalActive}
+              </div>
+              <p className="text-[11px] text-stone-400 mt-2 font-medium">
                 Ativos e catalogados para venda direta
               </p>
             </div>
@@ -568,63 +554,35 @@ export const StockView: React.FC<StockViewProps> = ({
             {/* Card 2: Nível de Reposição */}
             <div
               onClick={() => setFilter('BAIXO')}
-              className={`cursor-pointer p-4 sm:py-4 sm:px-5 rounded-2xl border transition-all duration-150 flex flex-col justify-between bg-white shadow-xs group ${
-                filter === 'BAIXO'
-                  ? 'border-stone-400 ring-1 ring-stone-300'
-                  : 'border-stone-200/80 hover:border-stone-400'
-              }`}
+              className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all cursor-pointer"
               title="Filtrar produtos no nível de reposição"
             >
-              <div>
-                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-6 h-6 rounded-lg bg-stone-50 flex items-center justify-center text-[#924529] border border-stone-200">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[#35312F] font-medium">Nível de reposição</span>
-                  </div>
-                  <span className="text-[10px] font-medium text-[#924529] bg-stone-50 px-2 py-0.5 rounded-full border border-stone-200">
-                    Atenção
-                  </span>
-                </div>
-                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
-                  {lowStockCount}{' '}
-                  <span className="text-xs font-normal text-stone-400">produtos</span>
-                </div>
+              <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                <span>Nível de reposição</span>
+                <AlertTriangle className="w-4 h-4 text-[#924529]" />
               </div>
-              <p className="text-[11px] text-stone-400 mt-1.5">
+              <div className="text-2xl sm:text-3xl font-extrabold text-[#924529] mt-2 tracking-tight">
+                {lowStockCount}
+              </div>
+              <p className="text-[11px] text-stone-500 mt-2 font-medium">
                 Abaixo ou no limite mínimo recomendado
               </p>
             </div>
 
-            {/* Card 3: Esgotados no Cardápio (Borda Cinza-Claro Padronizada - Sem Borda Vermelha Excessiva) */}
+            {/* Card 3: Esgotados no Cardápio */}
             <div
               onClick={() => setFilter('ESGOTADO')}
-              className={`cursor-pointer p-4 sm:py-4 sm:px-5 rounded-2xl border transition-all duration-150 flex flex-col justify-between bg-white shadow-xs group ${
-                filter === 'ESGOTADO'
-                  ? 'border-stone-400 ring-1 ring-stone-300'
-                  : 'border-stone-200/80 hover:border-stone-400'
-              }`}
+              className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all cursor-pointer"
               title="Filtrar produtos esgotados no cardápio"
             >
-              <div>
-                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-6 h-6 rounded-lg bg-stone-50 flex items-center justify-center text-[#850D2C] border border-stone-200">
-                      <ArrowDownCircle className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[#35312F] font-medium">Esgotados no cardápio</span>
-                  </div>
-                  <span className="text-[10px] font-medium text-[#850D2C] bg-stone-50 px-2 py-0.5 rounded-full border border-stone-200">
-                    Crítico
-                  </span>
-                </div>
-                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
-                  {outOfStockCount}{' '}
-                  <span className="text-xs font-normal text-stone-400">produtos</span>
-                </div>
+              <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                <span>Esgotados no cardápio</span>
+                <ArrowDownCircle className="w-4 h-4 text-stone-600" />
               </div>
-              <p className="text-[11px] text-stone-400 mt-1.5">
+              <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+                {outOfStockCount}
+              </div>
+              <p className="text-[11px] text-stone-400 mt-2 font-medium">
                 Bloqueados automaticamente para venda no cliente
               </p>
             </div>
@@ -1072,35 +1030,21 @@ export const StockView: React.FC<StockViewProps> = ({
       {activeTab === 'INGREDIENTS' && (
         <>
           {/* Cards de Indicadores de Ingredientes: Altura Reduzida e Bordas Padronizadas */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Card 1: Insumos Monitorados */}
             <div
               onClick={() => setIngredientFilter('ALL')}
-              className={`cursor-pointer p-4 sm:py-4 sm:px-5 rounded-2xl border transition-all duration-150 flex flex-col justify-between bg-white shadow-xs group ${
-                ingredientFilter === 'ALL'
-                  ? 'border-stone-400 ring-1 ring-stone-300'
-                  : 'border-stone-200/80 hover:border-stone-400'
-              }`}
+              className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all cursor-pointer"
               title="Filtrar todas as matérias-primas e insumos"
             >
-              <div>
-                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-6 h-6 rounded-lg bg-stone-50 flex items-center justify-center text-stone-600 border border-stone-200">
-                      <Boxes className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[#35312F] font-medium">Insumos monitorados</span>
-                  </div>
-                  <span className="text-[10px] font-medium text-stone-500 bg-stone-50 px-2 py-0.5 rounded-full border border-stone-200">
-                    Total
-                  </span>
-                </div>
-                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
-                  {totalIngredients}{' '}
-                  <span className="text-xs font-normal text-stone-400">itens</span>
-                </div>
+              <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                <span>Insumos monitorados</span>
+                <Boxes className="w-4 h-4 text-[#850D2C]" />
               </div>
-              <p className="text-[11px] text-stone-400 mt-1.5">
+              <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+                {totalIngredients}
+              </div>
+              <p className="text-[11px] text-stone-400 mt-2 font-medium">
                 Grãos, laticínios, panificação e embalagens
               </p>
             </div>
@@ -1108,63 +1052,35 @@ export const StockView: React.FC<StockViewProps> = ({
             {/* Card 2: Necessitam Compra / Reposição */}
             <div
               onClick={() => setIngredientFilter('BAIXO')}
-              className={`cursor-pointer p-4 sm:py-4 sm:px-5 rounded-2xl border transition-all duration-150 flex flex-col justify-between bg-white shadow-xs group ${
-                ingredientFilter === 'BAIXO'
-                  ? 'border-stone-400 ring-1 ring-stone-300'
-                  : 'border-stone-200/80 hover:border-stone-400'
-              }`}
+              className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all cursor-pointer"
               title="Filtrar insumos que necessitam compra"
             >
-              <div>
-                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-6 h-6 rounded-lg bg-stone-50 flex items-center justify-center text-[#924529] border border-stone-200">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[#35312F] font-medium">Necessitam compra</span>
-                  </div>
-                  <span className="text-[10px] font-medium text-[#924529] bg-stone-50 px-2 py-0.5 rounded-full border border-stone-200">
-                    Atenção
-                  </span>
-                </div>
-                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
-                  {lowStockIngredients}{' '}
-                  <span className="text-xs font-normal text-stone-400">insumos</span>
-                </div>
+              <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                <span>Necessitam compra</span>
+                <AlertTriangle className="w-4 h-4 text-[#924529]" />
               </div>
-              <p className="text-[11px] text-stone-400 mt-1.5">
+              <div className="text-2xl sm:text-3xl font-extrabold text-[#924529] mt-2 tracking-tight">
+                {lowStockIngredients}
+              </div>
+              <p className="text-[11px] text-stone-500 mt-2 font-medium">
                 Atingiram ou estão abaixo do estoque de segurança
               </p>
             </div>
 
-            {/* Card 3: Insumos Esgotados (Borda Cinza-Claro Padronizada) */}
+            {/* Card 3: Insumos Esgotados */}
             <div
               onClick={() => setIngredientFilter('ESGOTADO')}
-              className={`cursor-pointer p-4 sm:py-4 sm:px-5 rounded-2xl border transition-all duration-150 flex flex-col justify-between bg-white shadow-xs group ${
-                ingredientFilter === 'ESGOTADO'
-                  ? 'border-stone-400 ring-1 ring-stone-300'
-                  : 'border-stone-200/80 hover:border-stone-400'
-              }`}
+              className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all cursor-pointer"
               title="Filtrar insumos totalmente esgotados"
             >
-              <div>
-                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-6 h-6 rounded-lg bg-stone-50 flex items-center justify-center text-[#850D2C] border border-stone-200">
-                      <ArrowDownCircle className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[#35312F] font-medium">Insumos esgotados</span>
-                  </div>
-                  <span className="text-[10px] font-medium text-[#850D2C] bg-stone-50 px-2 py-0.5 rounded-full border border-stone-200">
-                    Crítico
-                  </span>
-                </div>
-                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
-                  {outOfStockIngredients}{' '}
-                  <span className="text-xs font-normal text-stone-400">insumos</span>
-                </div>
+              <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                <span>Insumos esgotados</span>
+                <ArrowDownCircle className="w-4 h-4 text-stone-600" />
               </div>
-              <p className="text-[11px] text-stone-400 mt-1.5">
+              <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+                {outOfStockIngredients}
+              </div>
+              <p className="text-[11px] text-stone-400 mt-2 font-medium">
                 Produção ou atendimento interrompidos por falta de insumo
               </p>
             </div>
