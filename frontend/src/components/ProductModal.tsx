@@ -589,9 +589,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setImageUrl(finalDataUrl);
       setIsEditorOpen(false);
       setImageActionNotice(
-        `Imagem editada e padronizada em formato ${
-          exportFormat === 'image/png' ? 'PNG' : 'WebP'
-        } com transparência preservada.`
+        'Imagem editada e salva com transparência máxima (PNG) preservada.'
       );
       return finalDataUrl;
     } catch (err: any) {
@@ -1950,26 +1948,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     <div className="md:col-span-7 space-y-3 bg-white p-3.5 rounded-2xl border border-stone-200/80">
                       {/* Painel do Pincel & Borracha Manual */}
                       <div className="p-2.5 rounded-xl bg-[#F9F7F3] border border-stone-200/80 space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-1.5">
-                            {interactionMode === 'restore' ? (
-                              <Paintbrush className="w-3.5 h-3.5 text-[#4c543c]" />
-                            ) : (
-                              <Eraser className="w-3.5 h-3.5 text-[#850D2C]" />
-                            )}
-                            <span className="text-xs font-bold text-[#35312F]">
-                              Ajuste Manual do Recorte
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleCleanFragments}
-                            className="px-2 py-0.5 rounded-lg bg-white hover:bg-stone-100 text-[#850D2C] border border-stone-200 text-[10px] font-semibold inline-flex items-center space-x-1 transition cursor-pointer"
-                            title="Remover automaticamente manchas e fragmentos soltos ao redor do produto"
-                          >
-                            <Sparkles className="w-2.5 h-2.5" />
-                            <span>Limpar resíduos soltos</span>
-                          </button>
+                        <div className="flex items-center space-x-1.5">
+                          {interactionMode === 'restore' ? (
+                            <Paintbrush className="w-3.5 h-3.5 text-[#4c543c]" />
+                          ) : (
+                            <Eraser className="w-3.5 h-3.5 text-[#850D2C]" />
+                          )}
+                          <span className="text-xs font-bold text-[#35312F]">
+                            Ajuste Manual do Recorte
+                          </span>
                         </div>
 
                         {/* Alternador Rápido: Borracha (Apagar) vs Pincel (Adicionar/Restaurar) */}
@@ -2168,38 +2155,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                         </div>
                       </div>
 
-                      {/* 3. Centralização Rápida & Formato com Transparência */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-stone-100 items-end">
-                        <div>
-                          <span className="block text-[11px] font-semibold text-[#35312F] mb-1">
-                            Alinhamento do produto
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleCenterProduct}
-                            className="w-full h-8 px-3 rounded-xl bg-stone-100 hover:bg-stone-200/80 text-[#35312F] border border-stone-200 text-xs font-semibold inline-flex items-center justify-center space-x-1.5 transition cursor-pointer"
-                            title="Centralizar automaticamente o produto no quadro"
-                          >
-                            <Crosshair className="w-3.5 h-3.5 text-[#850D2C]" />
-                            <span>Centralizar produto</span>
-                          </button>
-                        </div>
-
-                        <div>
-                          <span className="block text-[11px] font-semibold text-[#35312F] mb-1">
-                            Formato transparente
-                          </span>
-                          <select
-                            value={exportFormat}
-                            onChange={(e) =>
-                              setExportFormat(e.target.value as ExportImageFormat)
-                            }
-                            className="w-full h-8 px-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs font-medium text-[#35312F] focus:ring-1 focus:ring-[#850D2C] focus:outline-none cursor-pointer"
-                          >
-                            <option value="image/png">PNG (Transparência máxima)</option>
-                            <option value="image/webp">WebP (Transparente leve)</option>
-                          </select>
-                        </div>
+                      {/* 3. Centralização Rápida do Produto */}
+                      <div className="pt-1 border-t border-stone-100">
+                        <button
+                          type="button"
+                          onClick={handleCenterProduct}
+                          className="w-full h-8 px-3 rounded-xl bg-stone-100 hover:bg-stone-200/80 text-[#35312F] border border-stone-200 text-xs font-semibold inline-flex items-center justify-center space-x-1.5 transition cursor-pointer"
+                          title="Centralizar automaticamente o produto no quadro"
+                        >
+                          <Crosshair className="w-3.5 h-3.5 text-[#850D2C]" />
+                          <span>Centralizar produto no quadro</span>
+                        </button>
                       </div>
 
                       {/* 4. Barra de Ações do Editor: Desfazer, Manter Original e Salvar Imagem Editada */}
