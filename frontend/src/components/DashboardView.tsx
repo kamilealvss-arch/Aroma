@@ -188,87 +188,63 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* 4 Cards de Métricas Principais com a estética de cards do KDS */}
+        {/* 4 Cards de Métricas Principais com o padrão da página de Relatórios */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Faturamento do Dia */}
-          <div className="bg-white p-5 rounded-2xl border border-stone-200/90 border-t-4 border-t-[#7e8b60] shadow-xs hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                Faturamento do Dia
-              </span>
-              <div className="w-9 h-9 rounded-xl bg-[#7e8b60]/15 text-[#7e8b60] border border-[#7e8b60]/25 flex items-center justify-center">
-                <DollarSign className="w-5 h-5" />
-              </div>
+          <div className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all">
+            <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+              <span>Faturamento do Dia</span>
+              <DollarSign className="w-4 h-4 text-[#850D2C]" />
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-extrabold text-stone-900 tracking-tight">
-                {formatCurrencyBRL(metrics.todayRevenue)}
-              </div>
-              <div className="flex items-center space-x-1 text-xs text-[#7e8b60] font-semibold mt-1">
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span>Lucro est.: {formatCurrencyBRL(metrics.todayProfit)}</span>
-              </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+              {formatCurrencyBRL(metrics.todayRevenue)}
             </div>
+            <p className="text-[11px] text-[#4c543c] mt-2 font-semibold flex items-center space-x-1">
+              <TrendingUp className="w-3.5 h-3.5 inline mr-1 text-[#858F6D]" />
+              <span>Lucro est.: {formatCurrencyBRL(metrics.todayProfit)}</span>
+            </p>
           </div>
 
           {/* Quantidade de Pedidos Hoje */}
-          <div className="bg-white p-5 rounded-2xl border border-stone-200/90 border-t-4 border-t-[#c68e5b] shadow-xs hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                Pedidos Hoje
-              </span>
-              <div className="w-9 h-9 rounded-xl bg-[#c68e5b]/15 text-[#924529] border border-[#c68e5b]/30 flex items-center justify-center">
-                <ShoppingBag className="w-5 h-5" />
-              </div>
+          <div className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all">
+            <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+              <span>Pedidos Hoje</span>
+              <ShoppingBag className="w-4 h-4 text-[#924529]" />
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-extrabold text-stone-900 tracking-tight">
-                {metrics.todayOrdersCount} pedidos
-              </div>
-              <p className="text-xs text-stone-500 mt-1">
-                Com baixa de estoque em tempo real
-              </p>
+            <div className="text-2xl sm:text-3xl font-extrabold text-[#924529] mt-2 tracking-tight">
+              {metrics.todayOrdersCount}
             </div>
+            <p className="text-[11px] text-stone-400 mt-2 font-medium">
+              Com baixa de estoque em tempo real
+            </p>
           </div>
 
           {/* Ticket Médio */}
-          <div className="bg-white p-5 rounded-2xl border border-stone-200/90 border-t-4 border-t-[#924529] shadow-xs hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                Ticket Médio
-              </span>
-              <div className="w-9 h-9 rounded-xl bg-[#924529]/12 text-[#924529] border border-[#924529]/25 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5" />
-              </div>
+          <div className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all">
+            <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+              <span>Ticket Médio</span>
+              <TrendingUp className="w-4 h-4 text-[#858F6D]" />
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-extrabold text-stone-900 tracking-tight">
-                {formatCurrencyBRL(metrics.todayAverageTicket)}
-              </div>
-              <p className="text-xs text-stone-500 mt-1">
-                Gasto médio por cliente atendido
-              </p>
+            <div className="text-2xl sm:text-3xl font-extrabold text-[#4c543c] mt-2 tracking-tight">
+              {formatCurrencyBRL(metrics.todayAverageTicket)}
             </div>
+            <p className="text-[11px] text-stone-400 mt-2 font-medium">
+              Gasto médio por cliente atendido
+            </p>
           </div>
 
           {/* Avisos de Estoque (Suavizado nas cores do projeto) */}
-          <div className="bg-white p-5 rounded-2xl border border-stone-200/90 border-t-4 border-t-[#631a09] shadow-xs hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                Estoque em Alerta
-              </span>
-              <div className="w-9 h-9 rounded-xl bg-[#631a09]/10 text-[#631a09] border border-[#631a09]/20 flex items-center justify-center">
-                <Package className="w-5 h-5" />
-              </div>
+          <div className="p-5 rounded-2xl border border-stone-200/80 bg-white shadow-xs hover:shadow-md transition-all">
+            <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+              <span>Estoque em Alerta</span>
+              <Package className="w-4 h-4 text-stone-600" />
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-extrabold text-stone-900 tracking-tight">
-                {alerts.length} {alerts.length === 1 ? 'item' : 'itens'}
-              </div>
-              <p className="text-xs text-[#924529] font-medium mt-1">
-                {metrics.outOfStockCount} esgotado(s) • {metrics.lowStockAlertsCount} em reposição
-              </p>
+            <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+              {alerts.length}
             </div>
+            <p className="text-[11px] text-stone-500 mt-2 font-medium">
+              {metrics.outOfStockCount} esgotado(s) • {metrics.lowStockAlertsCount} em reposição
+            </p>
           </div>
         </div>
 
