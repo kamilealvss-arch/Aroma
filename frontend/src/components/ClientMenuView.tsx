@@ -389,14 +389,14 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
           return (
             <div
               key={product.id}
-              className={`relative bg-white rounded-[34px] pt-20 pb-5 px-5 sm:px-6 border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group ${
+              className={`relative bg-white rounded-[34px] pt-18 sm:pt-20 pb-5 px-5 sm:px-6 border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group ${
                 isOutOfStock ? 'opacity-80' : ''
               }`}
             >
               {/* 1. Imagem Flutuante: O card pega apenas a metade inferior, e a metade superior fica para fora do card */}
               <div
                 onClick={() => !isOutOfStock && handleOpenProductDetail(product)}
-                className={`absolute -top-16 left-1/2 -translate-x-1/2 w-36 h-36 sm:w-40 sm:h-40 z-20 flex items-center justify-center ${
+                className={`absolute -top-14 sm:-top-16 left-1/2 -translate-x-1/2 w-32 h-32 sm:w-36 sm:h-36 z-20 flex items-center justify-center ${
                   !isOutOfStock ? 'cursor-pointer' : ''
                 }`}
                 title={!isOutOfStock ? `Personalizar ${product.name}` : undefined}
@@ -406,7 +406,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                     <GourmetCutoutImage
                       src={cardImage}
                       alt={product.name}
-                      className={`w-full h-full object-contain scale-110 sm:scale-120 drop-shadow-[0_18px_24px_rgba(0,0,0,0.24)] ${
+                      className={`w-full h-full object-contain scale-95 sm:scale-100 drop-shadow-[0_14px_20px_rgba(0,0,0,0.20)] ${
                         isOutOfStock ? 'grayscale-70' : ''
                       }`}
                     />
