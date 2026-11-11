@@ -13,6 +13,7 @@ import {
 import { Product } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 import { GourmetCutoutImage } from './GourmetCutoutImage.tsx';
+import ginghamPattern from '../assets/gingham-green.png';
 
 export interface ProductAddonOption {
   id: string;
@@ -255,16 +256,27 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     >
       <div className="relative min-h-screen max-w-2xl mx-auto flex flex-col justify-between pb-28">
         <div>
-          {/* ===================== TOPO ESCURO EM DEGRADÊ COM CURVATURA ===================== */}
+          {/* ===================== TOPO COM ESTAMPA XADREZ (GINGHAM) E CURVATURA ===================== */}
           {/* Note: overflow-visible para permitir que o prato do café ultrapasse e saia da borda do card! */}
-          <div className="relative bg-gradient-to-b from-[#24130b] via-[#331c11] to-[#3f2418] pt-6 pb-20 sm:pb-24 px-6 sm:px-10 rounded-b-[52px] sm:rounded-b-[64px] shadow-md overflow-visible">
+          <div className="relative pt-6 pb-20 sm:pb-24 px-6 sm:px-10 rounded-b-[52px] sm:rounded-b-[64px] shadow-sm overflow-visible">
+            {/* Camada com a estampa xadrez recortada na curvatura arredondada */}
+            <div
+              className="absolute inset-0 rounded-b-[52px] sm:rounded-b-[64px] overflow-hidden pointer-events-none border-b border-stone-200/80 shadow-xs"
+              style={{
+                backgroundImage: `url(${ginghamPattern})`,
+                backgroundRepeat: 'repeat',
+                backgroundSize: '200px auto',
+                backgroundPosition: 'center top',
+              }}
+            />
+
             {/* Barra de Navegação Superior (Voltar) */}
             <div className="relative z-30 flex items-center justify-between">
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Voltar ao cardápio"
-                className="w-12 h-12 rounded-full border border-white/30 bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition cursor-pointer shadow-md"
+                className="w-12 h-12 rounded-full border border-stone-200/80 bg-white/90 backdrop-blur-md flex items-center justify-center text-stone-800 hover:bg-white active:scale-95 transition cursor-pointer shadow-sm"
               >
                 <ArrowLeft className="w-5 h-5 stroke-[2.4]" />
               </button>
