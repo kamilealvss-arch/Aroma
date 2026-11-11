@@ -1618,26 +1618,27 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Aviso de feedback rápido de edição */}
-              {imageActionNotice && !isRemovingBg && (
-                <div className="px-3 py-2 rounded-xl bg-[#F9F7F3] border border-stone-200/80 text-[11px] text-stone-600 flex items-center justify-between">
-                  <div className="flex items-center space-x-1.5">
-                    <Check className="w-3.5 h-3.5 text-[#4c543c] shrink-0" />
-                    <span>{imageActionNotice}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setImageActionNotice(null)}
-                    className="text-stone-400 hover:text-stone-600 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
+            {/* Aviso de feedback rápido de edição */}
+            {imageActionNotice && !isRemovingBg && (
+              <div className="px-3 py-2 rounded-xl bg-[#F9F7F3] border border-stone-200/80 text-[11px] text-stone-600 flex items-center justify-between">
+                <div className="flex items-center space-x-1.5">
+                  <Check className="w-3.5 h-3.5 text-[#4c543c] shrink-0" />
+                  <span>{imageActionNotice}</span>
                 </div>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setImageActionNotice(null)}
+                  className="text-stone-400 hover:text-stone-600 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
 
-              {/* ================= ESTÚDIO INTERATIVO DE PINCEL, RECORTE, ZOOM E CENTRALIZAÇÃO ================= */}
-              {isEditorOpen && (
+            {/* ================= ESTÚDIO INTERATIVO DE PINCEL, RECORTE, ZOOM E CENTRALIZAÇÃO ================= */}
+            {isEditorOpen && (
                 <div className="pt-3 border-t border-stone-200/80 space-y-3.5 animate-in fade-in duration-150">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                     {/* Coluna Esquerda: Palco de Pré-visualização Interativa (5 cols) */}
@@ -2064,7 +2065,6 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 </div>
               )}
             </div>
-          </div>
 
             {/* Rodapé de Ações integrado diretamente ao Card */}
             <div className="pt-4 mt-6 border-t border-stone-100 flex items-center justify-end space-x-3">
