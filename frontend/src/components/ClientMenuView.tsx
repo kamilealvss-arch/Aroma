@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Product, ProductCategory, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
+import { OrderReceiptModal } from './OrderReceiptModal.tsx';
 
 interface ClientMenuViewProps {
   products: Product[];
@@ -654,48 +655,17 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         </div>
       )}
 
-      {/* Modal de Pedido Confirmado com Sucesso */}
+      {/* Modal Interativo com Simulação de Impressora Térmica e Comprovante do Pedido */}
       {orderConfirmed && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/75 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border border-stone-200 animate-in zoom-in-95">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4 shadow-md">
-              <Check className="w-8 h-8" />
-            </div>
-
-            <span className="text-[10px] uppercase tracking-widest text-emerald-700 font-extrabold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              Pedido Enviado para a Cozinha
-            </span>
-
-            <h3 className="text-xl font-extrabold text-stone-900 mt-2">
-              Pedido #{orderConfirmed.orderNumber}
-            </h3>
-
-            <p className="text-xs text-stone-500 mt-1">
-              Obrigado, <strong>{orderConfirmed.customerName}</strong>! Seu pedido para <strong>{orderConfirmed.tableOrTakeaway}</strong> já está sendo preparado.
-            </p>
-
-            <div className="mt-4 p-3 bg-stone-50 rounded-xl text-left text-xs border border-stone-200">
-              <div className="font-bold text-stone-700 mb-1">Resumo:</div>
-              {orderConfirmed.items.map((it) => (
-                <div key={it.productId} className="flex justify-between text-[11px] text-stone-600">
-                  <span>{it.quantity}x {it.productName}</span>
-                  <span>{formatCurrencyBRL(it.subtotal)}</span>
-                </div>
-              ))}
-              <div className="mt-2 pt-2 border-t border-stone-200 flex justify-between font-extrabold text-stone-900">
-                <span>Total:</span>
-                <span>{formatCurrencyBRL(orderConfirmed.totalAmount)}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setOrderConfirmed(null)}
-              className="mt-5 w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition shadow-md"
-            >
-              Fazer Outro Pedido
-            </button>
-          </div>
-        </div>
+        <OrderReceiptModal
+          order={orderConfirmed}
+          onClose={() => setOrderConfirmed(null)}
+          onTrackOrder={(orderId) => {
+            setActiveTrackingOrderId(orderId);
+            setOrderConfirmed(null);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       )}
     </div>
   );
