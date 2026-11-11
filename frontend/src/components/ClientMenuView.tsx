@@ -14,7 +14,6 @@ import {
   ArrowRight,
   Clock,
   Flame,
-  Heart,
 } from 'lucide-react';
 import { Product, ProductCategory, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -492,79 +491,54 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 )}
               </div>
 
-              {/* 3. Rodapé do Card: Preço em destaque + Ações circulares (+ e Coração) */}
-              <div className="pt-4 mt-1 border-t border-stone-100/80">
-                <div className="text-lg font-black text-stone-950 tracking-tight mb-3">
+              {/* 3. Rodapé do Card: Preço em destaque + Ação (+) alinhados horizontalmente */}
+              <div className="pt-4 mt-1 border-t border-stone-100/80 flex items-center justify-between gap-3">
+                <div className="text-lg font-black text-stone-950 tracking-tight">
                   {formatCurrencyBRL(activePrice)}
                 </div>
 
-                <div className="flex items-center justify-between gap-3">
-                  {/* Botão de Adicionar ao Pedido / Controle de Quantidade */}
-                  {isOutOfStock ? (
+                {/* Botão de Adicionar ao Pedido / Controle de Quantidade */}
+                {isOutOfStock ? (
+                  <button
+                    disabled
+                    className="h-11 px-4 bg-stone-100 text-stone-400 rounded-full text-xs font-semibold cursor-not-allowed"
+                  >
+                    Indisponível
+                  </button>
+                ) : inCartQty > 0 ? (
+                  <div className="h-11 inline-flex items-center space-x-2 bg-stone-100 rounded-full px-2 shadow-2xs">
                     <button
-                      disabled
-                      className="h-11 px-4 bg-stone-100 text-stone-400 rounded-full text-xs font-semibold cursor-not-allowed"
+                      type="button"
+                      onClick={() => handleDecreaseProductQty(product.id)}
+                      className="w-8 h-8 rounded-full bg-white text-stone-900 shadow-2xs flex items-center justify-center font-bold hover:bg-stone-50 transition cursor-pointer"
+                      title="Diminuir quantidade"
                     >
-                      Indisponível
+                      <Minus className="w-3.5 h-3.5" />
                     </button>
-                  ) : inCartQty > 0 ? (
-                    <div className="h-11 inline-flex items-center space-x-2 bg-stone-100 rounded-full px-2 shadow-2xs">
-                      <button
-                        type="button"
-                        onClick={() => handleDecreaseProductQty(product.id)}
-                        className="w-8 h-8 rounded-full bg-white text-stone-900 shadow-2xs flex items-center justify-center font-bold hover:bg-stone-50 transition cursor-pointer"
-                        title="Diminuir quantidade"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-xs font-extrabold text-stone-900 px-1">
-                        {inCartQty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenProductDetail(product)}
-                        disabled={inCartQty >= product.stockQuantity}
-                        className="w-8 h-8 rounded-full bg-[#c58d59] text-white shadow-2xs flex items-center justify-center font-bold hover:bg-[#b07842] transition disabled:opacity-40 cursor-pointer"
-                        title="Personalizar e adicionar mais"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
+                    <span className="text-xs font-extrabold text-stone-900 px-1">
+                      {inCartQty}
+                    </span>
                     <button
                       type="button"
                       onClick={() => handleOpenProductDetail(product)}
-                      aria-label={`Personalizar e adicionar ${product.name} ao Pedido`}
-                      className="w-11 h-11 rounded-full bg-stone-950 hover:bg-[#c58d59] active:scale-95 text-white flex items-center justify-center shadow-md transition cursor-pointer"
-                      title="Personalizar bebida e adicionar"
+                      disabled={inCartQty >= product.stockQuantity}
+                      className="w-8 h-8 rounded-full bg-[#c58d59] text-white shadow-2xs flex items-center justify-center font-bold hover:bg-[#b07842] transition disabled:opacity-40 cursor-pointer"
+                      title="Personalizar e adicionar mais"
                     >
-                      <Plus className="w-5 h-5 stroke-[2.5]" />
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
-                  )}
-
-                  {/* Botão Circular de Favorito (Coração) */}
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    onClick={() =>
-                      setFavorites((prev) => ({
-                        ...prev,
-                        [product.id]: !prev[product.id],
-                      }))
-                    }
-                    className={`w-11 h-11 rounded-full flex items-center justify-center transition cursor-pointer shadow-2xs ${
-                      isFavorite
-                        ? 'bg-rose-50 text-[#850D2C] border border-rose-200'
-                        : 'bg-stone-100 text-stone-600 hover:text-stone-950 hover:bg-stone-200/80'
-                    }`}
-                    title={isFavorite ? 'Remover dos favoritos' : 'Favoritar item'}
+                    onClick={() => handleOpenProductDetail(product)}
+                    aria-label={`Personalizar e adicionar ${product.name} ao Pedido`}
+                    className="w-11 h-11 rounded-full bg-stone-950 hover:bg-[#c58d59] active:scale-95 text-white flex items-center justify-center shadow-md transition cursor-pointer"
+                    title="Personalizar bebida e adicionar"
                   >
-                    <Heart
-                      className={`w-5 h-5 transition ${
-                        isFavorite ? 'fill-[#850D2C] text-[#850D2C]' : ''
-                      }`}
-                    />
+                    <Plus className="w-5 h-5 stroke-[2.5]" />
                   </button>
-                </div>
+                )}
               </div>
             </div>
           );
