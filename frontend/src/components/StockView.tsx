@@ -17,6 +17,7 @@ import {
   Clock,
   Coffee,
   Boxes,
+  Sparkles,
   Scale,
   Wheat,
   ChevronLeft,
@@ -71,7 +72,7 @@ export const StockView: React.FC<StockViewProps> = ({
 
   // ================= ESTADOS DO ESTOQUE DE INGREDIENTES =================
   const [ingredientSearch, setIngredientSearch] = useState('');
-  const [ingredientFilter, setIngredientFilter] = useState<'ALL' | 'ESGOTADO' | 'BAIXO' | 'NORMAL'>('ALL');
+  const [ingredientFilter, setIngredientFilter] = useState<'ALL' | 'ESGOTADO' | 'BAIXO' | 'NORMAL' | 'ADICIONAIS'>('ALL');
   const [selectedIngredientCategory, setSelectedIngredientCategory] = useState<string>('ALL');
   const [ingredientSortBy, setIngredientSortBy] = useState<SortOption>('CRITICALITY');
   const [ingredientPage, setIngredientPage] = useState<number>(1);
@@ -93,6 +94,7 @@ export const StockView: React.FC<StockViewProps> = ({
   const [newIngMinStock, setNewIngMinStock] = useState<string>('5');
   const [newIngCost, setNewIngCost] = useState<string>('0');
   const [newIngSupplier, setNewIngSupplier] = useState('');
+  const [newIngIsAddon, setNewIngIsAddon] = useState(false);
   const [isCreatingIngredient, setIsCreatingIngredient] = useState(false);
   const [createIngredientError, setCreateIngredientError] = useState<string | null>(null);
 
@@ -191,6 +193,9 @@ export const StockView: React.FC<StockViewProps> = ({
 
   // ================= DADOS E CÁLCULOS: INGREDIENTES =================
   const ingredientCategories = Array.from(new Set(ingredients.map((i) => i.category)));
+  if (!ingredientCategories.includes('Adicionais & Complementos')) {
+    ingredientCategories.push('Adicionais & Complementos');
+  }
   const totalIngredients = ingredients.length;
   const lowStockIngredients = ingredients.filter(
     (i) => i.currentStock > 0 && i.currentStock <= i.minStockThreshold
@@ -198,6 +203,9 @@ export const StockView: React.FC<StockViewProps> = ({
   const outOfStockIngredients = ingredients.filter((i) => i.currentStock <= 0).length;
   const normalStockIngredients = ingredients.filter(
     (i) => i.currentStock > i.minStockThreshold
+  ).length;
+  const addonIngredientsCount = ingredients.filter(
+    (i) => i.isAddonIngredient || i.category === 'Adicionais & Complementos'
   ).length;
 
   const filteredIngredients = ingredients.filter((ing) => {
@@ -212,10 +220,12 @@ export const StockView: React.FC<StockViewProps> = ({
     const isLow = ing.currentStock > 0 && ing.currentStock <= ing.minStockThreshold;
     const isNormal = ing.currentStock > ing.minStockThreshold;
 
+    const isAddon = Boolean(ing.isAddonIngredient || ing.category === 'Adicionais & Complementos');
     let matchesStatus = true;
     if (ingredientFilter === 'ESGOTADO') matchesStatus = isOutOfStock;
     else if (ingredientFilter === 'BAIXO') matchesStatus = isLow;
     else if (ingredientFilter === 'NORMAL') matchesStatus = isNormal;
+    else if (ingredientFilter === 'ADICIONAIS') matchesStatus = isAddon;
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
@@ -373,6 +383,7 @@ export const StockView: React.FC<StockViewProps> = ({
     setNewIngMinStock('5');
     setNewIngCost('0');
     setNewIngSupplier('');
+    setNewIngIsAddon(false);
     setCreateIngredientError(null);
     setIsCreateIngredientOpen(true);
   };
@@ -396,6 +407,7 @@ export const StockView: React.FC<StockViewProps> = ({
           minStockThreshold: Math.max(0, parseFloat(newIngMinStock) || 0),
           costPerUnit: Math.max(0, parseFloat(newIngCost) || 0),
           supplier: newIngSupplier.trim() || undefined,
+          isAddonIngredient: newIngIsAddon || newIngCategory === 'Adicionais & Complementos',
         });
       }
       setIsCreateIngredientOpen(false);
@@ -532,7 +544,7 @@ export const StockView: React.FC<StockViewProps> = ({
       {activeTab === 'PRODUCTS' && (
         <>
           {/* 1. Cards de Indicadores: Bordas Cinza-Claro Padronizadas, Altura Reduzida e Números em Destaque */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             {/* Card 1: Itens Monitorados */}
             <div
               onClick={() => setFilter('ALL')}
@@ -1168,6 +1180,38 @@ export const StockView: React.FC<StockViewProps> = ({
                 Produção ou atendimento interrompidos por falta de insumo
               </p>
             </div>
+
+            {/* Card 4: Ingredientes Adicionais do Cardápio (Filtro Exclusivo) */}
+            <div
+              onClick={() => setIngredientFilter(ingredientFilter === 'ADICIONAIS' ? 'ALL' : 'ADICIONAIS')}
+              className={`cursor-pointer p-4 sm:py-4 sm:px-5 rounded-2xl border transition-all duration-150 flex flex-col justify-between bg-white shadow-xs group ${
+                ingredientFilter === 'ADICIONAIS'
+                  ? 'border-amber-400 ring-2 ring-amber-200 bg-amber-50/20'
+                  : 'border-stone-200/80 hover:border-amber-300'
+              }`}
+              title="Filtrar ingredientes que servem como adicionais no cardápio"
+            >
+              <div>
+                <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center text-amber-700 border border-amber-200">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[#35312F] font-medium">Ingredientes adicionais</span>
+                  </div>
+                  <span className="text-[10px] font-medium text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full border border-amber-200">
+                    Cardápio
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-[#35312F] mt-2 tracking-tight">
+                  {addonIngredientsCount}{' '}
+                  <span className="text-xs font-normal text-stone-400">itens</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-stone-400 mt-1.5">
+                Chantilly, caldas, shots, leites e complementos gourmet
+              </p>
+            </div>
           </div>
 
           {/* Barra de Ferramentas de Ingredientes: Perfeitamente Alinhada e Estruturada */}
@@ -1248,6 +1292,29 @@ export const StockView: React.FC<StockViewProps> = ({
                     }`}
                   >
                     {outOfStockIngredients}
+                  </span>
+                </button>
+
+                <div className="h-4 w-px bg-stone-200 mx-0.5 hidden sm:block" />
+
+                {/* Filtro exclusivo de Adicionais & Complementos */}
+                <button
+                  onClick={() => setIngredientFilter(ingredientFilter === 'ADICIONAIS' ? 'ALL' : 'ADICIONAIS')}
+                  className={`h-8 px-3 rounded-full text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap ${
+                    ingredientFilter === 'ADICIONAIS'
+                      ? 'bg-amber-600 text-white shadow-2xs'
+                      : 'bg-amber-50/80 text-amber-900 hover:bg-amber-100/80 border border-amber-200/90'
+                  }`}
+                  title="Filtro exclusivo para ingredientes adicionais do cardápio"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Adicionais</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                      ingredientFilter === 'ADICIONAIS' ? 'bg-white/20 text-white' : 'bg-amber-200/70 text-amber-900'
+                    }`}
+                  >
+                    {addonIngredientsCount}
                   </span>
                 </button>
               </div>
@@ -1403,7 +1470,9 @@ export const StockView: React.FC<StockViewProps> = ({
                           <td className="py-2.5 px-4 align-middle">
                             <div className="flex items-center space-x-3">
                               <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-600 border border-stone-200 shrink-0">
-                                {ing.category === 'Laticínios' ? (
+                                {ing.category === 'Adicionais & Complementos' || ing.isAddonIngredient ? (
+                                  <Sparkles className="w-4 h-4 text-amber-600" />
+                                ) : ing.category === 'Laticínios' ? (
                                   <IngredientsBasketIcon className="w-4 h-4 text-stone-500" />
                                 ) : ing.category === 'Panificação & Doces' ? (
                                   <Wheat className="w-4 h-4 text-stone-500" />
@@ -1414,9 +1483,17 @@ export const StockView: React.FC<StockViewProps> = ({
                                 )}
                               </div>
                               <div>
-                                <span className="font-semibold text-[#35312F] block text-xs">
-                                  {ing.name}
-                                </span>
+                                <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
+                                  <span className="font-semibold text-[#35312F] block text-xs">
+                                    {ing.name}
+                                  </span>
+                                  {(ing.isAddonIngredient || ing.category === 'Adicionais & Complementos') && (
+                                    <span className="inline-flex items-center space-x-1 px-1.5 py-0.2 rounded-full bg-amber-50 text-amber-700 text-[10px] font-semibold border border-amber-200/70 shrink-0">
+                                      <Sparkles className="w-2.5 h-2.5 text-amber-500" />
+                                      <span>Adicional</span>
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="flex items-center space-x-2 text-[11px] text-stone-400 font-normal">
                                   {ing.supplier && <span>Fornec: {ing.supplier}</span>}
                                   {ing.supplier && <span>•</span>}
@@ -1428,7 +1505,12 @@ export const StockView: React.FC<StockViewProps> = ({
 
                           {/* Categoria */}
                           <td className="py-2.5 px-4 text-stone-500 font-medium text-xs align-middle">
-                            <span className="inline-block px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 text-[11px]">
+                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] ${
+                              ing.category === 'Adicionais & Complementos'
+                                ? 'bg-amber-50 text-amber-800 font-semibold border border-amber-200/60'
+                                : 'bg-stone-100 text-stone-600'
+                            }`}
+                            >
                               {ing.category}
                             </span>
                           </td>
@@ -1945,7 +2027,11 @@ export const StockView: React.FC<StockViewProps> = ({
                   </label>
                   <select
                     value={newIngCategory}
-                    onChange={(e) => setNewIngCategory(e.target.value as IngredientCategory)}
+                    onChange={(e) => {
+                      const val = e.target.value as IngredientCategory;
+                      setNewIngCategory(val);
+                      if (val === 'Adicionais & Complementos') setNewIngIsAddon(true);
+                    }}
                     className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] font-medium focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition cursor-pointer"
                   >
                     <option value="Grãos & Pós">Grãos & Pós</option>
@@ -1953,6 +2039,7 @@ export const StockView: React.FC<StockViewProps> = ({
                     <option value="Panificação & Doces">Panificação & Doces</option>
                     <option value="Mercearia & Adoçantes">Mercearia & Adoçantes</option>
                     <option value="Embalagens & Descartáveis">Embalagens & Descartáveis</option>
+                    <option value="Adicionais & Complementos">✨ Adicionais & Complementos</option>
                   </select>
                 </div>
 
@@ -1972,6 +2059,22 @@ export const StockView: React.FC<StockViewProps> = ({
                     <option value="un">un (Unidades)</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Configuração de Adicional do Cardápio */}
+              <div className="p-3 bg-stone-50 border border-stone-200/80 rounded-xl">
+                <label className="flex items-center space-x-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newIngIsAddon}
+                    onChange={(e) => setNewIngIsAddon(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#850D2C] focus:ring-[#850D2C] border-stone-300 cursor-pointer"
+                  />
+                  <div className="flex items-center space-x-1.5 text-xs text-[#35312F] font-medium">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Este insumo é um adicional / complemento de bebidas e pratos</span>
+                  </div>
+                </label>
               </div>
 
               {/* Estoque Inicial e Limite Mínimo */}

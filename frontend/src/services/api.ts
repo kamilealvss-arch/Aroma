@@ -169,6 +169,141 @@ function saveCreatedIngredientLocal(ingredient: Ingredient): void {
   }
 }
 
+const DEFAULT_ADDON_INGREDIENTS: Ingredient[] = [
+  {
+    id: 'ing_addon_chantilly',
+    name: 'Chantilly Artesanal Gourmet',
+    category: 'Adicionais & Complementos',
+    currentStock: 12.0,
+    unit: 'L',
+    minStockThreshold: 4.0,
+    costPerUnit: 18.0,
+    supplier: 'Doces & Delícias Artesanais',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-28T10:00:00.000Z',
+  },
+  {
+    id: 'ing_addon_caramelo',
+    name: 'Calda de Caramelo Salgado Artesanal',
+    category: 'Adicionais & Complementos',
+    currentStock: 8.5,
+    unit: 'kg',
+    minStockThreshold: 3.0,
+    costPerUnit: 24.0,
+    supplier: 'Caramelo Real Gourmet',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-28T11:00:00.000Z',
+  },
+  {
+    id: 'ing_addon_gotas_chocolate',
+    name: 'Gotas de Chocolate Belga 70%',
+    category: 'Adicionais & Complementos',
+    currentStock: 6.0,
+    unit: 'kg',
+    minStockThreshold: 2.5,
+    costPerUnit: 65.0,
+    supplier: 'Chocolates Callebaut Import',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-25T14:00:00.000Z',
+  },
+  {
+    id: 'ing_addon_shot_espresso',
+    name: 'Dose Extra de Café Especial (Shot)',
+    category: 'Adicionais & Complementos',
+    currentStock: 15.0,
+    unit: 'kg',
+    minStockThreshold: 5.0,
+    costPerUnit: 72.0,
+    supplier: 'Fazenda Santa Maria - Mogiana',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-28T09:00:00.000Z',
+  },
+  {
+    id: 'ing_addon_leite_sem_lactose',
+    name: 'Leite Vegetal / Sem Lactose',
+    category: 'Adicionais & Complementos',
+    currentStock: 14.0,
+    unit: 'L',
+    minStockThreshold: 6.0,
+    costPerUnit: 16.5,
+    supplier: 'Distribuidora PlantPower',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-27T10:00:00.000Z',
+  },
+  {
+    id: 'ing_addon_canela_po',
+    name: 'Canela Especial do Ceilão em Pó',
+    category: 'Adicionais & Complementos',
+    currentStock: 2.5,
+    unit: 'kg',
+    minStockThreshold: 1.0,
+    costPerUnit: 48.0,
+    supplier: 'Especiarias do Oriente',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-20T16:00:00.000Z',
+  },
+  {
+    id: 'ing_addon_geleia_frutas',
+    name: 'Geléia Artesanal de Frutas Vermelhas',
+    category: 'Adicionais & Complementos',
+    currentStock: 5.0,
+    unit: 'kg',
+    minStockThreshold: 2.0,
+    costPerUnit: 32.0,
+    supplier: 'Sítio das Frutas Artesanais',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-26T12:00:00.000Z',
+  },
+  {
+    id: 'ing_addon_requeijao',
+    name: 'Requeijão Cremoso Artesanal (Bisnaga)',
+    category: 'Adicionais & Complementos',
+    currentStock: 9.0,
+    unit: 'kg',
+    minStockThreshold: 3.5,
+    costPerUnit: 28.0,
+    supplier: 'Laticínios Vale Verde',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-25T14:30:00.000Z',
+  },
+  {
+    id: 'ing_addon_bacon_crocante',
+    name: 'Bacon Crocante em Cubos Dourados',
+    category: 'Adicionais & Complementos',
+    currentStock: 4.0,
+    unit: 'kg',
+    minStockThreshold: 2.0,
+    costPerUnit: 38.0,
+    supplier: 'Defumados Artesanais da Serra',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-24T15:00:00.000Z',
+  },
+  {
+    id: 'ing_addon_brigadeiro',
+    name: 'Cobertura Artesanal de Brigadeiro Gourmet',
+    category: 'Adicionais & Complementos',
+    currentStock: 6.0,
+    unit: 'kg',
+    minStockThreshold: 2.0,
+    costPerUnit: 32.0,
+    supplier: 'Doces & Delícias Artesanais',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-28T10:00:00.000Z',
+  },
+  {
+    id: 'ing_addon_parmesao_ralado',
+    name: 'Queijo Parmesão Ralado Especial',
+    category: 'Adicionais & Complementos',
+    currentStock: 7.0,
+    unit: 'kg',
+    minStockThreshold: 2.5,
+    costPerUnit: 58.0,
+    supplier: 'Queijaria Artesanal Mantiqueira',
+    isAddonIngredient: true,
+    updatedAt: '2026-10-26T16:00:00.000Z',
+  },
+];
+
 function applyIngredientOverrides(serverIngredients: Ingredient[]): Ingredient[] {
   const local = getCreatedIngredientsLocal();
   const mergedMap = new Map<string, Ingredient>();
@@ -178,6 +313,11 @@ function applyIngredientOverrides(serverIngredients: Ingredient[]): Ingredient[]
   }
   for (const ing of serverIngredients) {
     mergedMap.set(ing.id, ing);
+  }
+  for (const addon of DEFAULT_ADDON_INGREDIENTS) {
+    if (!mergedMap.has(addon.id)) {
+      mergedMap.set(addon.id, addon);
+    }
   }
 
   return Array.from(mergedMap.values());
@@ -329,7 +469,7 @@ export const api = {
       const serverIngredients = await request<Ingredient[]>('/api/ingredients');
       return applyIngredientOverrides(serverIngredients);
     } catch {
-      return getCreatedIngredientsLocal();
+      return applyIngredientOverrides(getCreatedIngredientsLocal());
     }
   },
   createIngredient: async (data: Omit<Ingredient, 'id' | 'updatedAt'>) => {
@@ -389,7 +529,15 @@ export const api = {
     consumptionType?: Order['consumptionType'];
     notes?: string;
     paymentMethod: Order['paymentMethod'];
-    items: Array<{ productId: string; quantity: number; notes?: string; selectedSize?: string }>;
+    items: Array<{
+      productId: string;
+      quantity: number;
+      notes?: string;
+      selectedSize?: string;
+      selectedAddons?: string[];
+      addons?: Array<{ name: string; price: number }>;
+      unitPrice?: number;
+    }>;
   }) => {
     const created = await request<Order>('/api/orders', {
       method: 'POST',

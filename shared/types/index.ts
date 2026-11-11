@@ -14,6 +14,12 @@ export interface ProductSizeOption {
   costPrice?: number;
 }
 
+export interface ProductAddon {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -21,12 +27,15 @@ export interface Product {
   price: number;
   costPrice: number;
   category: ProductCategory;
-  imageUrl: string;
+  imageUrl: string;          // Imagem quadrada normal (catálogo de produtos / gestão)
+  cutoutImageUrl?: string;   // Imagem recortada sem fundo (cardápio do cliente e modal de detalhes)
   stockQuantity: number;
   minStockThreshold: number; // Ex: 5 unidades para aviso de estoque baixo
   status: ProductStatus;     // 'ativo' ou 'inativo' (Exclusão Lógica - Requisito 4)
   hasSizes?: boolean;        // Se possui opções de tamanho (ex: cafés e bebidas)
   sizes?: ProductSizeOption[]; // Lista opcional de tamanhos disponíveis
+  hasAddons?: boolean;       // Se possui opções de adicionais/complementos específicos
+  addons?: ProductAddon[];   // Lista de adicionais configurados para este produto
   createdAt: string;
   updatedAt: string;
 }
@@ -39,7 +48,8 @@ export type IngredientCategory =
   | 'Laticínios'
   | 'Panificação & Doces'
   | 'Mercearia & Adoçantes'
-  | 'Embalagens & Descartáveis';
+  | 'Embalagens & Descartáveis'
+  | 'Adicionais & Complementos';
 
 export interface Ingredient {
   id: string;
@@ -50,6 +60,7 @@ export interface Ingredient {
   minStockThreshold: number;
   costPerUnit: number; // Custo por kg, L ou un
   supplier?: string;
+  isAddonIngredient?: boolean; // Se é utilizado como ingrediente adicional no cardápio
   updatedAt: string;
 }
 
@@ -68,6 +79,7 @@ export interface OrderItem {
   productId: string;
   productName: string;
   selectedSize?: string; // Ex: 'M (300ml)'
+  selectedAddons?: string[]; // Ex: ['Chantilly Artesanal', 'Shot Extra']
   unitPrice: number;
   costPrice: number;
   quantity: number;

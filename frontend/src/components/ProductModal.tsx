@@ -18,8 +18,9 @@ import {
   Sparkles,
   Eraser,
   Coffee,
+  Trash2,
 } from 'lucide-react';
-import { Product, ProductCategory, ProductSizeOption } from '../../../shared/types/index.ts';
+import { Product, ProductCategory, ProductSizeOption, ProductAddon } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 import {
   validateImageFile,
@@ -28,6 +29,7 @@ import {
   cleanIsolatedFragments,
   renderEditedProductImage,
   loadImageElement,
+  hasImageTransparency,
   CropAspectRatio,
   ExportImageFormat,
 } from '../utils/imageProcessing.ts';
@@ -47,6 +49,21 @@ export const DEFAULT_CATEGORIES: ProductCategory[] = [
   'Doces & Bolos',
   'Salgados Artesanais',
   'Combos & Brunch',
+];
+
+export const PRESET_ADDON_SUGGESTIONS: Array<{ name: string; price: number }> = [
+  { name: 'Chantilly Artesanal', price: 3.0 },
+  { name: 'Calda de Caramelo Salgado', price: 2.5 },
+  { name: 'Shot Extra de Espresso', price: 4.0 },
+  { name: 'Leite Sem Lactose / Vegetal', price: 3.5 },
+  { name: 'Canela em Pó & Cacau', price: 0.0 },
+  { name: 'Gotas de Chocolate Belga', price: 3.0 },
+  { name: 'Aquecer no Forno / Tostado', price: 0.0 },
+  { name: 'Geléia Artesanal', price: 3.5 },
+  { name: 'Requeijão Cremoso Extra', price: 3.5 },
+  { name: 'Parmesão Ralado Maçaricado', price: 4.0 },
+  { name: 'Bacon Crocante', price: 4.5 },
+  { name: 'Cobertura Extra de Brigadeiro', price: 4.0 },
 ];
 
 const DEFAULT_IMAGE_URL =
@@ -93,9 +110,32 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     { name: 'G (450ml)', price: 16.00 },
   ]);
 
+  // ================= ESTADO DE ADICIONAIS & COMPLEMENTOS =================
+  const [hasAddons, setHasAddons] = useState<boolean>(false);
+  const [addons, setAddons] = useState<ProductAddon[]>([]);
+  const [newAddonName, setNewAddonName] = useState<string>('');
+  const [newAddonPrice, setNewAddonPrice] = useState<string>('');
+
+  const handleAddCustomAddon = () => {
+    const trimmed = newAddonName.trim();
+    if (!trimmed) return;
+    const priceNum = parseFloat(newAddonPrice) || 0;
+    setAddons((prev) => [
+      ...prev,
+      {
+        id: `addon_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        name: trimmed,
+        price: priceNum,
+      },
+    ]);
+    setNewAddonName('');
+    setNewAddonPrice('');
+  };
+
   // ================= ESTADOS DO ESTÚDIO DE EDIÇÃO DE IMAGEM & IA =================
   const [originalImageUrl, setOriginalImageUrl] = useState<string>(DEFAULT_IMAGE_URL);
   const [workingImageUrl, setWorkingImageUrl] = useState<string>(DEFAULT_IMAGE_URL);
+  const [cutoutImageUrl, setCutoutImageUrl] = useState<string>('');
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [hasRemovedBg, setHasRemovedBg] = useState<boolean>(false);
   const [isRemovingBg, setIsRemovingBg] = useState<boolean>(false);
@@ -143,6 +183,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   useEffect(() => {
     const initialImg = productToEdit ? productToEdit.imageUrl : DEFAULT_IMAGE_URL;
+    const initialCutout = productToEdit?.cutoutImageUrl || '';
     if (productToEdit) {
       setName(productToEdit.name);
       setDescription(productToEdit.description);
@@ -162,6 +203,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               { name: 'G (450ml)', price: Number((productToEdit.price * 1.6).toFixed(2)) },
             ]
       );
+      setHasAddons(!!productToEdit.hasAddons || (!!productToEdit.addons && productToEdit.addons.length > 0));
+      setAddons(productToEdit.addons && productToEdit.addons.length > 0 ? productToEdit.addons : []);
     } else {
       setName('');
       setDescription('');
@@ -177,12 +220,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         { name: 'M (300ml)', price: 12.00 },
         { name: 'G (450ml)', price: 16.00 },
       ]);
+      setHasAddons(false);
+      setAddons([]);
+      setNewAddonName('');
+      setNewAddonPrice('');
     }
 
     setOriginalImageUrl(initialImg);
-    setWorkingImageUrl(initialImg);
+    setCutoutImageUrl(initialCutout);
+    setWorkingImageUrl(initialCutout || initialImg);
     setIsEditorOpen(false);
-    setHasRemovedBg(false);
+    setHasRemovedBg(Boolean(initialCutout));
     setIsRemovingBg(false);
     setBgProgressText('');
     setBgProgressPercent(0);
@@ -201,6 +249,22 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     setNewCategoryName('');
     setError(null);
   }, [productToEdit, isOpen]);
+
+  // Bloqueia scroll do fundo e fecha com tecla ESC
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isEditorOpen) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, isEditorOpen, onClose]);
 
   // Sincroniza a imagem de trabalho (workingImageUrl) com o canvas interativo do editor
   useEffect(() => {
@@ -268,7 +332,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     setIsCreatingCategory(false);
   };
 
-  // Upload e validação de arquivo de foto (PNG, JPG, WebP até 10MB)
+  // 1. Upload da Foto Normal para a Gestão de Produtos (Quadrada)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -282,19 +346,76 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
     setError(null);
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onloadend = async () => {
       const resultDataUrl = reader.result as string;
       setOriginalImageUrl(resultDataUrl);
-      setWorkingImageUrl(resultDataUrl);
       setImageUrl(resultDataUrl);
-      setHasRemovedBg(false);
       setZoom(1);
       setOffsetX(0);
       setOffsetY(0);
       setCropMargin(0);
       setHistory([]);
+
+      // Detecção inteligente: se o arquivo já tiver transparência (PNG/WebP sem fundo)
+      const isAlreadyTransparent = await hasImageTransparency(resultDataUrl);
+      if (isAlreadyTransparent) {
+        try {
+          const trimmed = await autoTrimAndCenterProduct(resultDataUrl, 0.02);
+          setCutoutImageUrl(trimmed);
+          setWorkingImageUrl(trimmed);
+          setHasRemovedBg(true);
+          setImageActionNotice(
+            'Imagem com fundo transparente detectada! O produto foi recortado e centralizado para o cardápio.'
+          );
+        } catch {
+          setCutoutImageUrl(resultDataUrl);
+          setWorkingImageUrl(resultDataUrl);
+          setHasRemovedBg(true);
+        }
+      } else {
+        if (!cutoutImageUrl) {
+          setWorkingImageUrl(resultDataUrl);
+          setImageActionNotice(
+            'Foto normal carregada. Agora você pode recortar para o cardápio usando IA ou enviar uma foto sem fundo.'
+          );
+        } else {
+          setImageActionNotice('Foto normal atualizada para os produtos.');
+        }
+      }
+    };
+    reader.onerror = () => {
+      setError('Falha ao ler o arquivo de imagem enviado.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 2. Upload direto da Foto Recortada sem Fundo para o Cardápio (PNG/WebP transparente)
+  const handleCutoutFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      setError(validation.error || 'Arquivo de imagem inválido.');
+      e.target.value = '';
+      return;
+    }
+
+    setError(null);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const resultDataUrl = reader.result as string;
+      try {
+        const trimmed = await autoTrimAndCenterProduct(resultDataUrl, 0.02);
+        setCutoutImageUrl(trimmed);
+        setWorkingImageUrl(trimmed);
+      } catch {
+        setCutoutImageUrl(resultDataUrl);
+        setWorkingImageUrl(resultDataUrl);
+      }
+      setHasRemovedBg(true);
       setImageActionNotice(
-        'Nova imagem carregada. Você pode remover o fundo automaticamente ou ajustar o recorte.'
+        'Foto recortada do cardápio carregada com sucesso! Ela será exibida no cardápio flutuando sobre o prato.'
       );
     };
     reader.onerror = () => {
@@ -303,9 +424,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const handleClearCutout = () => {
+    setCutoutImageUrl('');
+    setHasRemovedBg(false);
+    setWorkingImageUrl(originalImageUrl || imageUrl);
+    setImageActionNotice('Recorte do cardápio removido.');
+  };
+
   // Remoção automática de fundo por IA
   const handleRemoveBackground = async () => {
-    if (!workingImageUrl) {
+    const sourceImage = originalImageUrl || workingImageUrl || imageUrl;
+    if (!sourceImage) {
       setError('Selecione ou informe uma imagem antes de remover o fundo.');
       return;
     }
@@ -320,7 +449,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     try {
       pushToHistory();
       const transparentPng = await removeProductBackgroundAI(
-        workingImageUrl,
+        sourceImage,
         (status, percent) => {
           setBgProgressText(status);
           setBgProgressPercent(percent);
@@ -329,10 +458,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
       // Recorta sobras transparentes e centraliza automaticamente o produto
       setBgProgressText('Centralizando produto e limpando resíduos...');
-      const centeredPng = await autoTrimAndCenterProduct(transparentPng, 0.08);
+      const centeredPng = await autoTrimAndCenterProduct(transparentPng, 0.02);
 
       setWorkingImageUrl(centeredPng);
-      setImageUrl(centeredPng);
+      setCutoutImageUrl(centeredPng);
       setHasRemovedBg(true);
       setZoom(1);
       setOffsetX(0);
@@ -340,7 +469,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setCropMargin(0);
       setPreviewBackdrop('checker');
       setImageActionNotice(
-        'Fundo removido! Se restar algum detalhe, use o Pincel de remoção para apagar.'
+        'Fundo removido com sucesso! A imagem recortada foi salva para o cardápio.'
       );
     } catch (err: any) {
       setError(
@@ -569,7 +698,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           const updatedDataUrl = editorCanvasRef.current.toDataURL('image/png');
           skipNextCanvasReloadRef.current = true;
           setWorkingImageUrl(updatedDataUrl);
-          setImageUrl(updatedDataUrl);
+          setCutoutImageUrl(updatedDataUrl);
           setHasRemovedBg(true);
         } catch {
           // ignora erro se o canvas estiver contaminado por CORS externo
@@ -659,6 +788,20 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         ? sizes.filter((s) => s.name.trim() && s.price > 0)
         : undefined;
 
+      const cleanedAddons = hasAddons
+        ? addons.filter((a) => a.name.trim().length > 0)
+        : undefined;
+
+      let rawCutout = cutoutImageUrl || (hasRemovedBg ? (finalProductImage || workingImageUrl) : undefined);
+      let normalizedCutout = rawCutout;
+      if (rawCutout && (rawCutout.startsWith('data:image/png') || rawCutout.startsWith('data:image/webp'))) {
+        try {
+          normalizedCutout = await autoTrimAndCenterProduct(rawCutout, 0.02);
+        } catch {
+          normalizedCutout = rawCutout;
+        }
+      }
+
       await onSave({
         name: name.trim(),
         description: description.trim(),
@@ -667,9 +810,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         category: finalCategory,
         stockQuantity: isNaN(numStock) ? 0 : numStock,
         minStockThreshold: isNaN(numMin) ? 5 : numMin,
-        imageUrl: finalProductImage,
+        imageUrl: originalImageUrl || imageUrl,
+        cutoutImageUrl: normalizedCutout || undefined,
         hasSizes: hasSizes && cleanedSizes && cleanedSizes.length > 0,
         sizes: cleanedSizes,
+        hasAddons: hasAddons && cleanedAddons && cleanedAddons.length > 0,
+        addons: cleanedAddons,
       });
       onClose();
     } catch (err: any) {
@@ -703,32 +849,50 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-stone-200 p-6 sm:p-7 relative my-8 animate-in fade-in zoom-in-95 duration-150 text-[#35312F]">
-        {/* Cabeçalho do Modal no padrão Aroma (sem ícone no canto esquerdo) */}
-        <div className="flex items-center justify-between pb-4 border-b border-stone-100">
-          <div>
-            <h3 className="font-bold text-[#35312F] text-base">
-              {productToEdit ? 'Editar Produto do Cardápio' : 'Cadastrar Novo Produto'}
-            </h3>
-            <p className="text-xs text-stone-400">
-              {productToEdit
-                ? 'Atualize informações, precificação, foto ou parâmetros de estoque'
-                : 'Adicione um novo item gastronômico ao catálogo digital da cafeteria'}
-            </p>
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 bg-[#f6efdd] text-[#35312F] overflow-y-auto animate-in fade-in duration-150 flex flex-col bg-aroma-stripes"
+      style={{
+        backgroundColor: '#f6efdd',
+        backgroundImage: "repeating-linear-gradient(to right, #7e8b60 0px, #7e8b60 64px, #f6efdd 64px, #f6efdd 128px)",
+      }}
+    >
+      {/* 1. Cabeçalho Superior que rola naturalmente com o conteúdo (não fixo/estático) */}
+      <div className="w-full bg-white/95 backdrop-blur-md border-b border-stone-200/90 px-6 sm:px-10 py-4 flex items-center justify-between shadow-2xs">
+        <div>
+          <div className="flex items-center space-x-1.5 text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-0.5">
+            <span>Cardápio</span>
+            <span>/</span>
+            <span className="text-[#850D2C]">{productToEdit ? 'Editar Produto' : 'Cadastrar Produto'}</span>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-stone-400 hover:text-stone-600 p-1.5 rounded-full hover:bg-stone-100 transition cursor-pointer"
-            title="Fechar"
+          <h2
+            className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight font-amarego"
+            style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
           >
-            <X className="w-4 h-4" />
-          </button>
+            {productToEdit ? 'Editar Produto do Cardápio' : 'Cadastrar Novo Produto'}
+          </h2>
+          <p className="text-xs text-stone-400">
+            {productToEdit
+              ? 'Atualize informações, precificação, adicionais, foto ou parâmetros de estoque'
+              : 'Adicione um novo item gastronômico ao catálogo digital da cafeteria'}
+          </p>
         </div>
 
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-10 h-10 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-800 flex items-center justify-center transition cursor-pointer"
+          title="Fechar tela inteira (ESC)"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* 2. Conteúdo Central em Tela Inteira */}
+      <div className="max-w-4xl mx-auto w-full px-4 sm:px-8 py-6 pb-12 flex-1">
         {error && (
-          <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-[#850D2C] rounded-xl text-xs flex items-center justify-between gap-2">
+          <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 text-[#850D2C] rounded-2xl text-xs flex items-center justify-between gap-2 shadow-2xs">
             <div className="flex items-center space-x-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-[#850D2C]" />
               <span>{error}</span>
@@ -743,7 +907,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+        <div className="bg-white rounded-3xl border border-stone-200/90 shadow-xl p-6 sm:p-8 space-y-5">
+          <form id="product-form" onSubmit={handleSubmit} className="space-y-4">
           {/* Nome & Categoria (com opção de criar nova categoria) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
@@ -1025,6 +1190,212 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             )}
           </div>
 
+          {/* ================= OPÇÃO DE ADICIONAIS & COMPLEMENTOS ================= */}
+          <div className="p-3.5 bg-stone-50/80 rounded-2xl border border-stone-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-[#850D2C]" />
+                <div>
+                  <span className="text-xs font-bold text-[#35312F]">
+                    Opções de Adicionais & Complementos (Comidas e Bebidas)
+                  </span>
+                  <p className="text-[10px] text-stone-500">
+                    Habilite para definir quais adicionais podem acompanhar este item (com preços específicos ou grátis)
+                  </p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasAddons}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setHasAddons(checked);
+                    if (checked && addons.length === 0) {
+                      const isBeverage =
+                        category === 'Cafés Especiais' ||
+                        category === 'Bebidas Geladas' ||
+                        name.toLowerCase().includes('café');
+                      if (isBeverage) {
+                        setAddons([
+                          { id: 'add_1', name: 'Chantilly Artesanal', price: 3.0 },
+                          { id: 'add_2', name: 'Calda de Caramelo Salgado', price: 2.5 },
+                          { id: 'add_3', name: 'Shot Extra de Espresso', price: 4.0 },
+                        ]);
+                      } else {
+                        setAddons([
+                          { id: 'add_1', name: 'Aquecer no Forno / Tostado', price: 0.0 },
+                          { id: 'add_2', name: 'Geléia Artesanal', price: 3.5 },
+                          { id: 'add_3', name: 'Requeijão Cremoso Extra', price: 3.5 },
+                        ]);
+                      }
+                    }
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#850D2C]"></div>
+              </label>
+            </div>
+
+            {hasAddons && (
+              <div className="space-y-3 pt-2 border-t border-stone-200/60 animate-in fade-in duration-150">
+                {/* Sugestões Rápidas Pré-prontas ("pode ter pre pronto tb") */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+                    Sugestões Rápidas (clique para incluir neste produto):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRESET_ADDON_SUGGESTIONS.map((preset) => {
+                      const alreadyAdded = addons.some(
+                        (a) => a.name.toLowerCase() === preset.name.toLowerCase()
+                      );
+                      return (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => {
+                            if (!alreadyAdded) {
+                              setAddons((prev) => [
+                                ...prev,
+                                {
+                                  id: `addon_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                                  name: preset.name,
+                                  price: preset.price,
+                                },
+                              ]);
+                            }
+                          }}
+                          disabled={alreadyAdded}
+                          className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
+                            alreadyAdded
+                              ? 'bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed opacity-50'
+                              : 'bg-white hover:bg-rose-50 text-[#850D2C] border border-[#850D2C]/30 hover:border-[#850D2C]'
+                          }`}
+                          title={alreadyAdded ? 'Já adicionado a este produto' : 'Adicionar sugestão'}
+                        >
+                          <span>+ {preset.name}</span>
+                          <span className="text-[10px] font-normal opacity-80">
+                            ({preset.price > 0 ? `+R$ ${preset.price.toFixed(2)}` : 'Grátis'})
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Escrever Novo Adicional Manual ("ele deve poder escrever") */}
+                <div className="p-2.5 bg-white rounded-xl border border-stone-200/80 space-y-1.5">
+                  <span className="text-[10px] font-bold text-[#35312F] uppercase tracking-wider block">
+                    Escrever Novo Adicional para esta comida/bebida:
+                  </span>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-7">
+                      <input
+                        type="text"
+                        value={newAddonName}
+                        onChange={(e) => setNewAddonName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomAddon();
+                          }
+                        }}
+                        placeholder="Ex: Bacon Crocante, Molho Especial, etc."
+                        className="w-full px-2.5 py-1.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 focus:bg-white font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none"
+                      />
+                    </div>
+                    <div className="col-span-3 relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs font-semibold">
+                        R$
+                      </span>
+                      <input
+                        type="number"
+                        step="0.50"
+                        min="0"
+                        value={newAddonPrice}
+                        onChange={(e) => setNewAddonPrice(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomAddon();
+                          }
+                        }}
+                        placeholder="0.00"
+                        className="w-full pl-7 pr-2 py-1.5 text-xs font-bold border border-stone-300 rounded-xl bg-stone-50/50 focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:outline-none"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <button
+                        type="button"
+                        onClick={handleAddCustomAddon}
+                        disabled={!newAddonName.trim()}
+                        className="w-full py-1.5 px-2 bg-[#850D2C] hover:bg-[#6e0a24] text-white rounded-xl text-xs font-bold transition disabled:opacity-40 flex items-center justify-center space-x-1 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Incluir</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lista de Adicionais Cadastrados */}
+                {addons.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-stone-400 uppercase tracking-wider px-1">
+                      <div className="col-span-7">Nome do Adicional</div>
+                      <div className="col-span-3">Preço (R$)</div>
+                      <div className="col-span-2 text-right">Ação</div>
+                    </div>
+
+                    {addons.map((a, index) => (
+                      <div key={a.id || index} className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-7">
+                          <input
+                            type="text"
+                            value={a.name}
+                            onChange={(e) => {
+                              const updated = [...addons];
+                              updated[index].name = e.target.value;
+                              setAddons(updated);
+                            }}
+                            className="w-full px-2.5 py-1.5 text-xs border border-stone-300 rounded-xl bg-white font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none"
+                          />
+                        </div>
+                        <div className="col-span-3 relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs font-semibold">
+                            R$
+                          </span>
+                          <input
+                            type="number"
+                            step="0.50"
+                            min="0"
+                            value={a.price}
+                            onChange={(e) => {
+                              const updated = [...addons];
+                              updated[index].price = parseFloat(e.target.value) || 0;
+                              setAddons(updated);
+                            }}
+                            className="w-full pl-7 pr-2 py-1.5 text-xs font-bold border border-stone-300 rounded-xl bg-white focus:ring-1 focus:ring-[#850D2C] focus:outline-none"
+                          />
+                        </div>
+                        <div className="col-span-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setAddons(addons.filter((_, i) => i !== index))}
+                            className="p-1.5 text-stone-400 hover:text-[#850D2C] hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            title="Remover adicional"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Estoque Inicial / Atual & Limite de Estoque Baixo */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 bg-[#F9F7F3] rounded-2xl border border-stone-200/80">
             <div>
@@ -1062,17 +1433,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             </div>
           </div>
 
-          {/* ================= ÁREA DE FOTOGRAFIA DO PRODUTO & REMOÇÃO DE FUNDO IA ================= */}
+          {/* ================= ÁREA DE FOTOGRAFIAS DO PRODUTO (PRODUTOS & CARDÁPIO) ================= */}
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider">
-                Fotografia do Produto
+                Imagens do Produto (Gestão e Cardápio)
               </label>
               <div className="flex items-center space-x-2">
-                {hasRemovedBg && (
-                  <span className="inline-flex items-center space-x-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#858F6D]/15 text-[#4c543c] border border-[#858F6D]/30">
-                    <Sparkles className="w-2.5 h-2.5" />
-                    <span>Fundo transparente ativo</span>
+                {cutoutImageUrl && (
+                  <span className="inline-flex items-center space-x-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                    <span>Recorte do cardápio ativo</span>
                   </span>
                 )}
                 <span className="text-[10px] font-normal text-stone-400">
@@ -1081,31 +1452,41 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </div>
             </div>
 
-            {/* Barra Principal de Upload, URL e Botão "Remover fundo automaticamente" */}
-            <div className="p-3.5 bg-stone-50/70 rounded-2xl border border-stone-200/80 space-y-3">
-              <div className="flex flex-col sm:flex-row gap-3.5 items-center">
-                {/* Miniatura com fundo quadriculado para exibir transparência */}
-                <div
-                  className="w-20 h-20 rounded-2xl overflow-hidden border border-stone-200/90 shrink-0 flex items-center justify-center shadow-2xs relative"
-                  style={checkerboardStyle}
-                >
-                  {imageUrl ? (
-                    <img
-                      src={imageUrl}
-                      alt="Pré-visualização do produto"
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <ImageIcon className="w-6 h-6 text-stone-400" />
-                  )}
+            {/* Container das duas imagens */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              
+              {/* 1. FOTO PARA A GESTÃO / PRODUTOS (QUADRADA NORMAL) */}
+              <div className="p-3.5 bg-white rounded-2xl border border-stone-200/90 shadow-2xs flex flex-col justify-between space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-20 h-20 rounded-2xl overflow-hidden border border-stone-200 shadow-2xs bg-stone-100 flex items-center justify-center relative shrink-0">
+                    {originalImageUrl || imageUrl ? (
+                      <img
+                        src={originalImageUrl || imageUrl}
+                        alt="Foto normal quadrada para os produtos"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImageIcon className="w-6 h-6 text-stone-400" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">
+                      1. Para a Gestão
+                    </span>
+                    <h4 className="text-xs font-bold text-stone-900 leading-tight">
+                      Foto Normal (Quadrada)
+                    </h4>
+                    <p className="text-[10px] text-stone-400 leading-tight mt-0.5">
+                      Exibida na tela interna de produtos.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Controles de envio + URL */}
-                <div className="flex-1 space-y-2 w-full">
+                <div className="space-y-2 pt-1 border-t border-stone-100">
                   <div className="flex flex-wrap items-center gap-2">
-                    <label className="cursor-pointer h-8.5 px-3.5 bg-white hover:bg-stone-100 text-[#35312F] border border-stone-300 rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition shadow-2xs shrink-0">
-                      <Upload className="w-3.5 h-3.5 text-[#850D2C]" />
-                      <span>Enviar foto</span>
+                    <label className="cursor-pointer h-8 px-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition shadow-2xs">
+                      <Upload className="w-3 h-3" />
+                      <span>Enviar foto normal</span>
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp"
@@ -1121,88 +1502,119 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                         const val = e.target.value;
                         setImageUrl(val);
                         setOriginalImageUrl(val);
-                        setWorkingImageUrl(val);
-                        setHasRemovedBg(false);
+                        if (!cutoutImageUrl) setWorkingImageUrl(val);
                       }}
-                      placeholder={
-                        imageUrl.startsWith('data:')
-                          ? 'Imagem personalizada carregada (ou cole outra URL https://...)'
-                          : 'Ou cole a URL da imagem (https://...)'
-                      }
-                      className="flex-1 min-w-[180px] h-8.5 px-3 text-xs border border-stone-300 rounded-xl bg-white text-[#35312F] placeholder-stone-400 focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
+                      placeholder="Ou cole URL..."
+                      className="flex-1 min-w-[130px] h-8 px-2.5 text-xs border border-stone-300 rounded-xl bg-white text-[#35312F] placeholder-stone-400 focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition"
                     />
                   </div>
+                </div>
+              </div>
 
-                  {/* Linha de Ações de Edição da Imagem */}
-                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                    {/* Botão Principal Solicitado: Remover fundo automaticamente */}
+              {/* 2. FOTO PARA O CARDÁPIO (RECORTADA SEM FUNDO) */}
+              <div className="p-3.5 bg-[#fdfcfa] rounded-2xl border-2 border-dashed border-[#850D2C]/40 shadow-2xs flex flex-col justify-between space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className="w-20 h-20 rounded-2xl overflow-hidden border border-stone-200/90 shadow-2xs flex items-center justify-center relative bg-stone-50 shrink-0"
+                    style={checkerboardStyle}
+                  >
+                    {cutoutImageUrl || (hasRemovedBg && workingImageUrl) ? (
+                      <img
+                        src={cutoutImageUrl || workingImageUrl}
+                        alt="Foto recortada para o cardápio"
+                        className="w-full h-full object-contain drop-shadow"
+                      />
+                    ) : (
+                      <div className="text-center p-1">
+                        <Sparkles className="w-5 h-5 text-amber-500/80 mx-auto mb-0.5" />
+                        <span className="text-[9px] text-stone-400 leading-tight block">Sem recorte</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
+                      2. Para o Cardápio
+                    </span>
+                    <h4 className="text-xs font-bold text-stone-900 leading-tight flex items-center space-x-1">
+                      <span>Foto Recortada</span>
+                      {cutoutImageUrl || (hasRemovedBg && workingImageUrl) ? (
+                        <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-md">
+                          Ativa ✓
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded-md">
+                          Opcional
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-[10px] text-stone-400 leading-tight mt-0.5">
+                      Flutua sobre o prato no cardápio e modal.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-1 border-t border-stone-200/60">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {/* Botão de Enviar Foto Recortada Diretamente */}
+                    <label className="cursor-pointer h-8 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition shadow-2xs">
+                      <Upload className="w-3 h-3 text-amber-700" />
+                      <span>Enviar PNG sem fundo</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/webp"
+                        onChange={handleCutoutFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {/* Botão de Recortar com IA a partir da foto normal */}
                     <button
                       type="button"
                       onClick={handleRemoveBackground}
-                      disabled={isRemovingBg || !workingImageUrl}
-                      className="h-8 px-3.5 rounded-xl bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center space-x-1.5 shadow-2xs transition cursor-pointer"
-                      title="Remover automaticamente o fundo da foto usando Inteligência Artificial"
+                      disabled={isRemovingBg || (!originalImageUrl && !imageUrl)}
+                      className="h-8 px-2.5 rounded-xl bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center space-x-1 shadow-2xs transition cursor-pointer"
+                      title="Recortar automaticamente a foto normal usando IA"
                     >
                       {isRemovingBg ? (
                         <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>Processando IA...</span>
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          <span>IA...</span>
                         </>
                       ) : (
                         <>
-                          <Wand2 className="w-3.5 h-3.5" />
-                          <span>Remover fundo automaticamente</span>
+                          <Wand2 className="w-3 h-3" />
+                          <span>Recortar c/ IA</span>
                         </>
                       )}
                     </button>
 
-                    {/* Botão para abrir/fechar ajustes manuais (Pincel, Recortar, Redimensionar, Centralizar) */}
+                    {/* Botão para limpar recorte */}
+                    {(cutoutImageUrl || (hasRemovedBg && workingImageUrl)) && (
+                      <button
+                        type="button"
+                        onClick={handleClearCutout}
+                        className="h-8 px-2 rounded-xl text-stone-500 hover:text-rose-700 hover:bg-rose-50 text-xs font-medium inline-flex items-center space-x-1 border border-stone-200 transition cursor-pointer"
+                        title="Remover recorte do cardápio"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+
+                    {/* Botão de Ajustar no Estúdio */}
                     <button
                       type="button"
                       onClick={() => setIsEditorOpen((prev) => !prev)}
                       disabled={isRemovingBg}
-                      className={`h-8 px-3 rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 border transition cursor-pointer ${
+                      className={`h-8 px-2 rounded-xl text-xs font-semibold inline-flex items-center space-x-1 border transition cursor-pointer ${
                         isEditorOpen
                           ? 'bg-[#35312F] text-white border-[#35312F]'
                           : 'bg-white hover:bg-stone-100 text-[#35312F] border-stone-300'
                       }`}
-                      title="Recortar, usar pincel de remoção, redimensionar e centralizar o produto"
+                      title="Ajustar recorte, pincel e centralização"
                     >
-                      <Crop className="w-3.5 h-3.5" />
-                      <span>{isEditorOpen ? 'Ocultar ajustes' : 'Recortar e ajustar'}</span>
+                      <Crop className="w-3 h-3" />
+                      <span>{isEditorOpen ? 'Fechar' : 'Ajustar'}</span>
                     </button>
-
-                    {/* Atalho direto para abrir o Pincel de Remoção */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsEditorOpen(true);
-                        setInteractionMode('brush');
-                      }}
-                      disabled={isRemovingBg}
-                      className={`h-8 px-3 rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 border transition cursor-pointer ${
-                        isEditorOpen && interactionMode === 'brush'
-                          ? 'bg-[#850D2C]/10 text-[#850D2C] border-[#850D2C]'
-                          : 'bg-white hover:bg-stone-100 text-[#35312F] border-stone-300'
-                      }`}
-                      title="Usar pincel manual para apagar sobras do fundo"
-                    >
-                      <Eraser className="w-3.5 h-3.5 text-[#850D2C]" />
-                      <span>Pincel de remoção</span>
-                    </button>
-
-                    {/* Restaurar imagem original rapidamente se houver edição */}
-                    {isModifiedFromOriginal && !isRemovingBg && (
-                      <button
-                        type="button"
-                        onClick={handleRestoreOriginal}
-                        className="h-8 px-2.5 rounded-xl bg-white hover:bg-stone-100 text-stone-600 hover:text-[#35312F] border border-stone-200 text-xs font-medium inline-flex items-center space-x-1 transition cursor-pointer"
-                        title="Descartar edições e restaurar a imagem original"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span>Manter original</span>
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1654,32 +2066,33 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             </div>
           </div>
 
-          {/* Rodapé do Modal */}
-          <div className="pt-3 border-t border-stone-100 flex items-center justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting || isRemovingBg}
-              className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-[#35312F] rounded-xl hover:bg-stone-100 transition cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || isRemovingBg}
-              className="px-5 py-2 text-xs font-semibold text-white bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] rounded-xl shadow-xs transition inline-flex items-center space-x-1.5 disabled:opacity-75 cursor-pointer"
-            >
-              {isSubmitting ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Salvando...</span>
-                </>
-              ) : (
-                <span>{productToEdit ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
-              )}
-            </button>
-          </div>
-        </form>
+            {/* Rodapé de Ações integrado diretamente ao Card */}
+            <div className="pt-4 mt-6 border-t border-stone-100 flex items-center justify-end space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting || isRemovingBg}
+                className="px-5 py-2.5 text-xs font-semibold text-stone-600 hover:text-[#35312F] rounded-xl hover:bg-stone-100 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || isRemovingBg}
+                className="px-6 py-2.5 text-xs font-bold text-white bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] rounded-xl shadow-xs transition inline-flex items-center space-x-2 disabled:opacity-75 cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <span>{productToEdit ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

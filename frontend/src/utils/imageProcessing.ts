@@ -526,7 +526,7 @@ export async function detectProductBoundingBox(imageSrc: string): Promise<Boundi
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const alpha = data[(y * w + x) * 4 + 3];
-        if (alpha > 25) {
+        if (alpha > 40) {
           found = true;
           if (x < minX) minX = x;
           if (y < minY) minY = y;
@@ -557,19 +557,60 @@ export async function detectProductBoundingBox(imageSrc: string): Promise<Boundi
 }
 
 /**
+ * Detecta se uma imagem já possui transparência (PNG ou WebP recortado sem fundo)
+ */
+export async function hasImageTransparency(imageSrc: string): Promise<boolean> {
+  try {
+    if (!imageSrc || (!imageSrc.startsWith('data:image/png') && !imageSrc.startsWith('data:image/webp'))) {
+      return false;
+    }
+    const img = await loadImageElement(imageSrc);
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (w <= 0 || h <= 0) return false;
+
+    const sampleW = Math.min(w, 200);
+    const sampleH = Math.min(h, 200);
+    const canvas = document.createElement('canvas');
+    canvas.width = sampleW;
+    canvas.height = sampleH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return false;
+
+    ctx.drawImage(img, 0, 0, sampleW, sampleH);
+    const { data } = ctx.getImageData(0, 0, sampleW, sampleH);
+
+    let transparentCount = 0;
+    const totalPixels = sampleW * sampleH;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] < 200) {
+        transparentCount++;
+        // Se pelo menos 2% dos pixels da amostra forem transparentes, considera recortada
+        if (transparentCount > totalPixels * 0.02) {
+          return true;
+        }
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Recorta automaticamente as sobras transparentes ao redor do produto e normaliza
  * em um canvas padrão 640x640 com o produto ocupando proporção uniforme (~82%) exatamente no centro.
  */
 export async function autoTrimAndCenterProduct(
   imageSrc: string,
-  paddingRatio: number = 0.09
+  paddingRatio: number = 0.02
 ): Promise<string> {
   const img = await loadImageElement(imageSrc);
   const bbox = await detectProductBoundingBox(imageSrc);
   if (!bbox) return imageSrc;
 
   const STANDARD_SIZE = 640;
-  const targetOccupancy = Math.max(0.5, Math.min(0.92, 1 - paddingRatio * 2)); // ~82% da área
+  const targetOccupancy = Math.max(0.6, Math.min(0.96, 1 - paddingRatio * 2)); // ~96% da área útil
   const maxProductDim = Math.max(bbox.width, bbox.height, 1);
   const scale = (STANDARD_SIZE * targetOccupancy) / maxProductDim;
 
