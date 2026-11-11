@@ -232,94 +232,9 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-24">
-      {/* CARD DE ACOMPANHAMENTO EM TEMPO REAL (Celular do Cliente) - Harmonizado */}
-      {liveOrder && (
-        <div className="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-xs overflow-hidden animate-in fade-in duration-200 text-[#35312F]">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-3">
-            <div className="flex items-center space-x-3">
-              <div
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shrink-0 ${
-                  liveOrder.status === 'pronto'
-                    ? 'bg-emerald-600 animate-bounce'
-                    : liveOrder.status === 'preparando'
-                    ? 'bg-[#924529]'
-                    : 'bg-[#850D2C]'
-                }`}
-              >
-                <Coffee className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-bold text-[#35312F] text-sm">
-                    Pedido #{liveOrder.orderNumber}
-                  </span>
-                  <span className="text-[10px] bg-stone-100 text-[#35312F] font-bold px-2 py-0.5 rounded-md uppercase border border-stone-200">
-                    {liveOrder.tableOrTakeaway}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                  <span className="text-xs text-stone-500">
-                    Cliente: <strong className="text-stone-700">{liveOrder.customerName}</strong> • {liveOrder.items.length} itens
-                  </span>
-                  {activeOrders.length > 1 && (
-                    <select
-                      value={liveOrder.id}
-                      onChange={(e) => setActiveTrackingOrderId(e.target.value)}
-                      className="text-[11px] font-semibold bg-stone-50 text-stone-700 border border-stone-200 rounded-lg px-2 py-0.5 cursor-pointer hover:bg-stone-100 transition"
-                      title="Alternar pedido para acompanhar na tela"
-                    >
-                      {activeOrders.map((ord) => (
-                        <option key={ord.id} value={ord.id}>
-                          #{ord.orderNumber} - {ord.customerName} ({ord.status.toUpperCase()})
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Status Visual com Animação para o Cliente */}
-            <div className="flex items-center space-x-2 self-start sm:self-auto">
-              {liveOrder.status === 'recebido' && (
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#850D2C]/10 text-[#850D2C] border border-[#850D2C]/20 flex items-center space-x-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#850D2C] animate-ping" />
-                  <span>1. Pedido Recebido (Na fila do barista)</span>
-                </span>
-              )}
-              {liveOrder.status === 'preparando' && (
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#924529]/10 text-[#924529] border border-[#924529]/20 flex items-center space-x-1.5 animate-pulse">
-                  <Flame className="w-3.5 h-3.5 text-[#924529]" />
-                  <span>2. Seu pedido está sendo preparado pelo barista!</span>
-                </span>
-              )}
-              {liveOrder.status === 'pronto' && (
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-600 text-white shadow-2xs flex items-center space-x-1.5">
-                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  <span>3. SEU PEDIDO ESTÁ PRONTO! Retire no balcão 🎉</span>
-                </span>
-              )}
-              {liveOrder.status === 'entregue' && (
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-700 border border-stone-200/80">
-                  Pedido Entregue • Bom Apetite!
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Observações Registradas */}
-          {liveOrder.notes && (
-            <div className="mt-2.5 text-xs text-[#850D2C] bg-[#850D2C]/5 px-3 py-1.5 rounded-xl border border-[#850D2C]/15 flex items-center space-x-1.5">
-              <strong>Sua Observação:</strong>
-              <span className="font-semibold">{liveOrder.notes}</span>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Cabeçalho da Página: Padrão Elegante e Minimalista com Amarego */}
       <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 space-y-4 text-[#35312F]">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-stone-100">
+        <div className="pb-3 border-b border-stone-100">
           <div className="space-y-0.5">
             {/* Breadcrumb Discreto */}
             <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
@@ -344,14 +259,6 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
             <p className="text-xs text-stone-500">
               Selecione suas delícias favoritas preparadas no momento exato do seu pedido.
             </p>
-          </div>
-
-          {/* Badge Oficial */}
-          <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-            <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#850D2C]/10 text-[#850D2C] border border-[#850D2C]/20">
-              <Sparkles className="w-3.5 h-3.5 text-[#850D2C]" />
-              <span>Cardápio Digital Oficial</span>
-            </span>
           </div>
         </div>
 
