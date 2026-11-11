@@ -231,9 +231,15 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
         onClick={onClose} 
       />
 
+      {/* 1.5. Barra/Linha Verde Superior (#7f8c61) igual à referência circulada em vermelho */}
+      <div 
+        className="fixed top-0 left-0 right-0 h-[18px] sm:h-[22px] z-20 pointer-events-none"
+        style={{ backgroundColor: '#7f8c61' }}
+      />
+
       {/* 2. Barra Superior Sólida Creme (onde fica o título estático) */}
       <div 
-        className="fixed top-0 left-0 right-0 h-[100px] sm:h-[110px] z-10 pointer-events-none"
+        className="fixed top-[18px] sm:top-[22px] left-0 right-0 h-[92px] sm:h-[98px] z-10 pointer-events-none"
         style={{ backgroundColor: '#f6efdd' }}
       >
         {/* Fileira de Quadradinhos Verdes (#7f8c61) na transição para as listras */}
@@ -255,9 +261,9 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
         </div>
       </div>
 
-      {/* 3. Tendinha / Toldo com listras começando abaixo da barra sólida de texto (~100px / 110px) */}
+      {/* 3. Tendinha / Toldo com listras começando abaixo da barra sólida de texto */}
       <div 
-        className="fixed top-[100px] sm:top-[110px] left-0 right-0 h-[calc(72vh-100px)] min-h-[440px] max-h-[660px] pointer-events-none z-0 overflow-visible"
+        className="fixed top-[110px] sm:top-[120px] left-0 right-0 h-[calc(72vh-110px)] min-h-[430px] max-h-[650px] pointer-events-none z-0 overflow-visible"
         style={{
           backgroundColor: '#f6efdd',
           backgroundImage: `
@@ -296,20 +302,20 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
       {/* =========================================================================
           MODAL COM POSICIONAMENTO 100% ESTÁTICO (NÃO PULA NEM MUDA DE LUGAR)
          ========================================================================= */}
-      <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center pt-3 pb-12">
+      <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center pt-6 sm:pt-7 pb-12">
         
         {/* Botão de Fechar discreto no canto */}
         <button
           onClick={onClose}
           aria-label="Fechar"
-          className="absolute top-2 right-1 sm:-right-4 p-2 rounded-full bg-white/95 hover:bg-white text-[#5C4033] shadow-md transition hover:scale-105 cursor-pointer z-50"
+          className="absolute top-6 sm:top-7 right-1 sm:-right-4 p-2 rounded-full bg-white/95 hover:bg-white text-[#5C4033] shadow-md transition hover:scale-105 cursor-pointer z-50"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Título 100% Estático no topo (sobre a área clara sólida, sem o subtítulo removido) */}
-        <div className="w-full text-center flex items-center justify-center py-2 z-40">
-          <h2 className="font-['Amarego'] text-2xl sm:text-3xl text-[#2B1810] tracking-wide leading-tight">
+        {/* Título 100% Estático no topo (sobre a área clara sólida, abaixo da linha verde) */}
+        <div className="w-full text-center flex items-center justify-center h-[48px] sm:h-[52px] z-40">
+          <h2 className="font-['Amarego'] text-2xl sm:text-3xl text-[#2B1810] tracking-wide leading-tight whitespace-nowrap">
             {isFinished ? 'Seu pedido está pronto!' : 'Imprimindo seu pedido...'}
           </h2>
         </div>
@@ -317,7 +323,7 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
         {/* =====================================================================
             ESTRUTURA DA BOBINA (100% ESTÁTICA - O TOPO NÃO SE MOVE)
            ===================================================================== */}
-        <div className="relative w-full flex flex-col items-center mt-2">
+        <div className="relative w-full flex flex-col items-center mt-4">
 
           {/* 1. CAMADA DE FUNDO / BASE DA BOBINA (Fica ATRÁS do papel - z-0) */}
           <div 
@@ -369,146 +375,128 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
               height: `${paperHeight}px`,
             }}
           >
-            {/* Sombra realista na saída da fenda metálica */}
-            <div className="w-full h-2.5 bg-gradient-to-b from-black/45 via-black/15 to-transparent relative z-30 flex-shrink-0" />
+            {/* Wrapper completo medido para animação (Corpo do Papel + Recortinhos na base) */}
+            <div ref={paperContentRef} className="w-full flex flex-col items-center relative">
+              {/* Sombra realista na saída da fenda metálica */}
+              <div className="w-full h-2.5 bg-gradient-to-b from-black/45 via-black/15 to-transparent absolute top-0 left-0 right-0 z-30 pointer-events-none" />
 
-            {/* Conteúdo Real do Papel da Notinha */}
-            <div 
-              ref={paperContentRef} 
-              className="w-full bg-[#FAF8F5] text-[#1E1C1A] px-5 sm:px-6 pt-5 pb-4 relative select-none flex flex-col items-center"
-              style={{
-                fontFamily: '"Courier Prime", Courier, monospace',
-              }}
-            >
-              {/* Topo do Cupom: Tipografia Aroma Oficial */}
-              <div className="w-full text-center border-b border-dashed border-[#D1C7BD] pb-4 mb-3.5">
-                <h2 className="font-['Amarego'] text-3xl sm:text-4xl tracking-wide text-[#2B1810] font-normal leading-none mb-1">
-                  Aroma
-                </h2>
-                <p className="text-[10px] sm:text-[11px] font-sans tracking-widest uppercase text-[#7D6E63] font-semibold mt-1">
-                  Café & Gastronomia
-                </p>
-                <p className="text-[9px] text-[#9C8E84] mt-0.5 font-mono">
-                  Rua das Flores, 120 • (11) 98765-4321
-                </p>
-              </div>
-
-              {/* Cabeçalho de Dados do Pedido */}
-              <div className="w-full text-xs leading-relaxed text-[#4A3E36] mb-3 pb-3 border-b border-dashed border-[#D1C7BD]">
-                <div className="font-bold text-[#1E1C1A] text-sm mb-1">
-                  PEDIDO #{orderDisplayId}
-                </div>
-                <div className="flex justify-between text-[11px] text-[#6D5D53]">
-                  <span>Data: {orderDate}</span>
-                  <span>{orderTime}</span>
-                </div>
-                <div className="flex justify-between text-[11px] text-[#6D5D53]">
-                  <span>Cliente:</span>
-                  <span className="font-semibold text-[#2B1810] truncate max-w-[170px]">
-                    {order.customerName || 'Cliente Balcão'}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[11px] text-[#6D5D53]">
-                  <span>Local / Retirada:</span>
-                  <span className="font-semibold text-[#2B1810]">
-                    {order.tableOrTakeaway || 'Balcão / Viagem'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Lista de Itens */}
-              <div className="w-full space-y-1.5 mb-3 pb-3 border-b border-dashed border-[#D1C7BD]">
-                <div className="flex justify-between text-[9px] text-[#8C7D73] font-bold uppercase tracking-wider mb-1">
-                  <span>Qtd / Item</span>
-                  <span>Total</span>
+              {/* Conteúdo Real do Papel da Notinha */}
+              <div 
+                className="w-full bg-[#FAF8F5] text-[#1E1C1A] px-5 sm:px-6 pt-6 pb-3 relative select-none flex flex-col items-center"
+                style={{
+                  fontFamily: '"Courier Prime", Courier, monospace',
+                }}
+              >
+                {/* Topo do Cupom: Tipografia Aroma Oficial */}
+                <div className="w-full text-center border-b border-dashed border-[#D1C7BD] pb-4 mb-3.5">
+                  <h2 className="font-['Amarego'] text-3xl sm:text-4xl tracking-wide text-[#2B1810] font-normal leading-none mb-1">
+                    Aroma
+                  </h2>
+                  <p className="text-[10px] sm:text-[11px] font-sans tracking-widest uppercase text-[#7D6E63] font-semibold mt-1">
+                    Café & Gastronomia
+                  </p>
+                  <p className="text-[9px] text-[#9C8E84] mt-0.5 font-mono">
+                    Rua das Flores, 120 • (11) 98765-4321
+                  </p>
                 </div>
 
-                {order.items.map((item, index) => (
-                  <div key={index} className="flex justify-between items-baseline text-xs leading-snug">
-                    <div className="flex-1 pr-2 truncate">
-                      <span className="font-bold text-[#2B1810] mr-1">{item.quantity}x</span>
-                      <span className="text-[#3A2E28] font-medium">{item.productName}</span>
-                    </div>
-                    <span className="font-bold text-[#2B1810] whitespace-nowrap">
-                      {formatCurrencyBRL(item.subtotal || item.unitPrice * item.quantity)}
+                {/* Cabeçalho de Dados do Pedido */}
+                <div className="w-full text-xs leading-relaxed text-[#4A3E36] mb-3 pb-3 border-b border-dashed border-[#D1C7BD]">
+                  <div className="font-bold text-[#1E1C1A] text-sm mb-1">
+                    PEDIDO #{orderDisplayId}
+                  </div>
+                  <div className="flex justify-between text-[11px] text-[#6D5D53]">
+                    <span>Data: {orderDate}</span>
+                    <span>{orderTime}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-[#6D5D53]">
+                    <span>Cliente:</span>
+                    <span className="font-semibold text-[#2B1810] truncate max-w-[170px]">
+                      {order.customerName || 'Cliente Balcão'}
                     </span>
                   </div>
-                ))}
-              </div>
+                  <div className="flex justify-between text-[11px] text-[#6D5D53]">
+                    <span>Local / Retirada:</span>
+                    <span className="font-semibold text-[#2B1810]">
+                      {order.tableOrTakeaway || 'Balcão / Viagem'}
+                    </span>
+                  </div>
+                </div>
 
-              {/* Valores / Pagamento */}
-              <div className="w-full space-y-1 text-xs text-[#5A4B42] mb-3 pb-3 border-b border-dashed border-[#D1C7BD]">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>{formatCurrencyBRL(order.totalAmount)}</span>
-                </div>
-                <div className="flex justify-between items-center pt-1 border-t border-dotted border-[#E2D9CF]">
-                  <span className="font-extrabold text-sm text-[#2B1810]">TOTAL PAGO</span>
-                  <span className="font-extrabold text-base text-[#2B1810]">
-                    {formatCurrencyBRL(order.totalAmount)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[10px] text-[#7A6C62] pt-0.5">
-                  <span>Forma de Pagamento:</span>
-                  <span className="uppercase font-semibold text-[#3E2723]">
-                    {order.paymentMethod || 'Pix Instantâneo'}
-                  </span>
-                </div>
-              </div>
+                {/* Lista de Itens */}
+                <div className="w-full space-y-1.5 mb-3 pb-3 border-b border-dashed border-[#D1C7BD]">
+                  <div className="flex justify-between text-[9px] text-[#8C7D73] font-bold uppercase tracking-wider mb-1">
+                    <span>Qtd / Item</span>
+                    <span>Total</span>
+                  </div>
 
-              {/* Código de barras decorativo e Agradecimento Centralizado */}
-              <div className="w-full pt-1 flex flex-col items-center text-center">
-                <div className="w-full flex justify-between items-center h-8 px-1 opacity-90">
-                  {[...Array(36)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="bg-[#2B1810] h-full"
-                      style={{
-                        width: (i % 4 === 0 || i % 7 === 0) ? '3px' : (i % 2 === 0 ? '1.5px' : '1px'),
-                        opacity: (i % 6 === 0) ? 0.7 : 1,
-                      }}
-                    />
+                  {order.items.map((item, index) => (
+                    <div key={index} className="flex justify-between items-baseline text-xs leading-snug">
+                      <div className="flex-1 pr-2 truncate">
+                        <span className="font-bold text-[#2B1810] mr-1">{item.quantity}x</span>
+                        <span className="text-[#3A2E28] font-medium">{item.productName}</span>
+                      </div>
+                      <span className="font-bold text-[#2B1810] whitespace-nowrap">
+                        {formatCurrencyBRL(item.subtotal || item.unitPrice * item.quantity)}
+                      </span>
+                    </div>
                   ))}
                 </div>
-                <span className="text-[9px] tracking-[0.25em] text-[#7A6C62] mt-1 font-mono">
-                  *{order.id.slice(0, 10).toUpperCase()}*
-                </span>
 
-                <p className="text-[12px] font-['Amarego'] italic text-[#4A3226] text-center mt-2.5 leading-snug">
-                  Obrigado pelo seu pedido! Tenha um ótimo café.
-                </p>
+                {/* Valores / Pagamento */}
+                <div className="w-full space-y-1 text-xs text-[#5A4B42] mb-3 pb-3 border-b border-dashed border-[#D1C7BD]">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>{formatCurrencyBRL(order.totalAmount)}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t border-dotted border-[#E2D9CF]">
+                    <span className="font-extrabold text-sm text-[#2B1810]">TOTAL PAGO</span>
+                    <span className="font-extrabold text-base text-[#2B1810]">
+                      {formatCurrencyBRL(order.totalAmount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-[#7A6C62] pt-0.5">
+                    <span>Forma de Pagamento:</span>
+                    <span className="uppercase font-semibold text-[#3E2723]">
+                      {order.paymentMethod || 'Pix Instantâneo'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Código de barras decorativo e Agradecimento Centralizado */}
+                <div className="w-full pt-1 flex flex-col items-center text-center">
+                  <div className="w-full flex justify-between items-center h-8 px-1 opacity-90">
+                    {[...Array(36)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="bg-[#2B1810] h-full"
+                        style={{
+                          width: (i % 4 === 0 || i % 7 === 0) ? '3px' : (i % 2 === 0 ? '1.5px' : '1px'),
+                          opacity: (i % 6 === 0) ? 0.7 : 1,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[9px] tracking-[0.25em] text-[#7A6C62] mt-1 font-mono">
+                    *{order.id.slice(0, 10).toUpperCase()}*
+                  </span>
+
+                  <p className="text-[12px] font-['Amarego'] italic text-[#4A3226] text-center mt-2.5 leading-snug">
+                    Obrigado pelo seu pedido! Tenha um ótimo café.
+                  </p>
+                </div>
               </div>
 
-              {/* BORDA DE CORTE ONDULADA (SCALLOPED / VIEIRAS) NA BASE DO PAPEL */}
-              <div className="w-full overflow-hidden leading-none relative z-10 -mt-[1px] pt-3 flex-shrink-0">
+              {/* BORDA DE CORTE SERRILHADA (RECORTINHOS ZIG-ZAG COMO NA IMAGEM DE REFERÊNCIA) */}
+              <div className="w-full overflow-hidden leading-none relative z-10 -mt-[1px] flex-shrink-0">
                 <svg
                   className="w-full block text-[#FAF8F5] fill-current"
-                  viewBox="0 0 290 16"
+                  viewBox="0 0 288 12"
                   preserveAspectRatio="none"
-                  style={{ height: '16px' }}
+                  style={{ height: '12px' }}
                 >
                   <path
-                    d="
-                      M 0,0 
-                      L 290,0 
-                      L 290,4
-                      C 285,14 275,14 270,4
-                      C 265,14 255,14 250,4
-                      C 245,14 235,14 230,4
-                      C 225,14 215,14 210,4
-                      C 205,14 195,14 190,4
-                      C 185,14 175,14 170,4
-                      C 165,14 155,14 150,4
-                      C 145,14 135,14 130,4
-                      C 125,14 115,14 110,4
-                      C 105,14 95,14 90,4
-                      C 85,14 75,14 70,4
-                      C 65,14 55,14 50,4
-                      C 45,14 35,14 30,4
-                      C 25,14 15,14 10,4
-                      C 7,14 3,14 0,4
-                      Z
-                    "
+                    d="M 0,0 L 288,0 L 288,11 L 280,1 L 272,11 L 264,1 L 256,11 L 248,1 L 240,11 L 232,1 L 224,11 L 216,1 L 208,11 L 200,1 L 192,11 L 184,1 L 176,11 L 168,1 L 160,11 L 152,1 L 144,11 L 136,1 L 128,11 L 120,1 L 112,11 L 104,1 L 96,11 L 88,1 L 80,11 L 72,1 L 64,11 L 56,1 L 48,11 L 40,1 L 32,11 L 24,1 L 16,11 L 8,1 L 0,11 Z"
                   />
                 </svg>
               </div>
