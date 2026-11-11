@@ -353,14 +353,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       onClick={() => setSelectedSizeName(sz.name)}
                       className={`py-3.5 px-3 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center ${
                         isSelected
-                          ? 'bg-[#c58d59] text-white shadow-md shadow-[#c58d59]/30 scale-[1.02]'
+                          ? 'bg-[#850D2C] text-white shadow-md shadow-[#850D2C]/30 scale-[1.02]'
                           : 'bg-[#f4f3ef] text-stone-600 hover:bg-stone-200/80'
                       }`}
                     >
                       <span className="capitalize">{sz.name}</span>
                       <span
                         className={`text-[11px] mt-0.5 ${
-                          isSelected ? 'text-amber-100 font-medium' : 'text-stone-400'
+                          isSelected ? 'text-rose-100 font-medium' : 'text-stone-400'
                         }`}
                       >
                         {sz.volumeLabel}
@@ -375,7 +375,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="space-y-2.5 pt-1">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold text-[#231b15] flex items-center space-x-1.5">
-                  <Sparkles className="w-4 h-4 text-[#c58d59]" />
+                  <Sparkles className="w-4 h-4 text-[#850D2C]" />
                   <span>Adicionais & Personalização</span>
                 </span>
                 <span className="text-xs text-stone-400 font-medium">Opcional</span>
@@ -391,14 +391,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       onClick={() => toggleAddon(addon)}
                       className={`p-3 rounded-2xl border text-left text-xs transition-all flex items-center justify-between cursor-pointer ${
                         isChecked
-                          ? 'bg-[#fbf5ee] border-[#c58d59] text-[#2c1d11] ring-1 ring-[#c58d59]/40 shadow-xs'
+                          ? 'bg-[#850D2C]/5 border-[#850D2C] text-[#2c1d11] ring-1 ring-[#850D2C]/30 shadow-xs'
                           : 'bg-[#f8f7f4] border-stone-200/80 text-stone-700 hover:bg-stone-100'
                       }`}
                     >
                       <div className="flex items-center space-x-2.5">
                         <div
                           className={`w-5 h-5 rounded-full flex items-center justify-center text-xs transition ${
-                            isChecked ? 'bg-[#c58d59] text-white' : 'bg-stone-200 text-transparent'
+                            isChecked ? 'bg-[#850D2C] text-white' : 'bg-stone-200 text-transparent'
                           }`}
                         >
                           <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -407,7 +407,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       </div>
                       <span
                         className={`text-xs font-extrabold shrink-0 ${
-                          isChecked ? 'text-[#a36932]' : 'text-stone-500'
+                          isChecked ? 'text-[#850D2C]' : 'text-stone-500'
                         }`}
                       >
                         {addon.price > 0 ? `+${formatCurrencyBRL(addon.price)}` : 'Grátis'}
@@ -428,7 +428,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Ex: Sem açúcar, bem quente, leite morno..."
-                className="w-full px-4 py-2.5 text-xs sm:text-sm border border-stone-200 bg-white rounded-xl text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-[#c58d59]"
+                className="w-full px-4 py-2.5 text-xs sm:text-sm border border-stone-200 bg-white rounded-xl text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-[#850D2C]"
               />
             </div>
 
@@ -446,7 +446,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsAboutExpanded((prev) => !prev)}
-                className="text-xs font-bold text-[#c58d59] hover:text-[#a86e3a] transition inline-flex items-center space-x-1 cursor-pointer"
+                className="text-xs font-bold text-[#850D2C] hover:text-[#6e0a24] transition inline-flex items-center space-x-1 cursor-pointer"
               >
                 <span>{isAboutExpanded ? 'Ver menos' : 'Read more'}</span>
                 {isAboutExpanded ? (
@@ -511,7 +511,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             >
               <ShoppingBag className="w-6 h-6 stroke-[2]" />
               {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#c58d59] text-white text-[10px] font-black flex items-center justify-center shadow-sm">
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#850D2C] text-white text-[10px] font-black flex items-center justify-center shadow-sm">
                   {cartItemCount}
                 </span>
               )}
@@ -525,7 +525,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               className={`flex-1 py-4 px-8 rounded-full font-bold text-sm sm:text-base text-white transition-all shadow-lg active:scale-[0.98] flex items-center justify-center space-x-2 cursor-pointer ${
                 isAddedSuccess
                   ? 'bg-emerald-600 shadow-emerald-900/20'
-                  : 'bg-[#c58d59] hover:bg-[#b07842] shadow-amber-900/20'
+                  : 'bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] shadow-[#850D2C]/30'
               }`}
             >
               {isAddedSuccess ? (
