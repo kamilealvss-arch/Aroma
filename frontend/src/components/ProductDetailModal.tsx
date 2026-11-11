@@ -314,41 +314,39 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </div>
 
             {/* ========================================================================= */}
-            {/* O CAFÉ SAINDO DA BORDA DO CARD:                                           */}
-            {/* O pires e a xícara são posicionados com margem negativa inferior (-mb-28) */}
-            {/* de modo que a metade inferior transborda a borda escura sobre o fundo     */}
-            {/* claro abaixo, reproduzindo com fidelidade absoluta a imagem de referência!*/}
+            {/* O ITEM FLUTUANDO SOBRE A BORDA DO CARD SUPERIOR E INFERIOR                */}
             {/* ========================================================================= */}
             <div className="relative z-20 flex justify-center -mb-28 sm:-mb-36 mt-4 sm:mt-6">
-              <div className="relative w-64 h-64 sm:w-76 sm:h-76 md:w-80 md:h-80 flex items-center justify-center group">
-                
-                {/* Colher de café prateada apoiada no pires à direita (detalhe sutil da imagem de referência) */}
-                <div className="absolute right-4 top-10 sm:right-6 sm:top-12 w-3.5 h-32 sm:w-4 sm:h-36 bg-gradient-to-b from-stone-400 via-stone-200 to-stone-400 rounded-full rotate-[24deg] shadow-lg opacity-85 pointer-events-none z-10" />
-
-                {/* Pires de porcelana branca visto de cima com sombra 3D que se projeta sobre o conteúdo */}
+              <div className="relative w-64 h-64 sm:w-76 sm:h-76 md:w-80 md:h-80 flex items-center justify-center">
                 {(() => {
                   const displayImage = product.cutoutImageUrl || product.imageUrl || '';
                   const isCutout =
                     Boolean(product.cutoutImageUrl) ||
                     (typeof displayImage === 'string' &&
                       (displayImage.startsWith('data:image/png') ||
-                        displayImage.startsWith('data:image/webp')));
+                        displayImage.startsWith('data:image/webp') ||
+                        displayImage.endsWith('.png') ||
+                        displayImage.endsWith('.webp')));
 
-                  return (
-                    <div className="w-full h-full rounded-full bg-[#fbf9f6] border-[6px] sm:border-[8px] border-[#ede8e1] shadow-[0_28px_45px_rgba(0,0,0,0.38),0_12px_22px_rgba(0,0,0,0.18)] overflow-hidden flex items-center justify-center p-1.5">
-                      {isCutout ? (
+                  if (isCutout) {
+                    return (
+                      <div className="w-full h-full flex items-center justify-center filter drop-shadow-[0_24px_38px_rgba(0,0,0,0.38)]">
                         <GourmetCutoutImage
                           src={displayImage}
                           alt={product.name}
-                          className="w-full h-full object-contain scale-110 drop-shadow-[0_12px_16px_rgba(0,0,0,0.22)]"
+                          className="w-full h-full object-contain"
                         />
-                      ) : (
-                        <img
-                          src={displayImage}
-                          alt={product.name}
-                          className="w-full h-full object-cover rounded-full"
-                        />
-                      )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="w-full h-full rounded-full bg-[#fbf9f6] border-[6px] sm:border-[8px] border-[#ede8e1] shadow-[0_28px_45px_rgba(0,0,0,0.38),0_12px_22px_rgba(0,0,0,0.18)] overflow-hidden flex items-center justify-center p-1.5">
+                      <img
+                        src={displayImage}
+                        alt={product.name}
+                        className="w-full h-full object-cover rounded-full"
+                      />
                     </div>
                   );
                 })()}
