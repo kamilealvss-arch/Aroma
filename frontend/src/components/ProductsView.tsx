@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Product } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -76,8 +77,6 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
       return [];
     }
   });
-  const [isAddingCategoryTab, setIsAddingCategoryTab] = useState(false);
-  const [newCategoryTabName, setNewCategoryTabName] = useState('');
 
   const handleCreateCategory = (newCat: string) => {
     const trimmed = newCat.trim();
@@ -92,15 +91,6 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
       }
       return updated;
     });
-  };
-
-  const handleConfirmCategoryTab = () => {
-    const trimmed = newCategoryTabName.trim();
-    if (!trimmed) return;
-    handleCreateCategory(trimmed);
-    setSelectedCategory(trimmed);
-    setNewCategoryTabName('');
-    setIsAddingCategoryTab(false);
   };
 
   // Resetar página ao alterar filtros
@@ -263,13 +253,13 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Abas de Categorias Refinadas (Mesmo padrão de Abas de Estoque e Analytics) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-0.5 pb-0.5">
-        <div className="inline-flex flex-wrap p-1 bg-stone-100/90 rounded-2xl border border-stone-200/80 gap-0.5">
+      {/* 2. Abas de Categorias Refinadas + Alternador de Visualização (Grade / Lista) lado a lado na mesma linha */}
+      <div className="flex items-center gap-2.5 pt-0.5 pb-0.5 overflow-x-auto scrollbar-none w-full">
+        <div className="inline-flex items-center p-1 bg-stone-100/90 rounded-2xl border border-stone-200/80 gap-0.5 shrink-0">
           <button
             type="button"
             onClick={() => setSelectedCategory('ALL')}
-            className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer ${
+            className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer shrink-0 ${
               selectedCategory === 'ALL'
                 ? 'bg-[#850D2C] text-white shadow-2xs'
                 : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
@@ -300,7 +290,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer ${
+                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer shrink-0 ${
                   isActive
                     ? 'bg-[#850D2C] text-white shadow-2xs'
                     : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
@@ -319,63 +309,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               </button>
             );
           })}
-
-          {/* Botão / Input para Criar Nova Categoria diretamente na barra */}
-          {!isAddingCategoryTab ? (
-            <button
-              type="button"
-              onClick={() => setIsAddingCategoryTab(true)}
-              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#850D2C] hover:bg-white/70 transition cursor-pointer"
-              title="Criar uma nova categoria de produtos"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Nova categoria</span>
-            </button>
-          ) : (
-            <div className="inline-flex items-center space-x-1 pl-1.5 pr-1 py-0.5 bg-white rounded-xl border border-[#850D2C]/40 shadow-2xs">
-              <input
-                type="text"
-                autoFocus
-                value={newCategoryTabName}
-                onChange={(e) => setNewCategoryTabName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleConfirmCategoryTab();
-                  } else if (e.key === 'Escape') {
-                    setIsAddingCategoryTab(false);
-                    setNewCategoryTabName('');
-                  }
-                }}
-                placeholder="Nome da categoria..."
-                className="w-32 px-1.5 py-1 text-xs text-[#35312F] placeholder-stone-400 focus:outline-none font-medium"
-              />
-              <button
-                type="button"
-                onClick={handleConfirmCategoryTab}
-                disabled={!newCategoryTabName.trim()}
-                className="p-1 rounded-lg bg-[#850D2C] text-white hover:bg-[#6e0a24] disabled:opacity-40 transition cursor-pointer"
-                title="Confirmar nova categoria"
-              >
-                <Check className="w-3 h-3" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAddingCategoryTab(false);
-                  setNewCategoryTabName('');
-                }}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition cursor-pointer"
-                title="Cancelar"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Alternador de Visualização: Grade vs Tabela */}
-        <div className="inline-flex p-1 bg-stone-100/90 rounded-xl border border-stone-200/80">
+        {/* Alternador de Visualização: Grade vs Tabela - Posicionado ao lado dos filtros na mesma linha */}
+        <div className="inline-flex p-1 bg-stone-100/90 rounded-xl border border-stone-200/80 shrink-0">
           <button
             type="button"
             onClick={() => setViewMode('GRID')}
@@ -571,8 +508,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           )}
         </div>
       ) : viewMode === 'GRID' ? (
-        /* ======================= VISUALIZAÇÃO EM GRADE (CARDS REFINADOS) ======================= */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        /* ======================= VISUALIZAÇÃO EM GRADE (CARD RETANGULAR BRANCO - ESTILO REFERÊNCIA A) ======================= */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {paginatedProducts.map((product) => {
             const isInactive = product.status === 'inativo';
             const isOutOfStock = product.stockQuantity <= 0;
@@ -584,145 +521,151 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               product.price > 0
                 ? Math.round(((product.price - product.costPrice) / product.price) * 100)
                 : 0;
+            const isTransparentCutout =
+              product.imageUrl.startsWith('data:image/png') ||
+              product.imageUrl.startsWith('data:image/webp');
 
             return (
               <div
                 key={product.id}
-                className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden flex flex-col justify-between shadow-2xs hover:shadow-md group ${
-                  isInactive
-                    ? 'border-stone-200/90 bg-stone-50/40 opacity-80'
-                    : 'border-stone-200/80 hover:border-stone-300'
+                className={`bg-white rounded-[28px] p-3.5 sm:p-4 border border-stone-200/90 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between text-[#35312F] group min-h-[460px] ${
+                  isInactive ? 'opacity-75 grayscale-30 bg-stone-50/50' : ''
                 }`}
               >
-                <div>
-                  {/* Imagem do Produto com Badges Discretos */}
-                  <div className="relative h-42 w-full bg-stone-100 overflow-hidden border-b border-stone-100">
+                {/* 1. Moldura Retangular de Imagem com Preço no Canto Superior Direito (Idêntico ao 10$) */}
+                <div className="relative h-60 w-full rounded-[22px] overflow-hidden bg-[#EBE7DF] flex flex-col justify-between shadow-inner">
+                  {/* Categoria Badge no topo esquerdo da foto */}
+                  <div className="p-3 z-10 flex items-center justify-between">
+                    <span className="bg-white/95 backdrop-blur-xs text-[#35312F] text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-2xs border border-stone-200/60">
+                      {product.category}
+                    </span>
+                    {isInactive && (
+                      <span className="bg-stone-800 text-stone-200 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                        Inativo
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Valor em Cima no Canto Superior Direito (Idêntico ao 10$ da Referência) */}
+                  <div className="absolute top-0 right-0 z-20 bg-white text-[#35312F] pl-4 pr-3.5 pt-1.5 pb-2 rounded-bl-[20px] flex items-center justify-center shadow-2xs">
+                    <span className="text-sm sm:text-base font-black tracking-tight">
+                      {product.hasSizes && product.sizes && product.sizes.length > 1
+                        ? `A partir de ${formatCurrencyBRL(Math.min(...product.sizes.map((s) => s.price)))}`
+                        : formatCurrencyBRL(product.price)}
+                    </span>
+                  </div>
+
+                  {/* Imagem Quadrada Normal para o Catálogo de Gestão */}
+                  <div className="absolute inset-0 flex items-center justify-center">
                     <img
                       src={product.imageUrl}
                       alt={product.name}
                       loading="lazy"
-                      className={`w-full h-full object-cover transition duration-500 ${
-                        isInactive ? 'grayscale-60' : 'group-hover:scale-105'
+                      className={`w-full h-full object-cover transition duration-500 group-hover:scale-105 ${
+                        isInactive ? 'grayscale-60' : ''
                       }`}
                     />
-                    {/* Sombra suave no topo para leitura limpa dos badges */}
-                    <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/30 to-transparent pointer-events-none" />
+                  </div>
 
-                    {/* Categoria Badge */}
-                    <span className="absolute top-3 left-3 bg-white/95 backdrop-blur-xs text-[#35312F] border border-stone-200/80 text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-2xs">
-                      {product.category}
-                    </span>
+                  {/* Faixa Inferior da Moldura com Status e Estoque */}
+                  <div
+                    className={`w-full py-1.5 px-3 text-center text-[10px] font-bold tracking-wider uppercase z-10 transition ${
+                      isInactive
+                        ? 'bg-stone-500 text-white'
+                        : isOutOfStock
+                        ? 'bg-[#850D2C] text-white'
+                        : isLowStock
+                        ? 'bg-[#924529] text-white'
+                        : 'bg-[#858F6D] text-white'
+                    }`}
+                  >
+                    {isInactive
+                      ? `Inativo • Estoque: ${product.stockQuantity} un.`
+                      : isOutOfStock
+                      ? 'Esgotado • 0 un. disponíveis'
+                      : isLowStock
+                      ? `Repor • Restam ${product.stockQuantity} un. (mín. ${product.minStockThreshold})`
+                      : `No Cardápio • ${product.stockQuantity} un. disponíveis`}
+                  </div>
+                </div>
 
-                    {/* Status Badge */}
-                    <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+                {/* 2. Informações Inferiores (Nome, Descrição, Ações Editar/Desativar e Pílulas) */}
+                <div className="pt-3 pb-1 flex-1 flex flex-col justify-between space-y-2.5">
+                  <div>
+                    {/* Nome do Produto com largura total para evitar truncamentos desnecessários */}
+                    <h3 className="font-extrabold text-[#35312F] text-base leading-tight">
+                      {product.name}
+                    </h3>
+
+                    <p className="text-[11px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
+                      {product.description || 'Preparo artesanal com insumos selecionados.'}
+                    </p>
+
+                    {/* Ações "Editar" e "Desativar" com design suave e harmonioso */}
+                    <div className="flex items-center gap-2 pt-2">
                       {isInactive ? (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50/95 backdrop-blur-xs text-[#850D2C] border border-[#850D2C]/25 shadow-2xs">
-                          <EyeOff className="w-3 h-3 text-[#850D2C]" />
-                          <span>Inativo</span>
-                        </span>
-                      ) : isOutOfStock ? (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50/95 backdrop-blur-xs text-[#850D2C] border border-[#850D2C]/25 shadow-2xs">
-                          <ArrowDownCircle className="w-3 h-3 text-[#850D2C]" />
-                          <span>Esgotado</span>
-                        </span>
-                      ) : isLowStock ? (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50/95 backdrop-blur-xs text-[#924529] border border-[#924529]/25 shadow-2xs">
-                          <AlertTriangle className="w-3 h-3 text-[#924529]" />
-                          <span>Repor ({product.stockQuantity} un.)</span>
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onRestoreProduct(product.id)}
+                          className="h-6.5 px-3 rounded-full text-[11px] font-medium bg-[#858F6D]/15 hover:bg-[#858F6D]/25 text-[#4c543c] border border-[#858F6D]/20 inline-flex items-center space-x-1.5 transition cursor-pointer"
+                          title="Reativar produto no cardápio"
+                        >
+                          <RotateCcw className="w-2.5 h-2.5" />
+                          <span>Reativar no cardápio</span>
+                        </button>
                       ) : (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#f6f8f0]/95 backdrop-blur-xs text-[#4c543c] border border-[#858F6D]/30 shadow-2xs">
-                          <CheckCircle className="w-3 h-3 text-[#858F6D]" />
-                          <span>No Cardápio</span>
-                        </span>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(product)}
+                            className="h-6.5 px-3 rounded-full text-[11px] font-medium bg-[#F5F3EF] hover:bg-[#EDE9E1] text-[#35312F] hover:text-[#850D2C] border border-stone-200/50 inline-flex items-center space-x-1.5 transition cursor-pointer"
+                            title="Editar preço, foto ou parâmetros do produto"
+                          >
+                            <Edit2 className="w-2.5 h-2.5 text-stone-400" />
+                            <span>Editar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setProductToDelete(product)}
+                            className="h-6.5 px-2.5 rounded-full text-[11px] font-medium text-stone-400 hover:text-[#850D2C] hover:bg-rose-50/70 transition cursor-pointer inline-flex items-center space-x-1"
+                            title="Desativar do cardápio"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                            <span>Desativar</span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
 
-                  {/* Corpo do Card */}
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-2.5">
-                      <h3 className="font-bold text-[#35312F] text-sm leading-snug">
-                        {product.name}
-                      </h3>
-                      <span className="text-base font-extrabold text-[#850D2C] shrink-0 tracking-tight">
-                        {formatCurrencyBRL(product.price)}
+                  {/* Pílulas Inferiores com Métricas (Ingredientes / Estoque / Custo / Margem) */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-stone-100">
+                    <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-[#35312F] text-[10px] font-semibold">
+                      {product.category}
+                    </span>
+                    {product.hasSizes && product.sizes && product.sizes.length > 0 && (
+                      <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-[#924529] border border-amber-200/60 text-[10px] font-semibold">
+                        Tamanhos: {product.sizes.map((s) => s.name.split(' ')[0]).join(', ')}
                       </span>
-                    </div>
-
-                    <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed min-h-[2rem]">
-                      {product.description || 'Sem descrição cadastrada.'}
-                    </p>
-
-                    {/* Faixa de Indicadores do Produto: Estoque, Custo e Margem */}
-                    <div className="mt-3.5 pt-3 border-t border-stone-100 grid grid-cols-3 gap-2 text-[11px]">
-                      <div>
-                        <span className="text-[10px] text-stone-400 block">Estoque</span>
-                        <strong
-                          className={`font-semibold ${
-                            isOutOfStock
-                              ? 'text-[#850D2C]'
-                              : isLowStock
-                              ? 'text-[#924529]'
-                              : 'text-[#35312F]'
-                          }`}
-                        >
-                          {product.stockQuantity} un.
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] text-stone-400 block">Custo un.</span>
-                        <span className="font-medium text-stone-600">
-                          {formatCurrencyBRL(product.costPrice)}
-                        </span>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-[10px] text-stone-400 block">Margem</span>
-                        <span className="font-semibold text-[#4c543c]">
-                          {marginPercent}% ({formatCurrencyBRL(profit)})
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rodapé de Ações do Card */}
-                <div className="px-4 py-2.5 bg-[#F9F7F3] border-t border-stone-200/70 flex items-center justify-between gap-2">
-                  {isInactive ? (
-                    <button
-                      type="button"
-                      onClick={() => onRestoreProduct(product.id)}
-                      className="w-full h-8 px-3 bg-[#858F6D] hover:bg-[#6e7759] text-white rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-1.5 shadow-2xs cursor-pointer"
-                      title="Tornar o produto novamente visível no cardápio digital"
+                    )}
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold ${
+                        isOutOfStock
+                          ? 'bg-rose-100 text-[#850D2C]'
+                          : isLowStock
+                          ? 'bg-amber-100 text-[#924529]'
+                          : 'bg-[#EFECE6] text-[#35312F]'
+                      }`}
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Reativar no Cardápio</span>
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(product)}
-                        className="flex-1 h-8 px-3 bg-white hover:bg-stone-50 text-[#35312F] border border-stone-200/90 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-1.5 shadow-2xs cursor-pointer"
-                        title="Editar preço, foto ou detalhes do produto"
-                      >
-                        <Edit2 className="w-3.5 h-3.5 text-[#924529]" />
-                        <span>Editar</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setProductToDelete(product)}
-                        className="h-8 px-3 bg-white hover:bg-rose-50 text-stone-500 hover:text-[#850D2C] border border-stone-200/90 hover:border-[#850D2C]/25 rounded-xl text-xs font-semibold transition flex items-center space-x-1.5 shadow-2xs cursor-pointer"
-                        title="Desativar do cardápio (Exclusão Lógica)"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Desativar</span>
-                      </button>
-                    </>
-                  )}
+                      Estoque: {product.stockQuantity} un.
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-stone-600 text-[10px] font-semibold">
+                      Custo: {formatCurrencyBRL(product.costPrice)}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-[#858F6D]/15 text-[#4c543c] text-[10px] font-semibold">
+                      Margem: {marginPercent}% ({formatCurrencyBRL(profit)})
+                    </span>
+                  </div>
                 </div>
               </div>
             );

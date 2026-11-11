@@ -98,3 +98,15 @@ body {
   width: 0 !important;
   height: 0 !important;
 }
+
+/* Padronagem Oficial Listrada Aroma (Verde Oliva & Creme) */
+.bg-aroma-stripes {
+  background-color: #f6efdd;
+  background-image: repeating-linear-gradient(
+    to right,
+    #7e8b60 0px,
+    #7e8b60 64px,
+    #f6efdd 64px,
+    #f6efdd 128px
+  );
+}
