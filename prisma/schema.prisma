@@ -1,0 +1,137 @@
+// Prisma Schema para o Café Gourmet Pro (Aroma)
+// Banco de dados: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USUÁRIOS E PERMISSÕES ====================
+model User {
+  id          String   @id
+  name        String
+  role        String   // 'Administrador' | 'Sub-gerente' | 'Barista / Caixa'
+  email       String   @unique
+  avatarColor String   @default("#850D2C")
+  createdAt   DateTime @default(now())
+}
+
+// ==================== PRODUTOS & CARDÁPIO ====================
+model Product {
+  id                String            @id
+  name              String
+  description       String            @default("")
+  price             Float
+  costPrice         Float             @default(0)
+  category          String            // 'Cafés Especiais', 'Doces & Bolos', etc.
+  imageUrl          String
+  cutoutImageUrl    String?
+  stockQuantity     Int               @default(0)
+  minStockThreshold Int               @default(5)
+  status            String            @default("ativo") // 'ativo' | 'inativo' (Exclusão Lógica)
+  hasSizes          Boolean           @default(false)
+  hasAddons         Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  sizes             ProductSize[]
+  addons            ProductAddon[]
+  orderItems        OrderItem[]
+}
+
+model ProductSize {
+  id         String   @id @default(cuid())
+  productId  String
+  name       String   // 'P (150ml)', 'M (300ml)', 'G (450ml)'
+  price      Float
+  costPrice  Float?
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductAddon {
+  id         String   @id @default(cuid())
+  productId  String?
+  name       String
+  price      Float
+  product    Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// ==================== INSUMOS & ESTOQUE ====================
+model Ingredient {
+  id                String   @id
+  name              String
+  category          String   // 'Grãos & Pós', 'Laticínios', etc.
+  currentStock      Float    @default(0)
+  unit              String   // 'kg' | 'g' | 'L' | 'ml' | 'un'
+  minStockThreshold Float    @default(0)
+  costPerUnit       Float    @default(0)
+  supplier          String?
+  isAddonIngredient Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+}
+
+// ==================== PEDIDOS & KANBAN ====================
+model Order {
+  id                 String      @id
+  orderNumber        Int         @unique
+  customerName       String
+  customerPhone      String?
+  tableOrTakeaway    String      // 'Mesa 03', 'Balcão / Viagem', etc.
+  consumptionType    String      @default("MESA") // 'MESA' | 'BALCAO' | 'LEVAR' | 'DELIVERY'
+  notes              String?
+  totalAmount        Float
+  totalCost          Float       @default(0)
+  status             String      @default("recebido") // 'recebido' | 'preparando' | 'pronto' | 'entregue' | 'cancelado'
+  paymentMethod      String      @default("PIX")
+  stockDeducted      Boolean     @default(false)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  startedPreparingAt DateTime?
+  readyAt            DateTime?
+  deliveredAt        DateTime?
+  items              OrderItem[]
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String
+  productId      String
+  productName    String
+  selectedSize   String?
+  selectedAddons String?  // Lista JSON serializada de adicionais
+  unitPrice      Float
+  costPrice      Float    @default(0)
+  quantity       Int      @default(1)
+  subtotal       Float
+  notes          String?
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+// ==================== AUDITORIA DE SEGURANÇA ====================
+model AuditLog {
+  id           String   @id
+  timestamp    DateTime @default(now())
+  userId       String
+  userName     String
+  userRole     String
+  actionType   String   // 'PRECO_ALTERADO', 'EXCLUSAO_LOGICA', 'ESTOQUE_AJUSTADO', etc.
+  targetEntity String   // 'Produto' | 'Estoque' | 'Pedido' | 'Sistema'
+  targetId     String?
+  details      String
+  oldValue     String?
+  newValue     String?
+
+  @@index([actionType])
+  @@index([timestamp])
+}
