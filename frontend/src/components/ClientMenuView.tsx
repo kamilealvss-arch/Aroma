@@ -406,7 +406,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                     <GourmetCutoutImage
                       src={cardImage}
                       alt={product.name}
-                      className={`w-full h-full object-contain scale-110 sm:scale-120 drop-shadow-[0_18px_24px_rgba(0,0,0,0.24)] transition-transform duration-500 group-hover:scale-125 ${
+                      className={`w-full h-full object-contain scale-110 sm:scale-120 drop-shadow-[0_18px_24px_rgba(0,0,0,0.24)] ${
                         isOutOfStock ? 'grayscale-70' : ''
                       }`}
                     />
@@ -416,7 +416,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                     <img
                       src={cardImage}
                       alt={product.name}
-                      className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                      className={`w-full h-full object-cover ${
                         isOutOfStock ? 'grayscale-70' : ''
                       }`}
                     />

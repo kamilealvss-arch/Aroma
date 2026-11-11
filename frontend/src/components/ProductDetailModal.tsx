@@ -335,7 +335,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         displayImage.startsWith('data:image/webp')));
 
                   return (
-                    <div className="w-full h-full rounded-full bg-[#fbf9f6] border-[6px] sm:border-[8px] border-[#ede8e1] shadow-[0_28px_45px_rgba(0,0,0,0.38),0_12px_22px_rgba(0,0,0,0.18)] overflow-hidden flex items-center justify-center transition-transform duration-500 group-hover:scale-105 p-1.5">
+                    <div className="w-full h-full rounded-full bg-[#fbf9f6] border-[6px] sm:border-[8px] border-[#ede8e1] shadow-[0_28px_45px_rgba(0,0,0,0.38),0_12px_22px_rgba(0,0,0,0.18)] overflow-hidden flex items-center justify-center p-1.5">
                       {isCutout ? (
                         <GourmetCutoutImage
                           src={displayImage}
