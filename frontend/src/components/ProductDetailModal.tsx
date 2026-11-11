@@ -258,35 +258,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {/* ===================== TOPO ESCURO EM DEGRADÊ COM CURVATURA ===================== */}
           {/* Note: overflow-visible para permitir que o prato do café ultrapasse e saia da borda do card! */}
           <div className="relative bg-gradient-to-b from-[#24130b] via-[#331c11] to-[#3f2418] pt-6 pb-20 sm:pb-24 px-6 sm:px-10 rounded-b-[52px] sm:rounded-b-[64px] shadow-md overflow-visible">
-            
-            {/* Camada interna com grãos em marca d'água (esta sim recortada na curvatura) */}
-            <div className="absolute inset-0 pointer-events-none opacity-15 overflow-hidden rounded-b-[52px] sm:rounded-b-[64px]">
-              <svg
-                className="w-full h-full text-amber-100"
-                viewBox="0 0 400 300"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <g transform="translate(40, 25) rotate(-20) scale(0.7)">
-                  <ellipse cx="40" cy="25" rx="30" ry="20" />
-                  <path d="M 15 25 C 28 10, 48 40, 65 25" />
-                </g>
-                <g transform="translate(290, 30) rotate(35) scale(0.8)">
-                  <ellipse cx="40" cy="25" rx="30" ry="20" />
-                  <path d="M 15 25 C 30 12, 50 38, 65 25" />
-                </g>
-                <g transform="translate(320, 150) rotate(-45) scale(0.75)">
-                  <ellipse cx="40" cy="25" rx="30" ry="20" />
-                  <path d="M 15 25 C 28 10, 48 40, 65 25" />
-                </g>
-                <g transform="translate(30, 160) rotate(15) scale(0.65)">
-                  <ellipse cx="40" cy="25" rx="30" ry="20" />
-                  <path d="M 15 25 C 28 12, 48 38, 65 25" />
-                </g>
-              </svg>
-            </div>
-
             {/* Barra de Navegação Superior (Voltar) */}
             <div className="relative z-30 flex items-center justify-between">
               <button
