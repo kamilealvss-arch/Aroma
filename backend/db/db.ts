@@ -80,9 +80,14 @@ class DatabaseStore {
       costPrice: Number(data.costPrice || data.price * 0.4),
       category: data.category,
       imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=600',
+      cutoutImageUrl: data.cutoutImageUrl,
       stockQuantity: Number(data.stockQuantity || 0),
       minStockThreshold: Number(data.minStockThreshold || 5),
       status: data.status || 'ativo',
+      hasSizes: data.hasSizes,
+      sizes: data.sizes,
+      hasAddons: data.hasAddons,
+      addons: data.addons,
       createdAt: now,
       updatedAt: now,
     };
@@ -243,6 +248,7 @@ class DatabaseStore {
       minStockThreshold: Math.max(0, Number(data.minStockThreshold) || 0),
       costPerUnit: Math.max(0, Number(data.costPerUnit) || 0),
       supplier: data.supplier ? data.supplier.trim() : undefined,
+      isAddonIngredient: data.isAddonIngredient ?? (data.category === 'Adicionais & Complementos'),
       updatedAt: now,
     };
 
@@ -283,7 +289,15 @@ class DatabaseStore {
     consumptionType?: Order['consumptionType'];
     notes?: string;
     paymentMethod: Order['paymentMethod'];
-    items: Array<{ productId: string; quantity: number; notes?: string; selectedSize?: string }>;
+    items: Array<{
+      productId: string;
+      quantity: number;
+      notes?: string;
+      selectedSize?: string;
+      selectedAddons?: string[];
+      addons?: Array<{ name: string; price: number }>;
+      unitPrice?: number;
+    }>;
   }): Order {
     const currentUser = this.getCurrentUser();
     const orderItems: Order['items'] = [];
@@ -315,6 +329,16 @@ class DatabaseStore {
         }
       }
 
+      if (itemReq.addons && Array.isArray(itemReq.addons)) {
+        for (const addon of itemReq.addons) {
+          if (addon && typeof addon.price === 'number') {
+            itemPrice += addon.price;
+          }
+        }
+      } else if (typeof itemReq.unitPrice === 'number' && itemReq.unitPrice > itemPrice) {
+        itemPrice = itemReq.unitPrice;
+      }
+
       const subtotal = itemPrice * itemReq.quantity;
       totalAmount += subtotal;
       totalCost += product.costPrice * itemReq.quantity;
@@ -323,6 +347,7 @@ class DatabaseStore {
         productId: product.id,
         productName: itemName,
         selectedSize: itemReq.selectedSize,
+        selectedAddons: itemReq.selectedAddons,
         unitPrice: itemPrice,
         costPrice: product.costPrice,
         quantity: itemReq.quantity,

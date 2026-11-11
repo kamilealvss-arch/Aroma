@@ -77,8 +77,6 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
       return [];
     }
   });
-  const [isAddingCategoryTab, setIsAddingCategoryTab] = useState(false);
-  const [newCategoryTabName, setNewCategoryTabName] = useState('');
 
   const handleCreateCategory = (newCat: string) => {
     const trimmed = newCat.trim();
@@ -93,15 +91,6 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
       }
       return updated;
     });
-  };
-
-  const handleConfirmCategoryTab = () => {
-    const trimmed = newCategoryTabName.trim();
-    if (!trimmed) return;
-    handleCreateCategory(trimmed);
-    setSelectedCategory(trimmed);
-    setNewCategoryTabName('');
-    setIsAddingCategoryTab(false);
   };
 
   // Resetar página ao alterar filtros
@@ -264,13 +253,13 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Abas de Categorias Refinadas (Mesmo padrão de Abas de Estoque e Analytics) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-0.5 pb-0.5">
-        <div className="inline-flex flex-wrap p-1 bg-stone-100/90 rounded-2xl border border-stone-200/80 gap-0.5">
+      {/* 2. Abas de Categorias Refinadas + Alternador de Visualização (Grade / Lista) lado a lado na mesma linha */}
+      <div className="flex items-center gap-2.5 pt-0.5 pb-0.5 overflow-x-auto scrollbar-none w-full">
+        <div className="inline-flex items-center p-1 bg-stone-100/90 rounded-2xl border border-stone-200/80 gap-0.5 shrink-0">
           <button
             type="button"
             onClick={() => setSelectedCategory('ALL')}
-            className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer ${
+            className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer shrink-0 ${
               selectedCategory === 'ALL'
                 ? 'bg-[#850D2C] text-white shadow-2xs'
                 : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
@@ -301,7 +290,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer ${
+                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer shrink-0 ${
                   isActive
                     ? 'bg-[#850D2C] text-white shadow-2xs'
                     : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
@@ -320,63 +309,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               </button>
             );
           })}
-
-          {/* Botão / Input para Criar Nova Categoria diretamente na barra */}
-          {!isAddingCategoryTab ? (
-            <button
-              type="button"
-              onClick={() => setIsAddingCategoryTab(true)}
-              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#850D2C] hover:bg-white/70 transition cursor-pointer"
-              title="Criar uma nova categoria de produtos"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Nova categoria</span>
-            </button>
-          ) : (
-            <div className="inline-flex items-center space-x-1 pl-1.5 pr-1 py-0.5 bg-white rounded-xl border border-[#850D2C]/40 shadow-2xs">
-              <input
-                type="text"
-                autoFocus
-                value={newCategoryTabName}
-                onChange={(e) => setNewCategoryTabName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleConfirmCategoryTab();
-                  } else if (e.key === 'Escape') {
-                    setIsAddingCategoryTab(false);
-                    setNewCategoryTabName('');
-                  }
-                }}
-                placeholder="Nome da categoria..."
-                className="w-32 px-1.5 py-1 text-xs text-[#35312F] placeholder-stone-400 focus:outline-none font-medium"
-              />
-              <button
-                type="button"
-                onClick={handleConfirmCategoryTab}
-                disabled={!newCategoryTabName.trim()}
-                className="p-1 rounded-lg bg-[#850D2C] text-white hover:bg-[#6e0a24] disabled:opacity-40 transition cursor-pointer"
-                title="Confirmar nova categoria"
-              >
-                <Check className="w-3 h-3" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAddingCategoryTab(false);
-                  setNewCategoryTabName('');
-                }}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition cursor-pointer"
-                title="Cancelar"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Alternador de Visualização: Grade vs Tabela */}
-        <div className="inline-flex p-1 bg-stone-100/90 rounded-xl border border-stone-200/80">
+        {/* Alternador de Visualização: Grade vs Tabela - Posicionado ao lado dos filtros na mesma linha */}
+        <div className="inline-flex p-1 bg-stone-100/90 rounded-xl border border-stone-200/80 shrink-0">
           <button
             type="button"
             onClick={() => setViewMode('GRID')}
@@ -619,27 +555,16 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                     </span>
                   </div>
 
-                  {/* Imagem Centralizada com Escala e Proporção Padronizadas */}
-                  <div className="absolute inset-0 flex items-center justify-center p-3">
-                    {isTransparentCutout ? (
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        loading="lazy"
-                        className={`w-44 h-44 object-contain drop-shadow-[0_14px_18px_rgba(53,49,47,0.22)] transition duration-500 group-hover:scale-105 ${
-                          isInactive ? 'grayscale-60' : ''
-                        }`}
-                      />
-                    ) : (
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        loading="lazy"
-                        className={`w-full h-full object-cover transition duration-500 group-hover:scale-105 ${
-                          isInactive ? 'grayscale-60' : ''
-                        }`}
-                      />
-                    )}
+                  {/* Imagem Quadrada Normal para o Catálogo de Gestão */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      loading="lazy"
+                      className={`w-full h-full object-cover transition duration-500 group-hover:scale-105 ${
+                        isInactive ? 'grayscale-60' : ''
+                      }`}
+                    />
                   </div>
 
                   {/* Faixa Inferior da Moldura com Status e Estoque */}

@@ -18,6 +18,19 @@ import {
 } from 'lucide-react';
 import { Product, ProductCategory, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
+import { ProductDetailModal, ConfiguredCartItem } from './ProductDetailModal.tsx';
+import { GourmetCutoutImage } from './GourmetCutoutImage.tsx';
+
+export interface DetailedCartItem {
+  cartKey: string;
+  productId: string;
+  product: Product;
+  quantity: number;
+  selectedSize?: string;
+  selectedAddons?: Array<{ id: string; name: string; price: number }>;
+  notes?: string;
+  unitPrice: number;
+}
 
 interface ClientMenuViewProps {
   products: Product[];
@@ -29,7 +42,15 @@ interface ClientMenuViewProps {
     consumptionType?: Order['consumptionType'];
     notes?: string;
     paymentMethod: PaymentMethod;
-    items: Array<{ productId: string; quantity: number; notes?: string; selectedSize?: string }>;
+    items: Array<{
+      productId: string;
+      quantity: number;
+      notes?: string;
+      selectedSize?: string;
+      selectedAddons?: string[];
+      addons?: Array<{ name: string; price: number }>;
+      unitPrice?: number;
+    }>;
   }) => Promise<Order>;
   onOrderSuccess: () => void;
 }
@@ -44,7 +65,9 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   const activeProducts = products.filter((p) => p.status === 'ativo');
 
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [cart, setCart] = useState<{ [cartKey: string]: number }>({});
+  const [cartItems, setCartItems] = useState<DetailedCartItem[]>([]);
+  const [selectedProductForDetail, setSelectedProductForDetail] = useState<Product | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedProductSizes, setSelectedProductSizes] = useState<{ [productId: string]: string }>({});
   const [favorites, setFavorites] = useState<{ [productId: string]: boolean }>({});
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -55,110 +78,8 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState<Order | null>(null);
   const [activeTrackingOrder, setActiveTrackingOrder] = useState<Order | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const categories = Array.from(new Set(activeProducts.map((p) => p.category)));
-
-  const filteredProducts = activeProducts.filter((p) => {
-    if (selectedCategory === 'ALL') return true;
-    return p.category === selectedCategory;
-  });
-
-  const cartItemCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
-
-  const cartTotal = Object.entries(cart).reduce((sum, [cartKey, qty]) => {
-    const [productId, sizeName] = cartKey.split('__');
-    const prod = activeProducts.find((p) => p.id === productId);
-    if (!prod) return sum;
-    let unitP = prod.price;
-    if (sizeName && prod.sizes && prod.sizes.length > 0) {
-      const foundSz = prod.sizes.find((s) => s.name === sizeName);
-      if (foundSz) unitP = foundSz.price;
-    }
-    return sum + unitP * qty;
-  }, 0);
-
-  const handleAddToCart = (product: Product, chosenSize?: string) => {
-    // Se estiver esgotado (estoque <= 0), bloqueia
-    if (product.stockQuantity <= 0) return;
-
-    const sizeName =
-      chosenSize ||
-      selectedProductSizes[product.id] ||
-      (product.hasSizes && product.sizes && product.sizes.length > 0
-        ? product.sizes[0].name
-        : undefined);
-
-    const cartKey = sizeName ? `${product.id}__${sizeName}` : product.id;
-    const currentQty = cart[cartKey] || 0;
-    if (currentQty >= product.stockQuantity) {
-      alert(`Quantidade máxima disponível em estoque atingida (${product.stockQuantity} un.)`);
-      return;
-    }
-
-    setCart((prev) => ({
-      ...prev,
-      [cartKey]: currentQty + 1,
-    }));
-  };
-
-  const handleRemoveFromCart = (cartKey: string) => {
-    setCart((prev) => {
-      const next = { ...prev };
-      if (next[cartKey] > 1) {
-        next[cartKey] -= 1;
-      } else {
-        delete next[cartKey];
-      }
-      return next;
-    });
-  };
-
-  const handleFinishOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (cartItemCount === 0) return;
-
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
-    const itemsPayload = Object.entries(cart).map(([cartKey, quantity]) => {
-      const [productId, sizeName] = cartKey.split('__');
-      return {
-        productId,
-        quantity,
-        selectedSize: sizeName || undefined,
-      };
-    });
-
-    let consumptionType: Order['consumptionType'] = 'MESA';
-    const tableLower = tableOrTakeaway.toLowerCase();
-    if (tableLower.includes('levar')) consumptionType = 'LEVAR';
-    else if (tableLower.includes('delivery')) consumptionType = 'DELIVERY';
-    else if (tableLower.includes('balcão')) consumptionType = 'BALCAO';
-
-    try {
-      const newOrder = await onCreateOrder({
-        customerName: customerName.trim() || 'Cliente Balcão',
-        tableOrTakeaway,
-        consumptionType,
-        notes: orderNotes.trim() || undefined,
-        paymentMethod,
-        items: itemsPayload,
-      });
-
-      setOrderConfirmed(newOrder);
-      setActiveTrackingOrder(newOrder);
-      setCart({});
-      setIsCheckoutOpen(false);
-      onOrderSuccess();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Erro ao processar o pedido.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const [activeTrackingOrderId, setActiveTrackingOrderId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeOrders = orders.filter((o) => o.status !== 'entregue' && o.status !== 'cancelado');
 
@@ -181,6 +102,134 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     }
     previousStatusRef.current = liveOrder?.status;
   }, [liveOrder?.status]);
+
+  const categories = Array.from(new Set(activeProducts.map((p) => p.category)));
+
+  const filteredProducts = activeProducts.filter((p) => {
+    if (selectedCategory === 'ALL') return true;
+    return p.category === selectedCategory;
+  });
+
+  const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+
+  // Abre a tela de detalhes do produto (mockup com tamanho, adicionais, quantidade)
+  const handleOpenProductDetail = (product: Product) => {
+    if (product.stockQuantity <= 0) return;
+    setSelectedProductForDetail(product);
+    setIsDetailModalOpen(true);
+  };
+
+  // Adiciona item customizado a partir do Modal Gourmet de Detalhes
+  const handleAddFromDetailModal = (configured: ConfiguredCartItem) => {
+    const sortedAddonIds = [...configured.selectedAddons].map((a) => a.id).sort().join('_');
+    const sizeKey = configured.selectedSize || 'default';
+    const notesKey = configured.notes || '';
+    const cartKey = `${configured.product.id}__${sizeKey}__${sortedAddonIds}__${notesKey}`;
+
+    setCartItems((prev) => {
+      const existingIdx = prev.findIndex((item) => item.cartKey === cartKey);
+      if (existingIdx !== -1) {
+        const currentQty = prev[existingIdx].quantity;
+        const newQty = currentQty + configured.quantity;
+        if (newQty > configured.product.stockQuantity) {
+          alert(`Quantidade máxima disponível em estoque atingida (${configured.product.stockQuantity} un.)`);
+          return prev;
+        }
+        const updated = [...prev];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          quantity: newQty,
+        };
+        return updated;
+      }
+      return [
+        ...prev,
+        {
+          cartKey,
+          productId: configured.product.id,
+          product: configured.product,
+          quantity: configured.quantity,
+          selectedSize: configured.selectedSize,
+          selectedAddons: configured.selectedAddons,
+          notes: configured.notes,
+          unitPrice: configured.unitPrice,
+        },
+      ];
+    });
+  };
+
+  const handleRemoveCartItem = (cartKey: string) => {
+    setCartItems((prev) => prev.filter((item) => item.cartKey !== cartKey));
+  };
+
+  const handleDecreaseProductQty = (productId: string) => {
+    setCartItems((prev) => {
+      const targetIdx = prev.map((item, idx) => ({ item, idx })).filter((x) => x.item.productId === productId).pop()?.idx;
+      if (targetIdx === undefined) return prev;
+      const target = prev[targetIdx];
+      if (target.quantity > 1) {
+        const updated = [...prev];
+        updated[targetIdx] = { ...target, quantity: target.quantity - 1 };
+        return updated;
+      } else {
+        return prev.filter((_, idx) => idx !== targetIdx);
+      }
+    });
+  };
+
+  const handleFinishOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (cartItemCount === 0) return;
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const itemsPayload = cartItems.map((item) => {
+      const addonSummary =
+        item.selectedAddons && item.selectedAddons.length > 0
+          ? `Adicionais: ${item.selectedAddons.map((a) => a.name).join(', ')}`
+          : '';
+      const combinedNotes = [addonSummary, item.notes].filter(Boolean).join(' | ');
+
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        selectedSize: item.selectedSize || undefined,
+        selectedAddons: item.selectedAddons?.map((a) => a.name),
+        addons: item.selectedAddons?.map((a) => ({ name: a.name, price: a.price })),
+        unitPrice: item.unitPrice,
+        notes: combinedNotes || undefined,
+      };
+    });
+
+    let consumptionType: Order['consumptionType'] = 'MESA';
+    const tableLower = tableOrTakeaway.toLowerCase();
+    if (tableLower.includes('levar')) consumptionType = 'LEVAR';
+    else if (tableLower.includes('delivery')) consumptionType = 'DELIVERY';
+    else if (tableLower.includes('balcão')) consumptionType = 'BALCAO';
+
+    try {
+      const newOrder = await onCreateOrder({
+        customerName: customerName.trim() || 'Cliente Balcão',
+        tableOrTakeaway,
+        consumptionType,
+        notes: orderNotes.trim() || undefined,
+        paymentMethod,
+        items: itemsPayload,
+      });
+
+      setOrderConfirmed(newOrder);
+      setActiveTrackingOrder(newOrder);
+      setCartItems([]);
+      setIsCheckoutOpen(false);
+      onOrderSuccess();
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Erro ao processar o pedido.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-24">
@@ -319,9 +368,12 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         {filteredProducts.map((product) => {
           const isOutOfStock = product.stockQuantity <= 0; // Regra de Estoque Zero (RF04)
           const isFavorite = !!favorites[product.id];
+          const cardImage = product.cutoutImageUrl || product.imageUrl || '';
           const isTransparentCutout =
-            product.imageUrl.startsWith('data:image/png') ||
-            product.imageUrl.startsWith('data:image/webp');
+            Boolean(product.cutoutImageUrl) ||
+            (typeof cardImage === 'string' &&
+              (cardImage.startsWith('data:image/png') ||
+                cardImage.startsWith('data:image/webp')));
 
           const hasSizes = !!(product.hasSizes && product.sizes && product.sizes.length > 0);
           const currentSizeName =
@@ -331,8 +383,9 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
             : undefined;
           const activePrice = currentSizeOption ? currentSizeOption.price : product.price;
 
-          const cartKey = currentSizeName ? `${product.id}__${currentSizeName}` : product.id;
-          const inCartQty = cart[cartKey] || 0;
+          const inCartQty = cartItems
+            .filter((item) => item.productId === product.id)
+            .reduce((sum, item) => sum + item.quantity, 0);
 
           return (
             <div
@@ -342,19 +395,27 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
               }`}
             >
               {/* 1. Imagem Flutuante: O card pega apenas a metade inferior, e a metade superior fica para fora do card */}
-              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-36 h-36 sm:w-40 sm:h-40 z-20 flex items-center justify-center">
+              <div
+                onClick={() => !isOutOfStock && handleOpenProductDetail(product)}
+                className={`absolute -top-16 left-1/2 -translate-x-1/2 w-36 h-36 sm:w-40 sm:h-40 z-20 flex items-center justify-center ${
+                  !isOutOfStock ? 'cursor-pointer' : ''
+                }`}
+                title={!isOutOfStock ? `Personalizar ${product.name}` : undefined}
+              >
                 {isTransparentCutout ? (
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className={`w-full h-full object-contain drop-shadow-[0_16px_22px_rgba(0,0,0,0.22)] transition-transform duration-500 group-hover:scale-105 ${
-                      isOutOfStock ? 'grayscale-70' : ''
-                    }`}
-                  />
+                  <div className="w-full h-full flex items-center justify-center p-0.5">
+                    <GourmetCutoutImage
+                      src={cardImage}
+                      alt={product.name}
+                      className={`w-full h-full object-contain scale-110 sm:scale-120 drop-shadow-[0_18px_24px_rgba(0,0,0,0.24)] transition-transform duration-500 group-hover:scale-125 ${
+                        isOutOfStock ? 'grayscale-70' : ''
+                      }`}
+                    />
+                  </div>
                 ) : (
                   <div className="w-full h-full rounded-full overflow-hidden shadow-lg border-[3.5px] border-white bg-white flex items-center justify-center">
                     <img
-                      src={product.imageUrl}
+                      src={cardImage}
                       alt={product.name}
                       className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
                         isOutOfStock ? 'grayscale-70' : ''
@@ -384,7 +445,12 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                   )}
                 </div>
 
-                <h3 className="font-extrabold text-stone-950 text-lg leading-tight tracking-tight">
+                <h3
+                  onClick={() => !isOutOfStock && handleOpenProductDetail(product)}
+                  className={`font-extrabold text-stone-950 text-lg leading-tight tracking-tight ${
+                    !isOutOfStock ? 'cursor-pointer hover:text-[#c58d59] transition' : ''
+                  }`}
+                >
                   {product.name}
                 </h3>
 
@@ -445,7 +511,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                     <div className="h-11 inline-flex items-center space-x-2 bg-stone-100 rounded-full px-2 shadow-2xs">
                       <button
                         type="button"
-                        onClick={() => handleRemoveFromCart(cartKey)}
+                        onClick={() => handleDecreaseProductQty(product.id)}
                         className="w-8 h-8 rounded-full bg-white text-stone-900 shadow-2xs flex items-center justify-center font-bold hover:bg-stone-50 transition cursor-pointer"
                         title="Diminuir quantidade"
                       >
@@ -456,10 +522,10 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                       </span>
                       <button
                         type="button"
-                        onClick={() => handleAddToCart(product, currentSizeName)}
+                        onClick={() => handleOpenProductDetail(product)}
                         disabled={inCartQty >= product.stockQuantity}
-                        className="w-8 h-8 rounded-full bg-stone-950 text-white shadow-2xs flex items-center justify-center font-bold hover:bg-stone-800 transition disabled:opacity-40 cursor-pointer"
-                        title="Aumentar quantidade"
+                        className="w-8 h-8 rounded-full bg-[#c58d59] text-white shadow-2xs flex items-center justify-center font-bold hover:bg-[#b07842] transition disabled:opacity-40 cursor-pointer"
+                        title="Personalizar e adicionar mais"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
@@ -467,10 +533,10 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleAddToCart(product, currentSizeName)}
-                      aria-label={`Adicionar ${product.name} ao Pedido`}
-                      className="w-11 h-11 rounded-full bg-stone-950 hover:bg-stone-800 active:scale-95 text-white flex items-center justify-center shadow-md transition cursor-pointer"
-                      title="Adicionar ao pedido"
+                      onClick={() => handleOpenProductDetail(product)}
+                      aria-label={`Personalizar e adicionar ${product.name} ao Pedido`}
+                      className="w-11 h-11 rounded-full bg-stone-950 hover:bg-[#c58d59] active:scale-95 text-white flex items-center justify-center shadow-md transition cursor-pointer"
+                      title="Personalizar bebida e adicionar"
                     >
                       <Plus className="w-5 h-5 stroke-[2.5]" />
                     </button>
@@ -566,41 +632,51 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
                   Itens Selecionados
                 </span>
-                {Object.entries(cart).map(([cartKey, quantity]) => {
-                  const [productId, sizeName] = cartKey.split('__');
-                  const product = activeProducts.find((p) => p.id === productId);
-                  if (!product) return null;
-                  let unitPrice = product.price;
-                  if (sizeName && product.sizes && product.sizes.length > 0) {
-                    const foundSz = product.sizes.find((s) => s.name === sizeName);
-                    if (foundSz) unitPrice = foundSz.price;
-                  }
-                  return (
-                    <div
-                      key={cartKey}
-                      className="flex items-center justify-between text-xs py-1.5"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                          {quantity}x
-                        </span>
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-stone-800">
-                            {product.name}
-                          </span>
-                          {sizeName && (
-                            <span className="text-[10px] text-amber-700 font-medium">
-                              Tamanho: {sizeName}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="font-bold text-stone-900">
-                        {formatCurrencyBRL(unitPrice * quantity)}
+                {cartItems.map((item) => (
+                  <div
+                    key={item.cartKey}
+                    className="flex items-start justify-between text-xs py-2 border-b border-stone-50"
+                  >
+                    <div className="flex items-start space-x-2">
+                      <span className="font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0 mt-0.5">
+                        {item.quantity}x
                       </span>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-stone-800">
+                          {item.product.name}
+                        </span>
+                        {item.selectedSize && (
+                          <span className="text-[10px] text-amber-800 font-medium">
+                            Tamanho: {item.selectedSize}
+                          </span>
+                        )}
+                        {item.selectedAddons && item.selectedAddons.length > 0 && (
+                          <span className="text-[10px] text-stone-500">
+                            + {item.selectedAddons.map((a) => a.name).join(', ')}
+                          </span>
+                        )}
+                        {item.notes && (
+                          <span className="text-[10px] text-rose-700 font-medium">
+                            Obs: {item.notes}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <span className="font-bold text-stone-900">
+                        {formatCurrencyBRL(item.unitPrice * item.quantity)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCartItem(item.cartKey)}
+                        className="text-stone-400 hover:text-rose-600 p-0.5 transition cursor-pointer"
+                        title="Remover item"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* Informações do Cliente & Local */}
@@ -810,13 +886,38 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
             <button
               onClick={() => setOrderConfirmed(null)}
-              className="mt-5 w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition shadow-md"
+              className="mt-5 w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer"
             >
               Fazer Outro Pedido
             </button>
           </div>
         </div>
       )}
+
+      {/* Modal Gourmet de Detalhes do Produto (Tamanho, Adicionais, Quantidade) */}
+      <ProductDetailModal
+        isOpen={isDetailModalOpen}
+        product={selectedProductForDetail}
+        onClose={() => setIsDetailModalOpen(false)}
+        onAddToCart={handleAddFromDetailModal}
+        onBuyNow={(configured) => {
+          handleAddFromDetailModal(configured);
+          setIsDetailModalOpen(false);
+          setIsCheckoutOpen(true);
+        }}
+        isFavorite={selectedProductForDetail ? !!favorites[selectedProductForDetail.id] : false}
+        onToggleFavorite={(pid) =>
+          setFavorites((prev) => ({
+            ...prev,
+            [pid]: !prev[pid],
+          }))
+        }
+        cartItemCount={cartItemCount}
+        onOpenCart={() => {
+          setIsDetailModalOpen(false);
+          setIsCheckoutOpen(true);
+        }}
+      />
     </div>
   );
 };
