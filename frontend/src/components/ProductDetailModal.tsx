@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
-  Heart,
   Minus,
   Plus,
   ShoppingBag,
@@ -14,6 +13,7 @@ import {
 import { Product } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 import { GourmetCutoutImage } from './GourmetCutoutImage.tsx';
+import ginghamPattern from '../assets/gingham-green.png';
 
 export interface ProductAddonOption {
   id: string;
@@ -256,99 +256,66 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     >
       <div className="relative min-h-screen max-w-2xl mx-auto flex flex-col justify-between pb-28">
         <div>
-          {/* ===================== TOPO ESCURO EM DEGRADÊ COM CURVATURA ===================== */}
+          {/* ===================== TOPO COM ESTAMPA XADREZ (GINGHAM) E CURVATURA ===================== */}
           {/* Note: overflow-visible para permitir que o prato do café ultrapasse e saia da borda do card! */}
-          <div className="relative bg-gradient-to-b from-[#24130b] via-[#331c11] to-[#3f2418] pt-6 pb-20 sm:pb-24 px-6 sm:px-10 rounded-b-[52px] sm:rounded-b-[64px] shadow-md overflow-visible">
-            
-            {/* Camada interna com grãos em marca d'água (esta sim recortada na curvatura) */}
-            <div className="absolute inset-0 pointer-events-none opacity-15 overflow-hidden rounded-b-[52px] sm:rounded-b-[64px]">
-              <svg
-                className="w-full h-full text-amber-100"
-                viewBox="0 0 400 300"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <g transform="translate(40, 25) rotate(-20) scale(0.7)">
-                  <ellipse cx="40" cy="25" rx="30" ry="20" />
-                  <path d="M 15 25 C 28 10, 48 40, 65 25" />
-                </g>
-                <g transform="translate(290, 30) rotate(35) scale(0.8)">
-                  <ellipse cx="40" cy="25" rx="30" ry="20" />
-                  <path d="M 15 25 C 30 12, 50 38, 65 25" />
-                </g>
-                <g transform="translate(320, 150) rotate(-45) scale(0.75)">
-                  <ellipse cx="40" cy="25" rx="30" ry="20" />
-                  <path d="M 15 25 C 28 10, 48 40, 65 25" />
-                </g>
-                <g transform="translate(30, 160) rotate(15) scale(0.65)">
-                  <ellipse cx="40" cy="25" rx="30" ry="20" />
-                  <path d="M 15 25 C 28 12, 48 38, 65 25" />
-                </g>
-              </svg>
-            </div>
+          <div className="relative pt-6 pb-20 sm:pb-24 px-6 sm:px-10 rounded-b-[52px] sm:rounded-b-[64px] shadow-sm overflow-visible">
+            {/* Camada com a estampa xadrez recortada na curvatura arredondada */}
+            <div
+              className="absolute inset-0 rounded-b-[52px] sm:rounded-b-[64px] overflow-hidden pointer-events-none border-b border-stone-200/80 shadow-xs"
+              style={{
+                backgroundImage: `url(${ginghamPattern})`,
+                backgroundRepeat: 'repeat',
+                backgroundSize: '260px 260px',
+                backgroundPosition: 'center top',
+              }}
+            />
 
-            {/* Barra de Navegação Superior (Voltar + Favoritar) */}
+            {/* Barra de Navegação Superior (Voltar) */}
             <div className="relative z-30 flex items-center justify-between">
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Voltar ao cardápio"
-                className="w-12 h-12 rounded-full border border-white/30 bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition cursor-pointer shadow-md"
+                className="w-12 h-12 rounded-full border border-stone-200/80 bg-white/90 backdrop-blur-md flex items-center justify-center text-stone-800 hover:bg-white active:scale-95 transition cursor-pointer shadow-sm"
               >
                 <ArrowLeft className="w-5 h-5 stroke-[2.4]" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onToggleFavorite && onToggleFavorite(product.id)}
-                aria-label={isFavorite ? 'Remover dos favoritos' : 'Favoritar produto'}
-                className="w-12 h-12 rounded-full border border-white/30 bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition cursor-pointer shadow-md"
-              >
-                <Heart
-                  className={`w-5 h-5 transition ${
-                    isFavorite ? 'fill-[#e11d48] text-[#e11d48]' : 'text-white'
-                  }`}
-                />
               </button>
             </div>
 
             {/* ========================================================================= */}
-            {/* O CAFÉ SAINDO DA BORDA DO CARD:                                           */}
-            {/* O pires e a xícara são posicionados com margem negativa inferior (-mb-28) */}
-            {/* de modo que a metade inferior transborda a borda escura sobre o fundo     */}
-            {/* claro abaixo, reproduzindo com fidelidade absoluta a imagem de referência!*/}
+            {/* O ITEM FLUTUANDO SOBRE A BORDA DO CARD SUPERIOR E INFERIOR                */}
             {/* ========================================================================= */}
             <div className="relative z-20 flex justify-center -mb-28 sm:-mb-36 mt-4 sm:mt-6">
-              <div className="relative w-64 h-64 sm:w-76 sm:h-76 md:w-80 md:h-80 flex items-center justify-center group">
-                
-                {/* Colher de café prateada apoiada no pires à direita (detalhe sutil da imagem de referência) */}
-                <div className="absolute right-4 top-10 sm:right-6 sm:top-12 w-3.5 h-32 sm:w-4 sm:h-36 bg-gradient-to-b from-stone-400 via-stone-200 to-stone-400 rounded-full rotate-[24deg] shadow-lg opacity-85 pointer-events-none z-10" />
-
-                {/* Pires de porcelana branca visto de cima com sombra 3D que se projeta sobre o conteúdo */}
+              <div className="relative w-64 h-64 sm:w-76 sm:h-76 md:w-80 md:h-80 flex items-center justify-center">
                 {(() => {
                   const displayImage = product.cutoutImageUrl || product.imageUrl || '';
                   const isCutout =
                     Boolean(product.cutoutImageUrl) ||
                     (typeof displayImage === 'string' &&
                       (displayImage.startsWith('data:image/png') ||
-                        displayImage.startsWith('data:image/webp')));
+                        displayImage.startsWith('data:image/webp') ||
+                        displayImage.endsWith('.png') ||
+                        displayImage.endsWith('.webp')));
 
-                  return (
-                    <div className="w-full h-full rounded-full bg-[#fbf9f6] border-[6px] sm:border-[8px] border-[#ede8e1] shadow-[0_28px_45px_rgba(0,0,0,0.38),0_12px_22px_rgba(0,0,0,0.18)] overflow-hidden flex items-center justify-center transition-transform duration-500 group-hover:scale-105 p-1.5">
-                      {isCutout ? (
+                  if (isCutout) {
+                    return (
+                      <div className="w-full h-full flex items-center justify-center filter drop-shadow-[0_24px_38px_rgba(0,0,0,0.38)]">
                         <GourmetCutoutImage
                           src={displayImage}
                           alt={product.name}
-                          className="w-full h-full object-contain scale-110 drop-shadow-[0_12px_16px_rgba(0,0,0,0.22)]"
+                          className="w-full h-full object-contain"
                         />
-                      ) : (
-                        <img
-                          src={displayImage}
-                          alt={product.name}
-                          className="w-full h-full object-cover rounded-full"
-                        />
-                      )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="w-full h-full rounded-full bg-[#fbf9f6] border-[6px] sm:border-[8px] border-[#ede8e1] shadow-[0_28px_45px_rgba(0,0,0,0.38),0_12px_22px_rgba(0,0,0,0.18)] overflow-hidden flex items-center justify-center p-1.5">
+                      <img
+                        src={displayImage}
+                        alt={product.name}
+                        className="w-full h-full object-cover rounded-full"
+                      />
                     </div>
                   );
                 })()}
@@ -398,14 +365,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       onClick={() => setSelectedSizeName(sz.name)}
                       className={`py-3.5 px-3 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center ${
                         isSelected
-                          ? 'bg-[#c58d59] text-white shadow-md shadow-[#c58d59]/30 scale-[1.02]'
+                          ? 'bg-[#850D2C] text-white shadow-md shadow-[#850D2C]/30 scale-[1.02]'
                           : 'bg-[#f4f3ef] text-stone-600 hover:bg-stone-200/80'
                       }`}
                     >
                       <span className="capitalize">{sz.name}</span>
                       <span
                         className={`text-[11px] mt-0.5 ${
-                          isSelected ? 'text-amber-100 font-medium' : 'text-stone-400'
+                          isSelected ? 'text-rose-100 font-medium' : 'text-stone-400'
                         }`}
                       >
                         {sz.volumeLabel}
@@ -420,7 +387,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="space-y-2.5 pt-1">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold text-[#231b15] flex items-center space-x-1.5">
-                  <Sparkles className="w-4 h-4 text-[#c58d59]" />
+                  <Sparkles className="w-4 h-4 text-[#850D2C]" />
                   <span>Adicionais & Personalização</span>
                 </span>
                 <span className="text-xs text-stone-400 font-medium">Opcional</span>
@@ -436,14 +403,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       onClick={() => toggleAddon(addon)}
                       className={`p-3 rounded-2xl border text-left text-xs transition-all flex items-center justify-between cursor-pointer ${
                         isChecked
-                          ? 'bg-[#fbf5ee] border-[#c58d59] text-[#2c1d11] ring-1 ring-[#c58d59]/40 shadow-xs'
+                          ? 'bg-[#850D2C]/5 border-[#850D2C] text-[#2c1d11] ring-1 ring-[#850D2C]/30 shadow-xs'
                           : 'bg-[#f8f7f4] border-stone-200/80 text-stone-700 hover:bg-stone-100'
                       }`}
                     >
                       <div className="flex items-center space-x-2.5">
                         <div
                           className={`w-5 h-5 rounded-full flex items-center justify-center text-xs transition ${
-                            isChecked ? 'bg-[#c58d59] text-white' : 'bg-stone-200 text-transparent'
+                            isChecked ? 'bg-[#850D2C] text-white' : 'bg-stone-200 text-transparent'
                           }`}
                         >
                           <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -452,7 +419,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       </div>
                       <span
                         className={`text-xs font-extrabold shrink-0 ${
-                          isChecked ? 'text-[#a36932]' : 'text-stone-500'
+                          isChecked ? 'text-[#850D2C]' : 'text-stone-500'
                         }`}
                       >
                         {addon.price > 0 ? `+${formatCurrencyBRL(addon.price)}` : 'Grátis'}
@@ -473,7 +440,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Ex: Sem açúcar, bem quente, leite morno..."
-                className="w-full px-4 py-2.5 text-xs sm:text-sm border border-stone-200 bg-white rounded-xl text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-[#c58d59]"
+                className="w-full px-4 py-2.5 text-xs sm:text-sm border border-stone-200 bg-white rounded-xl text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-[#850D2C]"
               />
             </div>
 
@@ -491,7 +458,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsAboutExpanded((prev) => !prev)}
-                className="text-xs font-bold text-[#c58d59] hover:text-[#a86e3a] transition inline-flex items-center space-x-1 cursor-pointer"
+                className="text-xs font-bold text-[#850D2C] hover:text-[#6e0a24] transition inline-flex items-center space-x-1 cursor-pointer"
               >
                 <span>{isAboutExpanded ? 'Ver menos' : 'Read more'}</span>
                 {isAboutExpanded ? (
@@ -556,7 +523,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             >
               <ShoppingBag className="w-6 h-6 stroke-[2]" />
               {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#c58d59] text-white text-[10px] font-black flex items-center justify-center shadow-sm">
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#850D2C] text-white text-[10px] font-black flex items-center justify-center shadow-sm">
                   {cartItemCount}
                 </span>
               )}
@@ -570,7 +537,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               className={`flex-1 py-4 px-8 rounded-full font-bold text-sm sm:text-base text-white transition-all shadow-lg active:scale-[0.98] flex items-center justify-center space-x-2 cursor-pointer ${
                 isAddedSuccess
                   ? 'bg-emerald-600 shadow-emerald-900/20'
-                  : 'bg-[#c58d59] hover:bg-[#b07842] shadow-amber-900/20'
+                  : 'bg-[#850D2C] hover:bg-[#6e0a24] active:bg-[#58071c] shadow-[#850D2C]/30'
               }`}
             >
               {isAddedSuccess ? (

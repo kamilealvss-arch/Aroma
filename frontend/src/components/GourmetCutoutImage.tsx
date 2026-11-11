@@ -28,7 +28,7 @@ export const GourmetCutoutImage: React.FC<GourmetCutoutImageProps> = ({ src, alt
     const isTransparent = src.startsWith('data:image/png') || src.startsWith('data:image/webp');
 
     if (isTransparent) {
-      autoTrimAndCenterProduct(src, 0.02)
+      autoTrimAndCenterProduct(src, 0.05)
         .then((trimmed) => {
           if (isMounted && trimmed) {
             normalizedCache.set(src, trimmed);
