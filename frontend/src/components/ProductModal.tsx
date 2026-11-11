@@ -17,6 +17,7 @@ import {
   Move,
   Sparkles,
   Eraser,
+  Paintbrush,
   Coffee,
   Trash2,
 } from 'lucide-react';
@@ -143,8 +144,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [bgProgressPercent, setBgProgressPercent] = useState<number>(0);
   const [imageActionNotice, setImageActionNotice] = useState<string | null>(null);
 
-  // Ferramenta ativa na pré-visualização: 'move' (arrastar) ou 'brush' (pincel de remoção)
-  const [interactionMode, setInteractionMode] = useState<'move' | 'brush'>('move');
+  // Ferramenta ativa na pré-visualização: 'move' (arrastar), 'erase' (borracha) ou 'restore' (adicionar/restaurar)
+  const [interactionMode, setInteractionMode] = useState<'move' | 'erase' | 'restore'>('move');
   const [brushSize, setBrushSize] = useState<number>(24); // diâmetro visual em px na prévia
   const [softBrush, setSoftBrush] = useState<boolean>(true);
   const [brushCursor, setBrushCursor] = useState<{ x: number; y: number; visible: boolean }>({
@@ -174,7 +175,26 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const lastBrushPointRef = useRef<{ x: number; y: number } | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const editorCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const sourceImageRef = useRef<HTMLImageElement | null>(null);
+  const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const skipNextCanvasReloadRef = useRef<boolean>(false);
+
+  // Mantém a imagem original carregada para permitir que o usuário pinte para Adicionar/Restaurar partes cortadas
+  useEffect(() => {
+    const src = originalImageUrl || imageUrl;
+    if (!src) return;
+    let active = true;
+    loadImageElement(src)
+      .then((img) => {
+        if (active) sourceImageRef.current = img;
+      })
+      .catch(() => {
+        if (active) sourceImageRef.current = null;
+      });
+    return () => {
+      active = false;
+    };
+  }, [originalImageUrl, imageUrl]);
 
   // Garante que todas as categorias (padrão + existentes + atual) apareçam no select
   const allCategories = Array.from(
@@ -583,7 +603,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     }
   };
 
-  // ================= LÓGICA DO PINCEL DE REMOÇÃO (BORRACHA MANUAL NO CANVAS) =================
+  // ================= LÓGICA DO PINCEL DE AJUSTE (BORRACHA PARA APAGAR & PINCEL PARA ADICIONAR/RESTAURAR) =================
   const getCanvasPointFromEvent = (e: React.PointerEvent<HTMLDivElement>) => {
     const canvas = editorCanvasRef.current;
     if (!canvas) return null;
@@ -599,6 +619,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     };
   };
 
+  // 1. Borracha: Torna pixels transparentes (destination-out)
   const eraseStrokeOnCanvas = (
     from: { x: number; y: number },
     to: { x: number; y: number },
@@ -634,18 +655,99 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     ctx.restore();
   };
 
-  // Eventos de Ponteiro na Pré-visualização (Alterna entre Mover e Pincel de Remoção)
+  // 2. Pincel de Adicionar/Restaurar: Pinta de volta os pixels da foto original
+  const restoreStrokeOnCanvas = (
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    radius: number
+  ) => {
+    const canvas = editorCanvasRef.current;
+    if (!canvas) return;
+
+    // Recupera a imagem original da referência ou do elemento DOM
+    let sourceImg = sourceImageRef.current;
+    if (!sourceImg || !sourceImg.complete || sourceImg.naturalWidth === 0) {
+      const domImg = document.querySelector(
+        'img[alt="Foto normal quadrada para os produtos"]'
+      ) as HTMLImageElement | null;
+      if (domImg && domImg.complete && domImg.naturalWidth > 0) {
+        sourceImg = domImg;
+        sourceImageRef.current = domImg;
+      }
+    }
+    if (!sourceImg) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (!maskCanvasRef.current) {
+      maskCanvasRef.current = document.createElement('canvas');
+    }
+    const maskCanvas = maskCanvasRef.current;
+    if (maskCanvas.width !== canvas.width || maskCanvas.height !== canvas.height) {
+      maskCanvas.width = canvas.width;
+      maskCanvas.height = canvas.height;
+    }
+    const maskCtx = maskCanvas.getContext('2d');
+    if (!maskCtx) return;
+
+    // A. Limpa a máscara do traço
+    maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+
+    // B. Desenha o traço do pincel na máscara
+    maskCtx.save();
+    maskCtx.lineCap = 'round';
+    maskCtx.lineJoin = 'round';
+    maskCtx.lineWidth = radius * 2;
+    maskCtx.fillStyle = '#000000';
+    maskCtx.strokeStyle = '#000000';
+
+    if (softBrush) {
+      maskCtx.shadowColor = '#000000';
+      maskCtx.shadowBlur = Math.max(2, radius * 0.35);
+    } else {
+      maskCtx.shadowBlur = 0;
+    }
+
+    maskCtx.beginPath();
+    maskCtx.moveTo(from.x, from.y);
+    maskCtx.lineTo(to.x, to.y);
+    maskCtx.stroke();
+
+    maskCtx.beginPath();
+    maskCtx.arc(to.x, to.y, radius * (softBrush ? 0.85 : 1), 0, Math.PI * 2);
+    maskCtx.fill();
+    maskCtx.restore();
+
+    // C. Aplica a foto original restrita à área do traço (source-in)
+    maskCtx.save();
+    maskCtx.globalCompositeOperation = 'source-in';
+    maskCtx.drawImage(sourceImg, 0, 0, maskCanvas.width, maskCanvas.height);
+    maskCtx.restore();
+
+    // D. Pinta os detalhes recuperados sobre o canvas principal (source-over)
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(maskCanvas, 0, 0);
+    ctx.restore();
+  };
+
+  // Eventos de Ponteiro na Pré-visualização (Alterna entre Mover, Apagar e Adicionar/Restaurar)
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isRemovingBg) return;
     e.currentTarget.setPointerCapture(e.pointerId);
 
-    if (interactionMode === 'brush') {
+    if (interactionMode === 'erase' || interactionMode === 'restore') {
       const pt = getCanvasPointFromEvent(e);
       if (!pt) return;
       pushToHistory();
       setIsBrushing(true);
       lastBrushPointRef.current = { x: pt.x, y: pt.y };
-      eraseStrokeOnCanvas(pt, pt, pt.radius);
+      if (interactionMode === 'erase') {
+        eraseStrokeOnCanvas(pt, pt, pt.radius);
+      } else {
+        restoreStrokeOnCanvas(pt, pt, pt.radius);
+      }
       return;
     }
 
@@ -668,12 +770,16 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       });
     }
 
-    if (interactionMode === 'brush') {
+    if (interactionMode === 'erase' || interactionMode === 'restore') {
       if (!isBrushing) return;
       const pt = getCanvasPointFromEvent(e);
       if (!pt) return;
       const prev = lastBrushPointRef.current || { x: pt.x, y: pt.y };
-      eraseStrokeOnCanvas(prev, pt, pt.radius);
+      if (interactionMode === 'erase') {
+        eraseStrokeOnCanvas(prev, pt, pt.radius);
+      } else {
+        restoreStrokeOnCanvas(prev, pt, pt.radius);
+      }
       lastBrushPointRef.current = { x: pt.x, y: pt.y };
       return;
     }
@@ -1643,12 +1749,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                     {/* Coluna Esquerda: Palco de Pré-visualização Interativa (5 cols) */}
                     <div className="md:col-span-5 flex flex-col items-center space-y-2.5">
-                      {/* Seletor de Modo: Mover vs Pincel de Remoção */}
-                      <div className="w-full max-w-[230px] inline-flex rounded-xl bg-stone-200/70 p-0.5 border border-stone-200">
+                      {/* Seletor de Modo: Mover vs Apagar (Borracha) vs Adicionar (Pincel) */}
+                      <div className="w-full max-w-[270px] inline-flex rounded-xl bg-stone-200/70 p-0.5 border border-stone-200">
                         <button
                           type="button"
                           onClick={() => setInteractionMode('move')}
-                          className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold inline-flex items-center justify-center space-x-1 transition cursor-pointer ${
+                          className={`flex-1 py-1.5 px-1.5 rounded-lg text-[10.5px] font-semibold inline-flex items-center justify-center space-x-1 transition cursor-pointer ${
                             interactionMode === 'move'
                               ? 'bg-white text-[#35312F] shadow-2xs'
                               : 'text-stone-600 hover:text-[#35312F]'
@@ -1660,16 +1766,29 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => setInteractionMode('brush')}
-                          className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold inline-flex items-center justify-center space-x-1 transition cursor-pointer ${
-                            interactionMode === 'brush'
+                          onClick={() => setInteractionMode('erase')}
+                          className={`flex-1 py-1.5 px-1.5 rounded-lg text-[10.5px] font-semibold inline-flex items-center justify-center space-x-1 transition cursor-pointer ${
+                            interactionMode === 'erase'
                               ? 'bg-[#850D2C] text-white shadow-2xs'
                               : 'text-stone-600 hover:text-[#35312F]'
                           }`}
-                          title="Pintar sobre a imagem para apagar sobras do fundo"
+                          title="Apagar sobras ou fundo da imagem recortada"
                         >
                           <Eraser className="w-3 h-3" />
-                          <span>Pincel (Apagar)</span>
+                          <span>Apagar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInteractionMode('restore')}
+                          className={`flex-1 py-1.5 px-1.5 rounded-lg text-[10.5px] font-semibold inline-flex items-center justify-center space-x-1 transition cursor-pointer ${
+                            interactionMode === 'restore'
+                              ? 'bg-[#4c543c] text-white shadow-2xs'
+                              : 'text-stone-600 hover:text-[#35312F]'
+                          }`}
+                          title="Pintar para adicionar/restaurar partes cortadas da foto original"
+                        >
+                          <Paintbrush className="w-3 h-3" />
+                          <span>Adicionar</span>
                         </button>
                       </div>
 
@@ -1679,8 +1798,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                         onPointerMove={handlePointerMove}
                         onPointerUp={handlePointerUp}
                         onPointerLeave={handlePointerLeave}
-                        className={`relative w-full max-w-[230px] rounded-2xl overflow-hidden border border-stone-300 shadow-inner select-none flex items-center justify-center touch-none ${
-                          interactionMode === 'brush'
+                        className={`relative w-full max-w-[260px] rounded-2xl overflow-hidden border border-stone-300 shadow-inner select-none flex items-center justify-center touch-none ${
+                          interactionMode !== 'move'
                             ? 'cursor-crosshair'
                             : isDragging
                             ? 'cursor-grabbing'
@@ -1700,8 +1819,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                             : { backgroundColor: '#F9F7F3' }),
                         }}
                         title={
-                          interactionMode === 'brush'
-                            ? 'Clique e arraste para apagar resíduos do fundo'
+                          interactionMode === 'restore'
+                            ? 'Clique e arraste para adicionar/restaurar partes da foto original'
+                            : interactionMode === 'erase'
+                            ? 'Clique e arraste a borracha para apagar resíduos do fundo'
                             : 'Arraste para posicionar manualmente o produto'
                         }
                       >
@@ -1725,10 +1846,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                           />
                         </div>
 
-                        {/* Indicador circular do Pincel em tempo real */}
-                        {interactionMode === 'brush' && brushCursor.visible && !isRemovingBg && (
+                        {/* Indicador circular do Pincel/Borracha em tempo real */}
+                        {interactionMode !== 'move' && brushCursor.visible && !isRemovingBg && (
                           <div
-                            className="pointer-events-none absolute rounded-full border-2 border-[#850D2C] bg-[#850D2C]/15 shadow-xs"
+                            className={`pointer-events-none absolute rounded-full border-2 shadow-xs ${
+                              interactionMode === 'restore'
+                                ? 'border-emerald-600 bg-emerald-500/20'
+                                : 'border-[#850D2C] bg-[#850D2C]/15'
+                            }`}
                             style={{
                               width: `${brushSize}px`,
                               height: `${brushSize}px`,
@@ -1740,15 +1865,20 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
                         {/* Badge de instrução de interação */}
                         {!isRemovingBg && (
-                          <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 bg-stone-900/75 backdrop-blur-xs text-white text-[10px] px-2.5 py-0.5 rounded-full inline-flex items-center space-x-1 whitespace-nowrap">
-                            {interactionMode === 'brush' ? (
+                          <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 bg-stone-900/80 backdrop-blur-xs text-white text-[10px] px-2.5 py-0.5 rounded-full inline-flex items-center space-x-1 whitespace-nowrap shadow-sm">
+                            {interactionMode === 'restore' ? (
                               <>
-                                <Eraser className="w-2.5 h-2.5" />
-                                <span>Passe o pincel para apagar</span>
+                                <Paintbrush className="w-2.5 h-2.5 text-emerald-300" />
+                                <span>Pinte para restaurar da foto</span>
+                              </>
+                            ) : interactionMode === 'erase' ? (
+                              <>
+                                <Eraser className="w-2.5 h-2.5 text-rose-300" />
+                                <span>Passe para apagar o fundo</span>
                               </>
                             ) : (
                               <>
-                                <Move className="w-2.5 h-2.5" />
+                                <Move className="w-2.5 h-2.5 text-amber-300" />
                                 <span>Arraste para mover</span>
                               </>
                             )}
@@ -1818,13 +1948,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
                     {/* Coluna Direita: Controles Manuais de Pincel, Recorte, Zoom e Centralização (7 cols) */}
                     <div className="md:col-span-7 space-y-3 bg-white p-3.5 rounded-2xl border border-stone-200/80">
-                      {/* Painel do Pincel de Remoção Manual (em destaque quando ativo ou sempre acessível) */}
-                      <div className="p-2.5 rounded-xl bg-[#F9F7F3] border border-stone-200/80 space-y-2">
+                      {/* Painel do Pincel & Borracha Manual */}
+                      <div className="p-2.5 rounded-xl bg-[#F9F7F3] border border-stone-200/80 space-y-2.5">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-1.5">
-                            <Eraser className="w-3.5 h-3.5 text-[#850D2C]" />
+                            {interactionMode === 'restore' ? (
+                              <Paintbrush className="w-3.5 h-3.5 text-[#4c543c]" />
+                            ) : (
+                              <Eraser className="w-3.5 h-3.5 text-[#850D2C]" />
+                            )}
                             <span className="text-xs font-bold text-[#35312F]">
-                              Pincel de remoção manual
+                              Ajuste Manual do Recorte
                             </span>
                           </div>
                           <button
@@ -1838,13 +1972,58 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
+                        {/* Alternador Rápido: Borracha (Apagar) vs Pincel (Adicionar/Restaurar) */}
+                        <div className="grid grid-cols-2 gap-1.5 p-1 bg-white rounded-xl border border-stone-200">
+                          <button
+                            type="button"
+                            onClick={() => setInteractionMode('erase')}
+                            className={`py-1.5 px-2 rounded-lg text-xs font-semibold inline-flex items-center justify-center space-x-1.5 transition cursor-pointer ${
+                              interactionMode === 'erase'
+                                ? 'bg-[#850D2C] text-white shadow-2xs'
+                                : 'text-stone-600 hover:text-[#35312F] hover:bg-stone-50'
+                            }`}
+                          >
+                            <Eraser className="w-3.5 h-3.5" />
+                            <span>Borracha (Apagar)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setInteractionMode('restore')}
+                            className={`py-1.5 px-2 rounded-lg text-xs font-semibold inline-flex items-center justify-center space-x-1.5 transition cursor-pointer ${
+                              interactionMode === 'restore'
+                                ? 'bg-[#4c543c] text-white shadow-2xs'
+                                : 'text-stone-600 hover:text-[#35312F] hover:bg-stone-50'
+                            }`}
+                          >
+                            <Paintbrush className="w-3.5 h-3.5" />
+                            <span>Pincel (Adicionar)</span>
+                          </button>
+                        </div>
+
+                        {/* Mensagem de orientação */}
+                        <p className="text-[10.5px] leading-tight">
+                          {interactionMode === 'restore' ? (
+                            <span className="text-[#4c543c] font-medium">
+                              ✓ <strong>Modo Adicionar ativo:</strong> pinte sobre áreas apagadas para trazer de volta os detalhes originais da foto.
+                            </span>
+                          ) : interactionMode === 'erase' ? (
+                            <span className="text-[#850D2C] font-medium">
+                              ✓ <strong>Modo Borracha ativo:</strong> passe o pincel para apagar restos de fundo ou sombras indesejadas.
+                            </span>
+                          ) : (
+                            <span className="text-stone-500">
+                              Escolha <strong>Borracha</strong> para apagar ou <strong>Pincel</strong> para recuperar partes cortadas da foto original.
+                            </span>
+                          )}
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center pt-1 border-t border-stone-200/60">
                           <div className="sm:col-span-8">
                             <div className="flex items-center justify-between text-[11px] mb-0.5">
                               <span className="text-stone-600 font-medium">
                                 Tamanho do pincel
                               </span>
-                              <span className="font-bold text-[#850D2C]">{brushSize}px</span>
+                              <span className={`font-bold ${interactionMode === 'restore' ? 'text-[#4c543c]' : 'text-[#850D2C]'}`}>{brushSize}px</span>
                             </div>
                             <input
                               type="range"
@@ -1854,9 +2033,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                               value={brushSize}
                               onChange={(e) => {
                                 setBrushSize(parseInt(e.target.value, 10));
-                                setInteractionMode('brush');
+                                if (interactionMode === 'move') setInteractionMode('erase');
                               }}
-                              className="w-full accent-[#850D2C] cursor-pointer"
+                              className={`w-full cursor-pointer ${interactionMode === 'restore' ? 'accent-[#4c543c]' : 'accent-[#850D2C]'}`}
                             />
                           </div>
 
@@ -1869,11 +2048,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                                 type="button"
                                 onClick={() => {
                                   setSoftBrush(true);
-                                  setInteractionMode('brush');
+                                  if (interactionMode === 'move') setInteractionMode('erase');
                                 }}
                                 className={`flex-1 py-0.5 rounded-md text-[10px] font-semibold cursor-pointer ${
                                   softBrush
-                                    ? 'bg-[#850D2C] text-white'
+                                    ? (interactionMode === 'restore' ? 'bg-[#4c543c] text-white' : 'bg-[#850D2C] text-white')
                                     : 'text-stone-600 hover:text-[#35312F]'
                                 }`}
                               >
@@ -1883,11 +2062,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                                 type="button"
                                 onClick={() => {
                                   setSoftBrush(false);
-                                  setInteractionMode('brush');
+                                  if (interactionMode === 'move') setInteractionMode('erase');
                                 }}
                                 className={`flex-1 py-0.5 rounded-md text-[10px] font-semibold cursor-pointer ${
                                   !softBrush
-                                    ? 'bg-[#850D2C] text-white'
+                                    ? (interactionMode === 'restore' ? 'bg-[#4c543c] text-white' : 'bg-[#850D2C] text-white')
                                     : 'text-stone-600 hover:text-[#35312F]'
                                 }`}
                               >
