@@ -232,9 +232,9 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-24">
-      {/* CARD DE ACOMPANHAMENTO EM TEMPO REAL (Celular do Cliente) */}
+      {/* CARD DE ACOMPANHAMENTO EM TEMPO REAL (Celular do Cliente) - Harmonizado */}
       {liveOrder && (
-        <div className="bg-white rounded-3xl p-5 border-2 border-amber-500 shadow-xl overflow-hidden animate-in fade-in duration-200">
+        <div className="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-xs overflow-hidden animate-in fade-in duration-200 text-[#35312F]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-3">
             <div className="flex items-center space-x-3">
               <div
@@ -242,30 +242,30 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                   liveOrder.status === 'pronto'
                     ? 'bg-emerald-600 animate-bounce'
                     : liveOrder.status === 'preparando'
-                    ? 'bg-amber-600'
-                    : 'bg-stone-700'
+                    ? 'bg-[#924529]'
+                    : 'bg-[#850D2C]'
                 }`}
               >
                 <Coffee className="w-5 h-5" />
               </div>
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold text-stone-900 text-sm">
+                  <span className="font-bold text-[#35312F] text-sm">
                     Pedido #{liveOrder.orderNumber}
                   </span>
-                  <span className="text-[10px] bg-stone-900 text-amber-300 font-extrabold px-2 py-0.5 rounded-md uppercase">
+                  <span className="text-[10px] bg-stone-100 text-[#35312F] font-bold px-2 py-0.5 rounded-md uppercase border border-stone-200">
                     {liveOrder.tableOrTakeaway}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-0.5">
                   <span className="text-xs text-stone-500">
-                    Cliente: <strong>{liveOrder.customerName}</strong> • {liveOrder.items.length} itens
+                    Cliente: <strong className="text-stone-700">{liveOrder.customerName}</strong> • {liveOrder.items.length} itens
                   </span>
                   {activeOrders.length > 1 && (
                     <select
                       value={liveOrder.id}
                       onChange={(e) => setActiveTrackingOrderId(e.target.value)}
-                      className="text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300 rounded-lg px-2 py-0.5 cursor-pointer hover:bg-amber-100 transition"
+                      className="text-[11px] font-semibold bg-stone-50 text-stone-700 border border-stone-200 rounded-lg px-2 py-0.5 cursor-pointer hover:bg-stone-100 transition"
                       title="Alternar pedido para acompanhar na tela"
                     >
                       {activeOrders.map((ord) => (
@@ -282,25 +282,25 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
             {/* Status Visual com Animação para o Cliente */}
             <div className="flex items-center space-x-2 self-start sm:self-auto">
               {liveOrder.status === 'recebido' && (
-                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-rose-100 text-rose-800 border border-rose-200 flex items-center space-x-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#850D2C]/10 text-[#850D2C] border border-[#850D2C]/20 flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#850D2C] animate-ping" />
                   <span>1. Pedido Recebido (Na fila do barista)</span>
                 </span>
               )}
               {liveOrder.status === 'preparando' && (
-                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1.5 animate-pulse">
-                  <Flame className="w-3.5 h-3.5 text-amber-700" />
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#924529]/10 text-[#924529] border border-[#924529]/20 flex items-center space-x-1.5 animate-pulse">
+                  <Flame className="w-3.5 h-3.5 text-[#924529]" />
                   <span>2. Seu pedido está sendo preparado pelo barista!</span>
                 </span>
               )}
               {liveOrder.status === 'pronto' && (
-                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-600 text-white shadow-md flex items-center space-x-1.5">
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-600 text-white shadow-2xs flex items-center space-x-1.5">
                   <Check className="w-3.5 h-3.5 stroke-[3]" />
                   <span>3. SEU PEDIDO ESTÁ PRONTO! Retire no balcão 🎉</span>
                 </span>
               )}
               {liveOrder.status === 'entregue' && (
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-stone-100 text-stone-700">
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-700 border border-stone-200/80">
                   Pedido Entregue • Bom Apetite!
                 </span>
               )}
@@ -309,56 +309,107 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
           {/* Observações Registradas */}
           {liveOrder.notes && (
-            <div className="mt-2.5 text-xs text-rose-800 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200 flex items-center space-x-1.5">
+            <div className="mt-2.5 text-xs text-[#850D2C] bg-[#850D2C]/5 px-3 py-1.5 rounded-xl border border-[#850D2C]/15 flex items-center space-x-1.5">
               <strong>Sua Observação:</strong>
-              <span className="font-bold">{liveOrder.notes}</span>
+              <span className="font-semibold">{liveOrder.notes}</span>
             </div>
           )}
         </div>
       )}
 
-      {/* Banner de Boas-vindas ao Cardápio */}
-      <div className="relative rounded-3xl overflow-hidden bg-stone-900 text-white p-6 sm:p-8 shadow-xl border border-stone-800">
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#b45309_1px,transparent_1px)] [background-size:16px_16px]" />
-        <div className="relative z-10 max-w-2xl">
-          <span className="text-amber-400 text-xs font-bold uppercase tracking-widest bg-amber-950/80 border border-amber-600/40 px-3 py-1 rounded-full inline-block mb-3">
-            Cardápio Digital Oficial • Experiência Gourmet
-          </span>
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-amber-50 leading-tight">
-            Sabores artesanais preparados no momento exato do seu pedido.
-          </h1>
-          <p className="text-stone-300 text-xs sm:text-sm mt-2 leading-relaxed">
-            Selecione suas delícias favoritas. Ao confirmar, o pedido cai instantaneamente na tela do barista e o estoque atualiza automaticamente!
-          </p>
-        </div>
-      </div>
+      {/* Cabeçalho da Página: Padrão Elegante e Minimalista com Amarego */}
+      <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 space-y-4 text-[#35312F]">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-stone-100">
+          <div className="space-y-0.5">
+            {/* Breadcrumb Discreto */}
+            <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
+              <span className="hover:text-[#35312F] transition">Cardápio</span>
+              <span>/</span>
+              <span className="text-[#850D2C] font-semibold">
+                {selectedCategory === 'ALL' ? 'Experiência Gourmet' : selectedCategory}
+              </span>
+            </nav>
 
-      {/* Categorias */}
-      <div className="sticky top-20 z-30 bg-stone-50/95 backdrop-blur-md py-2 border-b border-stone-200">
-        <div className="flex items-center space-x-2 overflow-x-auto scrollbar-none pb-1">
-          <button
-            onClick={() => setSelectedCategory('ALL')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap ${
-              selectedCategory === 'ALL'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'bg-white text-stone-700 hover:bg-stone-200 border border-stone-300'
-            }`}
-          >
-            Todos os Itens ({activeProducts.length})
-          </button>
-          {categories.map((cat) => (
+            {/* Título com Fonte Amarego da Identidade */}
+            <div className="flex flex-wrap items-center gap-3 pt-0.5">
+              <h1
+                className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight"
+                style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+              >
+                Sabores Artesanais & Cardápio
+              </h1>
+            </div>
+
+            {/* Subtítulo Curto */}
+            <p className="text-xs text-stone-500">
+              Selecione suas delícias favoritas preparadas no momento exato do seu pedido.
+            </p>
+          </div>
+
+          {/* Badge Oficial */}
+          <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+            <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#850D2C]/10 text-[#850D2C] border border-[#850D2C]/20">
+              <Sparkles className="w-3.5 h-3.5 text-[#850D2C]" />
+              <span>Cardápio Digital Oficial</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Abas de Categorias Harmonizadas no padrão das demais telas */}
+        <div className="flex items-center gap-2 pt-0.5 overflow-x-auto scrollbar-none w-full">
+          <div className="inline-flex items-center p-1 bg-stone-100/90 rounded-2xl border border-stone-200/80 gap-1 shrink-0">
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap ${
-                selectedCategory === cat
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-white text-stone-700 hover:bg-stone-200 border border-stone-300'
+              type="button"
+              onClick={() => setSelectedCategory('ALL')}
+              className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer shrink-0 ${
+                selectedCategory === 'ALL'
+                  ? 'bg-[#850D2C] text-white shadow-2xs'
+                  : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
               }`}
             >
-              {cat}
+              <Coffee
+                className={`w-3.5 h-3.5 shrink-0 ${
+                  selectedCategory === 'ALL' ? 'text-white' : 'text-stone-400'
+                }`}
+              />
+              <span>Todos os Itens</span>
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-bold leading-none transition ${
+                  selectedCategory === 'ALL'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-stone-200/80 text-stone-600'
+                }`}
+              >
+                {activeProducts.length}
+              </span>
             </button>
-          ))}
+            {categories.map((cat) => {
+              const count = activeProducts.filter((p) => p.category === cat).length;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer shrink-0 ${
+                    selectedCategory === cat
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
+                  }`}
+                >
+                  <span>{cat}</span>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold leading-none transition ${
+                      selectedCategory === cat
+                        ? 'bg-white/20 text-white'
+                        : 'bg-stone-200/80 text-stone-600'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -396,7 +447,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
               {/* 1. Imagem Flutuante: O card pega apenas a metade inferior, e a metade superior fica para fora do card */}
               <div
                 onClick={() => !isOutOfStock && handleOpenProductDetail(product)}
-                className={`absolute -top-14 sm:-top-16 left-1/2 -translate-x-1/2 w-32 h-32 sm:w-36 sm:h-36 z-20 flex items-center justify-center ${
+                className={`absolute -top-14 sm:-top-16 left-1/2 -translate-x-1/2 w-38 h-38 sm:w-42 sm:h-42 z-20 flex items-center justify-center ${
                   !isOutOfStock ? 'cursor-pointer' : ''
                 }`}
                 title={!isOutOfStock ? `Personalizar ${product.name}` : undefined}
