@@ -17,6 +17,20 @@ import {
 } from 'lucide-react';
 import { Product, ProductCategory, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
+import { OrderReceiptModal } from './OrderReceiptModal.tsx';
+import { ProductDetailModal, ConfiguredCartItem } from './ProductDetailModal.tsx';
+import { GourmetCutoutImage } from './GourmetCutoutImage.tsx';
+
+export interface DetailedCartItem {
+  cartKey: string;
+  productId: string;
+  product: Product;
+  quantity: number;
+  selectedSize?: string;
+  selectedAddons?: Array<{ id: string; name: string; price: number }>;
+  notes?: string;
+  unitPrice: number;
+}
 
 interface ClientMenuViewProps {
   products: Product[];
@@ -28,7 +42,15 @@ interface ClientMenuViewProps {
     consumptionType?: Order['consumptionType'];
     notes?: string;
     paymentMethod: PaymentMethod;
-    items: Array<{ productId: string; quantity: number }>;
+    items: Array<{
+      productId: string;
+      quantity: number;
+      notes?: string;
+      selectedSize?: string;
+      selectedAddons?: string[];
+      addons?: Array<{ name: string; price: number }>;
+      unitPrice?: number;
+    }>;
   }) => Promise<Order>;
   onOrderSuccess: () => void;
 }
@@ -43,7 +65,11 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   const activeProducts = products.filter((p) => p.status === 'ativo');
 
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [cart, setCart] = useState<{ [productId: string]: number }>({});
+  const [cartItems, setCartItems] = useState<DetailedCartItem[]>([]);
+  const [selectedProductForDetail, setSelectedProductForDetail] = useState<Product | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedProductSizes, setSelectedProductSizes] = useState<{ [productId: string]: string }>({});
+  const [favorites, setFavorites] = useState<{ [productId: string]: boolean }>({});
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [customerName, setCustomerName] = useState('João Silva');
   const [tableOrTakeaway, setTableOrTakeaway] = useState('Mesa 04');
@@ -52,91 +78,8 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState<Order | null>(null);
   const [activeTrackingOrder, setActiveTrackingOrder] = useState<Order | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const categories = Array.from(new Set(activeProducts.map((p) => p.category)));
-
-  const filteredProducts = activeProducts.filter((p) => {
-    if (selectedCategory === 'ALL') return true;
-    return p.category === selectedCategory;
-  });
-
-  const cartItemCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
-
-  const cartTotal = Object.entries(cart).reduce((sum, [pId, qty]) => {
-    const prod = activeProducts.find((p) => p.id === pId);
-    return sum + (prod ? prod.price * qty : 0);
-  }, 0);
-
-  const handleAddToCart = (product: Product) => {
-    // Se estiver esgotado (estoque <= 0), bloqueia
-    if (product.stockQuantity <= 0) return;
-
-    const currentQty = cart[product.id] || 0;
-    if (currentQty >= product.stockQuantity) {
-      alert(`Quantidade máxima disponível em estoque atingida (${product.stockQuantity} un.)`);
-      return;
-    }
-
-    setCart((prev) => ({
-      ...prev,
-      [product.id]: currentQty + 1,
-    }));
-  };
-
-  const handleRemoveFromCart = (productId: string) => {
-    setCart((prev) => {
-      const next = { ...prev };
-      if (next[productId] > 1) {
-        next[productId] -= 1;
-      } else {
-        delete next[productId];
-      }
-      return next;
-    });
-  };
-
-  const handleFinishOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (cartItemCount === 0) return;
-
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
-    const itemsPayload = Object.entries(cart).map(([productId, quantity]) => ({
-      productId,
-      quantity,
-    }));
-
-    let consumptionType: Order['consumptionType'] = 'MESA';
-    const tableLower = tableOrTakeaway.toLowerCase();
-    if (tableLower.includes('levar')) consumptionType = 'LEVAR';
-    else if (tableLower.includes('delivery')) consumptionType = 'DELIVERY';
-    else if (tableLower.includes('balcão')) consumptionType = 'BALCAO';
-
-    try {
-      const newOrder = await onCreateOrder({
-        customerName: customerName.trim() || 'Cliente Balcão',
-        tableOrTakeaway,
-        consumptionType,
-        notes: orderNotes.trim() || undefined,
-        paymentMethod,
-        items: itemsPayload,
-      });
-
-      setOrderConfirmed(newOrder);
-      setActiveTrackingOrder(newOrder);
-      setCart({});
-      setIsCheckoutOpen(false);
-      onOrderSuccess();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Erro ao processar o pedido.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const [activeTrackingOrderId, setActiveTrackingOrderId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeOrders = orders.filter((o) => o.status !== 'entregue' && o.status !== 'cancelado');
 
@@ -160,236 +103,399 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     previousStatusRef.current = liveOrder?.status;
   }, [liveOrder?.status]);
 
+  const categories = Array.from(new Set(activeProducts.map((p) => p.category)));
+
+  const filteredProducts = activeProducts.filter((p) => {
+    if (selectedCategory === 'ALL') return true;
+    return p.category === selectedCategory;
+  });
+
+  const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+
+  // Abre a tela de detalhes do produto (mockup com tamanho, adicionais, quantidade)
+  const handleOpenProductDetail = (product: Product) => {
+    if (product.stockQuantity <= 0) return;
+    setSelectedProductForDetail(product);
+    setIsDetailModalOpen(true);
+  };
+
+  // Adiciona item customizado a partir do Modal Gourmet de Detalhes
+  const handleAddFromDetailModal = (configured: ConfiguredCartItem) => {
+    const sortedAddonIds = [...configured.selectedAddons].map((a) => a.id).sort().join('_');
+    const sizeKey = configured.selectedSize || 'default';
+    const notesKey = configured.notes || '';
+    const cartKey = `${configured.product.id}__${sizeKey}__${sortedAddonIds}__${notesKey}`;
+
+    setCartItems((prev) => {
+      const existingIdx = prev.findIndex((item) => item.cartKey === cartKey);
+      if (existingIdx !== -1) {
+        const currentQty = prev[existingIdx].quantity;
+        const newQty = currentQty + configured.quantity;
+        if (newQty > configured.product.stockQuantity) {
+          alert(`Quantidade máxima disponível em estoque atingida (${configured.product.stockQuantity} un.)`);
+          return prev;
+        }
+        const updated = [...prev];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          quantity: newQty,
+        };
+        return updated;
+      }
+      return [
+        ...prev,
+        {
+          cartKey,
+          productId: configured.product.id,
+          product: configured.product,
+          quantity: configured.quantity,
+          selectedSize: configured.selectedSize,
+          selectedAddons: configured.selectedAddons,
+          notes: configured.notes,
+          unitPrice: configured.unitPrice,
+        },
+      ];
+    });
+  };
+
+  const handleRemoveCartItem = (cartKey: string) => {
+    setCartItems((prev) => prev.filter((item) => item.cartKey !== cartKey));
+  };
+
+  const handleDecreaseProductQty = (productId: string) => {
+    setCartItems((prev) => {
+      const targetIdx = prev.map((item, idx) => ({ item, idx })).filter((x) => x.item.productId === productId).pop()?.idx;
+      if (targetIdx === undefined) return prev;
+      const target = prev[targetIdx];
+      if (target.quantity > 1) {
+        const updated = [...prev];
+        updated[targetIdx] = { ...target, quantity: target.quantity - 1 };
+        return updated;
+      } else {
+        return prev.filter((_, idx) => idx !== targetIdx);
+      }
+    });
+  };
+
+  const handleFinishOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (cartItemCount === 0) return;
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const itemsPayload = cartItems.map((item) => {
+      const addonSummary =
+        item.selectedAddons && item.selectedAddons.length > 0
+          ? `Adicionais: ${item.selectedAddons.map((a) => a.name).join(', ')}`
+          : '';
+      const combinedNotes = [addonSummary, item.notes].filter(Boolean).join(' | ');
+
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        selectedSize: item.selectedSize || undefined,
+        selectedAddons: item.selectedAddons?.map((a) => a.name),
+        addons: item.selectedAddons?.map((a) => ({ name: a.name, price: a.price })),
+        unitPrice: item.unitPrice,
+        notes: combinedNotes || undefined,
+      };
+    });
+
+    let consumptionType: Order['consumptionType'] = 'MESA';
+    const tableLower = tableOrTakeaway.toLowerCase();
+    if (tableLower.includes('levar')) consumptionType = 'LEVAR';
+    else if (tableLower.includes('delivery')) consumptionType = 'DELIVERY';
+    else if (tableLower.includes('balcão')) consumptionType = 'BALCAO';
+
+    try {
+      const newOrder = await onCreateOrder({
+        customerName: customerName.trim() || 'Cliente Balcão',
+        tableOrTakeaway,
+        consumptionType,
+        notes: orderNotes.trim() || undefined,
+        paymentMethod,
+        items: itemsPayload,
+      });
+
+      setOrderConfirmed(newOrder);
+      setActiveTrackingOrder(newOrder);
+      setCartItems([]);
+      setIsCheckoutOpen(false);
+      onOrderSuccess();
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Erro ao processar o pedido.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-24">
-      {/* CARD DE ACOMPANHAMENTO EM TEMPO REAL (Celular do Cliente) */}
-      {liveOrder && (
-        <div className="bg-white rounded-3xl p-5 border-2 border-amber-500 shadow-xl overflow-hidden animate-in fade-in duration-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-3">
-            <div className="flex items-center space-x-3">
-              <div
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shrink-0 ${
-                  liveOrder.status === 'pronto'
-                    ? 'bg-emerald-600 animate-bounce'
-                    : liveOrder.status === 'preparando'
-                    ? 'bg-amber-600'
-                    : 'bg-stone-700'
-                }`}
+      {/* Cabeçalho da Página: Padrão Elegante e Minimalista com Amarego */}
+      <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 space-y-4 text-[#35312F]">
+        <div className="pb-3 border-b border-stone-100">
+          <div className="space-y-0.5">
+            {/* Breadcrumb Discreto */}
+            <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
+              <span className="hover:text-[#35312F] transition">Cardápio</span>
+              <span>/</span>
+              <span className="text-[#850D2C] font-semibold">
+                {selectedCategory === 'ALL' ? 'Experiência Gourmet' : selectedCategory}
+              </span>
+            </nav>
+
+            {/* Título com Fonte Amarego da Identidade */}
+            <div className="flex flex-wrap items-center gap-3 pt-0.5">
+              <h1
+                className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight"
+                style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
               >
-                <Coffee className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-bold text-stone-900 text-sm">
-                    Pedido #{liveOrder.orderNumber}
-                  </span>
-                  <span className="text-[10px] bg-stone-900 text-amber-300 font-extrabold px-2 py-0.5 rounded-md uppercase">
-                    {liveOrder.tableOrTakeaway}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                  <span className="text-xs text-stone-500">
-                    Cliente: <strong>{liveOrder.customerName}</strong> • {liveOrder.items.length} itens
-                  </span>
-                  {activeOrders.length > 1 && (
-                    <select
-                      value={liveOrder.id}
-                      onChange={(e) => setActiveTrackingOrderId(e.target.value)}
-                      className="text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300 rounded-lg px-2 py-0.5 cursor-pointer hover:bg-amber-100 transition"
-                      title="Alternar pedido para acompanhar na tela"
-                    >
-                      {activeOrders.map((ord) => (
-                        <option key={ord.id} value={ord.id}>
-                          #{ord.orderNumber} - {ord.customerName} ({ord.status.toUpperCase()})
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </div>
+                Sabores Artesanais & Cardápio
+              </h1>
             </div>
 
-            {/* Status Visual com Animação para o Cliente */}
-            <div className="flex items-center space-x-2 self-start sm:self-auto">
-              {liveOrder.status === 'recebido' && (
-                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-rose-100 text-rose-800 border border-rose-200 flex items-center space-x-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
-                  <span>1. Pedido Recebido (Na fila do barista)</span>
-                </span>
-              )}
-              {liveOrder.status === 'preparando' && (
-                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1.5 animate-pulse">
-                  <Flame className="w-3.5 h-3.5 text-amber-700" />
-                  <span>2. Seu pedido está sendo preparado pelo barista!</span>
-                </span>
-              )}
-              {liveOrder.status === 'pronto' && (
-                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-600 text-white shadow-md flex items-center space-x-1.5">
-                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  <span>3. SEU PEDIDO ESTÁ PRONTO! Retire no balcão 🎉</span>
-                </span>
-              )}
-              {liveOrder.status === 'entregue' && (
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-stone-100 text-stone-700">
-                  Pedido Entregue • Bom Apetite!
-                </span>
-              )}
-            </div>
+            {/* Subtítulo Curto */}
+            <p className="text-xs text-stone-500">
+              Selecione suas delícias favoritas preparadas no momento exato do seu pedido.
+            </p>
           </div>
-
-          {/* Observações Registradas */}
-          {liveOrder.notes && (
-            <div className="mt-2.5 text-xs text-rose-800 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200 flex items-center space-x-1.5">
-              <strong>Sua Observação:</strong>
-              <span className="font-bold">{liveOrder.notes}</span>
-            </div>
-          )}
         </div>
-      )}
 
-      {/* Banner de Boas-vindas ao Cardápio */}
-      <div className="relative rounded-3xl overflow-hidden bg-stone-900 text-white p-6 sm:p-8 shadow-xl border border-stone-800">
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#b45309_1px,transparent_1px)] [background-size:16px_16px]" />
-        <div className="relative z-10 max-w-2xl">
-          <span className="text-amber-400 text-xs font-bold uppercase tracking-widest bg-amber-950/80 border border-amber-600/40 px-3 py-1 rounded-full inline-block mb-3">
-            Cardápio Digital Oficial • Experiência Gourmet
-          </span>
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-amber-50 leading-tight">
-            Sabores artesanais preparados no momento exato do seu pedido.
-          </h1>
-          <p className="text-stone-300 text-xs sm:text-sm mt-2 leading-relaxed">
-            Selecione suas delícias favoritas. Ao confirmar, o pedido cai instantaneamente na tela do barista e o estoque atualiza automaticamente!
-          </p>
-        </div>
-      </div>
-
-      {/* Categorias */}
-      <div className="sticky top-20 z-30 bg-stone-50/95 backdrop-blur-md py-2 border-b border-stone-200">
-        <div className="flex items-center space-x-2 overflow-x-auto scrollbar-none pb-1">
-          <button
-            onClick={() => setSelectedCategory('ALL')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap ${
-              selectedCategory === 'ALL'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'bg-white text-stone-700 hover:bg-stone-200 border border-stone-300'
-            }`}
-          >
-            Todos os Itens ({activeProducts.length})
-          </button>
-          {categories.map((cat) => (
+        {/* Abas de Categorias Harmonizadas no padrão das demais telas */}
+        <div className="flex items-center gap-2 pt-0.5 overflow-x-auto scrollbar-none w-full">
+          <div className="inline-flex items-center p-1 bg-stone-100/90 rounded-2xl border border-stone-200/80 gap-1 shrink-0">
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap ${
-                selectedCategory === cat
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-white text-stone-700 hover:bg-stone-200 border border-stone-300'
+              type="button"
+              onClick={() => setSelectedCategory('ALL')}
+              className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer shrink-0 ${
+                selectedCategory === 'ALL'
+                  ? 'bg-[#850D2C] text-white shadow-2xs'
+                  : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
               }`}
             >
-              {cat}
+              <Coffee
+                className={`w-3.5 h-3.5 shrink-0 ${
+                  selectedCategory === 'ALL' ? 'text-white' : 'text-stone-400'
+                }`}
+              />
+              <span>Todos os Itens</span>
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-bold leading-none transition ${
+                  selectedCategory === 'ALL'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-stone-200/80 text-stone-600'
+                }`}
+              >
+                {activeProducts.length}
+              </span>
             </button>
-          ))}
+            {categories.map((cat) => {
+              const count = activeProducts.filter((p) => p.category === cat).length;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer shrink-0 ${
+                    selectedCategory === cat
+                      ? 'bg-[#850D2C] text-white shadow-2xs'
+                      : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
+                  }`}
+                >
+                  <span>{cat}</span>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold leading-none transition ${
+                      selectedCategory === cat
+                        ? 'bg-white/20 text-white'
+                        : 'bg-stone-200/80 text-stone-600'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Grid de Produtos do Cardápio */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* Grid de Produtos do Cardápio - Disposição Padronizada com Prato Sobreposto (Metade para fora do card) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20 pt-16">
         {filteredProducts.map((product) => {
           const isOutOfStock = product.stockQuantity <= 0; // Regra de Estoque Zero (RF04)
-          const inCartQty = cart[product.id] || 0;
+          const isFavorite = !!favorites[product.id];
+          const cardImage = product.cutoutImageUrl || product.imageUrl || '';
+          const isTransparentCutout =
+            Boolean(product.cutoutImageUrl) ||
+            (typeof cardImage === 'string' &&
+              (cardImage.startsWith('data:image/png') ||
+                cardImage.startsWith('data:image/webp')));
+
+          const hasSizes = !!(product.hasSizes && product.sizes && product.sizes.length > 0);
+          const currentSizeName =
+            selectedProductSizes[product.id] || (hasSizes ? product.sizes![0].name : undefined);
+          const currentSizeOption = hasSizes
+            ? product.sizes!.find((s) => s.name === currentSizeName) || product.sizes![0]
+            : undefined;
+          const activePrice = currentSizeOption ? currentSizeOption.price : product.price;
+
+          const inCartQty = cartItems
+            .filter((item) => item.productId === product.id)
+            .reduce((sum, item) => sum + item.quantity, 0);
 
           return (
             <div
               key={product.id}
-              className={`bg-white rounded-2xl border transition overflow-hidden flex flex-col justify-between shadow-xs ${
-                isOutOfStock
-                  ? 'border-stone-200 bg-stone-50/60 opacity-80'
-                  : 'border-stone-200 hover:shadow-lg hover:border-amber-400/50'
+              className={`relative bg-white rounded-[34px] pt-18 sm:pt-20 pb-5 px-5 sm:px-6 border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group ${
+                isOutOfStock ? 'opacity-80' : ''
               }`}
             >
-              <div>
-                {/* Foto do Produto */}
-                <div className="relative h-44 w-full bg-stone-100 overflow-hidden">
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className={`w-full h-full object-cover transition duration-300 ${
-                      isOutOfStock ? 'grayscale-70' : 'hover:scale-105'
-                    }`}
-                  />
+              {/* 1. Imagem Flutuante: O card pega apenas a metade inferior, e a metade superior fica para fora do card */}
+              <div
+                onClick={() => !isOutOfStock && handleOpenProductDetail(product)}
+                className={`absolute -top-14 sm:-top-16 left-1/2 -translate-x-1/2 w-38 h-38 sm:w-42 sm:h-42 z-20 flex items-center justify-center ${
+                  !isOutOfStock ? 'cursor-pointer' : ''
+                }`}
+                title={!isOutOfStock ? `Personalizar ${product.name}` : undefined}
+              >
+                {isTransparentCutout ? (
+                  <div className="w-full h-full flex items-center justify-center p-0.5">
+                    <GourmetCutoutImage
+                      src={cardImage}
+                      alt={product.name}
+                      className={`w-full h-full object-contain scale-95 sm:scale-100 drop-shadow-[0_14px_20px_rgba(0,0,0,0.20)] ${
+                        isOutOfStock ? 'grayscale-70' : ''
+                      }`}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full h-full rounded-full overflow-hidden shadow-lg border-[3.5px] border-white bg-white flex items-center justify-center">
+                    <img
+                      src={cardImage}
+                      alt={product.name}
+                      className={`w-full h-full object-cover ${
+                        isOutOfStock ? 'grayscale-70' : ''
+                      }`}
+                    />
+                  </div>
+                )}
 
-                  {/* Badge de Categoria */}
-                  <span className="absolute top-3 left-3 bg-stone-900/80 backdrop-blur-xs text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                {/* Badge de Esgotado sobreposto ao prato */}
+                {isOutOfStock && (
+                  <span className="absolute bottom-1 bg-[#850D2C] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
+                    Esgotado
+                  </span>
+                )}
+              </div>
+
+              {/* 2. Informações do Produto (Nome, Categoria e Descrição - Layout Imagem 2) */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
                     {product.category}
                   </span>
-
-                  {/* ⭐ REQUISITO 19 (RF04): Se estoque == 0, exibe automaticamente como Esgotado */}
-                  {isOutOfStock && (
-                    <div className="absolute inset-0 bg-stone-950/60 backdrop-blur-[1px] flex items-center justify-center p-4">
-                      <span className="bg-rose-600 text-white font-extrabold text-xs px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg border border-white/20">
-                        Esgotado no Momento
-                      </span>
-                    </div>
+                  {product.stockQuantity > 0 && product.stockQuantity <= 5 && (
+                    <span className="text-[10px] font-semibold text-[#924529] bg-amber-50 px-2 py-0.5 rounded-full">
+                      Últimas {product.stockQuantity} un.
+                    </span>
                   )}
                 </div>
 
-                {/* Conteúdo */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-bold text-stone-900 text-sm leading-snug">
-                      {product.name}
-                    </h3>
-                    <span className="text-base font-extrabold text-amber-900 shrink-0">
-                      {formatCurrencyBRL(product.price)}
-                    </span>
-                  </div>
+                <h3
+                  onClick={() => !isOutOfStock && handleOpenProductDetail(product)}
+                  className={`font-extrabold text-stone-950 text-lg leading-tight tracking-tight ${
+                    !isOutOfStock ? 'cursor-pointer hover:text-[#c58d59] transition' : ''
+                  }`}
+                >
+                  {product.name}
+                </h3>
 
-                  <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed">
-                    {product.description}
-                  </p>
-                </div>
+                <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed min-h-[2.25rem]">
+                  {product.description || 'Preparo artesanal com insumos selecionados.'}
+                </p>
+
+                {/* Opções de Tamanho Opcionais para Cafés & Bebidas */}
+                {hasSizes && (
+                  <div className="pt-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">
+                      Escolha o tamanho:
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {product.sizes!.map((sz) => {
+                        const isSelected = sz.name === currentSizeName;
+                        return (
+                          <button
+                            key={sz.name}
+                            type="button"
+                            onClick={() =>
+                              setSelectedProductSizes((prev) => ({
+                                ...prev,
+                                [product.id]: sz.name,
+                              }))
+                            }
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer ${
+                              isSelected
+                                ? 'bg-stone-900 text-white shadow-2xs'
+                                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                            }`}
+                          >
+                            <span>{sz.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Botões de Ação do Cliente */}
-              <div className="p-4 pt-0">
+              {/* 3. Rodapé do Card: Preço em destaque + Ação (+) alinhados horizontalmente */}
+              <div className="pt-4 mt-1 border-t border-stone-100/80 flex items-center justify-between gap-3">
+                <div className="text-lg font-black text-stone-950 tracking-tight">
+                  {formatCurrencyBRL(activePrice)}
+                </div>
+
+                {/* Botão de Adicionar ao Pedido / Controle de Quantidade */}
                 {isOutOfStock ? (
-                  /* Botão Bloqueado para Produto Esgotado (RF04) */
                   <button
                     disabled
-                    className="w-full py-2 bg-stone-200 text-stone-500 rounded-xl text-xs font-bold cursor-not-allowed text-center"
+                    className="h-11 px-4 bg-stone-100 text-stone-400 rounded-full text-xs font-semibold cursor-not-allowed"
                   >
-                    Produto Indisponível
+                    Indisponível
                   </button>
                 ) : inCartQty > 0 ? (
-                  /* Seletor de Quantidade */
-                  <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl p-1">
+                  <div className="h-11 inline-flex items-center space-x-2 bg-stone-100 rounded-full px-2 shadow-2xs">
                     <button
-                      onClick={() => handleRemoveFromCart(product.id)}
-                      className="w-8 h-8 rounded-lg bg-white text-stone-800 shadow-xs flex items-center justify-center font-bold hover:bg-stone-100 transition"
+                      type="button"
+                      onClick={() => handleDecreaseProductQty(product.id)}
+                      className="w-8 h-8 rounded-full bg-white text-stone-900 shadow-2xs flex items-center justify-center font-bold hover:bg-stone-50 transition cursor-pointer"
+                      title="Diminuir quantidade"
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
-                    <span className="text-xs font-extrabold text-amber-950">
-                      {inCartQty} no carrinho
+                    <span className="text-xs font-extrabold text-stone-900 px-1">
+                      {inCartQty}
                     </span>
                     <button
-                      onClick={() => handleAddToCart(product)}
+                      type="button"
+                      onClick={() => handleOpenProductDetail(product)}
                       disabled={inCartQty >= product.stockQuantity}
-                      className="w-8 h-8 rounded-lg bg-amber-600 text-white shadow-xs flex items-center justify-center font-bold hover:bg-amber-700 transition disabled:opacity-40"
+                      className="w-8 h-8 rounded-full bg-[#c58d59] text-white shadow-2xs flex items-center justify-center font-bold hover:bg-[#b07842] transition disabled:opacity-40 cursor-pointer"
+                      title="Personalizar e adicionar mais"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ) : (
-                  /* Botão Adicionar */
                   <button
-                    onClick={() => handleAddToCart(product)}
-                    aria-label={`Adicionar ${product.name} ao Pedido`}
-                    data-testid={`add-to-cart-${product.id}`}
-                    className="w-full py-2 bg-stone-900 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-sm"
+                    type="button"
+                    onClick={() => handleOpenProductDetail(product)}
+                    aria-label={`Personalizar e adicionar ${product.name} ao Pedido`}
+                    className="w-11 h-11 rounded-full bg-stone-950 hover:bg-[#c58d59] active:scale-95 text-white flex items-center justify-center shadow-md transition cursor-pointer"
+                    title="Personalizar bebida e adicionar"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Adicionar ao Pedido</span>
+                    <Plus className="w-5 h-5 stroke-[2.5]" />
                   </button>
                 )}
               </div>
@@ -459,28 +565,51 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
                   Itens Selecionados
                 </span>
-                {Object.entries(cart).map(([productId, quantity]) => {
-                  const product = activeProducts.find((p) => p.id === productId);
-                  if (!product) return null;
-                  return (
-                    <div
-                      key={productId}
-                      className="flex items-center justify-between text-xs py-1.5"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                          {quantity}x
-                        </span>
-                        <span className="font-semibold text-stone-800">
-                          {product.name}
-                        </span>
-                      </div>
-                      <span className="font-bold text-stone-900">
-                        {formatCurrencyBRL(product.price * quantity)}
+                {cartItems.map((item) => (
+                  <div
+                    key={item.cartKey}
+                    className="flex items-start justify-between text-xs py-2 border-b border-stone-50"
+                  >
+                    <div className="flex items-start space-x-2">
+                      <span className="font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0 mt-0.5">
+                        {item.quantity}x
                       </span>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-stone-800">
+                          {item.product.name}
+                        </span>
+                        {item.selectedSize && (
+                          <span className="text-[10px] text-amber-800 font-medium">
+                            Tamanho: {item.selectedSize}
+                          </span>
+                        )}
+                        {item.selectedAddons && item.selectedAddons.length > 0 && (
+                          <span className="text-[10px] text-stone-500">
+                            + {item.selectedAddons.map((a) => a.name).join(', ')}
+                          </span>
+                        )}
+                        {item.notes && (
+                          <span className="text-[10px] text-rose-700 font-medium">
+                            Obs: {item.notes}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <span className="font-bold text-stone-900">
+                        {formatCurrencyBRL(item.unitPrice * item.quantity)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCartItem(item.cartKey)}
+                        className="text-stone-400 hover:text-rose-600 p-0.5 transition cursor-pointer"
+                        title="Remover item"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* Informações do Cliente & Local */}
@@ -654,49 +783,43 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         </div>
       )}
 
-      {/* Modal de Pedido Confirmado com Sucesso */}
+      {/* Modal Interativo com Simulação de Impressora Térmica e Comprovante do Pedido */}
       {orderConfirmed && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/75 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border border-stone-200 animate-in zoom-in-95">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4 shadow-md">
-              <Check className="w-8 h-8" />
-            </div>
-
-            <span className="text-[10px] uppercase tracking-widest text-emerald-700 font-extrabold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              Pedido Enviado para a Cozinha
-            </span>
-
-            <h3 className="text-xl font-extrabold text-stone-900 mt-2">
-              Pedido #{orderConfirmed.orderNumber}
-            </h3>
-
-            <p className="text-xs text-stone-500 mt-1">
-              Obrigado, <strong>{orderConfirmed.customerName}</strong>! Seu pedido para <strong>{orderConfirmed.tableOrTakeaway}</strong> já está sendo preparado.
-            </p>
-
-            <div className="mt-4 p-3 bg-stone-50 rounded-xl text-left text-xs border border-stone-200">
-              <div className="font-bold text-stone-700 mb-1">Resumo:</div>
-              {orderConfirmed.items.map((it) => (
-                <div key={it.productId} className="flex justify-between text-[11px] text-stone-600">
-                  <span>{it.quantity}x {it.productName}</span>
-                  <span>{formatCurrencyBRL(it.subtotal)}</span>
-                </div>
-              ))}
-              <div className="mt-2 pt-2 border-t border-stone-200 flex justify-between font-extrabold text-stone-900">
-                <span>Total:</span>
-                <span>{formatCurrencyBRL(orderConfirmed.totalAmount)}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setOrderConfirmed(null)}
-              className="mt-5 w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition shadow-md"
-            >
-              Fazer Outro Pedido
-            </button>
-          </div>
-        </div>
+        <OrderReceiptModal
+          order={orderConfirmed}
+          onClose={() => setOrderConfirmed(null)}
+          onTrackOrder={(orderId) => {
+            setActiveTrackingOrderId(orderId);
+            setOrderConfirmed(null);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       )}
+
+      {/* Modal Gourmet de Detalhes do Produto (Tamanho, Adicionais, Quantidade) */}
+      <ProductDetailModal
+        isOpen={isDetailModalOpen}
+        product={selectedProductForDetail}
+        onClose={() => setIsDetailModalOpen(false)}
+        onAddToCart={handleAddFromDetailModal}
+        onBuyNow={(configured) => {
+          handleAddFromDetailModal(configured);
+          setIsDetailModalOpen(false);
+          setIsCheckoutOpen(true);
+        }}
+        isFavorite={selectedProductForDetail ? !!favorites[selectedProductForDetail.id] : false}
+        onToggleFavorite={(pid) =>
+          setFavorites((prev) => ({
+            ...prev,
+            [pid]: !prev[pid],
+          }))
+        }
+        cartItemCount={cartItemCount}
+        onOpenCart={() => {
+          setIsDetailModalOpen(false);
+          setIsCheckoutOpen(true);
+        }}
+      />
     </div>
   );
 };

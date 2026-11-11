@@ -178,7 +178,7 @@ export default function App() {
     customerPhone?: string;
     tableOrTakeaway: string;
     paymentMethod: Order['paymentMethod'];
-    items: Array<{ productId: string; quantity: number }>;
+    items: Array<{ productId: string; quantity: number; notes?: string; selectedSize?: string }>;
   }) => {
     try {
       const order = await api.createOrder(orderData);
