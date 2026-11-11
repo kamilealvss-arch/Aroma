@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
-  Heart,
   Minus,
   Plus,
   ShoppingBag,
@@ -288,7 +287,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </svg>
             </div>
 
-            {/* Barra de Navegação Superior (Voltar + Favoritar) */}
+            {/* Barra de Navegação Superior (Voltar) */}
             <div className="relative z-30 flex items-center justify-between">
               <button
                 type="button"
@@ -297,19 +296,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 className="w-12 h-12 rounded-full border border-white/30 bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition cursor-pointer shadow-md"
               >
                 <ArrowLeft className="w-5 h-5 stroke-[2.4]" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onToggleFavorite && onToggleFavorite(product.id)}
-                aria-label={isFavorite ? 'Remover dos favoritos' : 'Favoritar produto'}
-                className="w-12 h-12 rounded-full border border-white/30 bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition cursor-pointer shadow-md"
-              >
-                <Heart
-                  className={`w-5 h-5 transition ${
-                    isFavorite ? 'fill-[#e11d48] text-[#e11d48]' : 'text-white'
-                  }`}
-                />
               </button>
             </div>
 
