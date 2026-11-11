@@ -52,7 +52,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   // Filtros e ordenação
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'ativo' | 'inativo' | 'ALERTA'>('ALL');
+  const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'inativo' | 'ALERTA'>('ALL');
   const [sortBy, setSortBy] = useState<ProductSortOption>('NAME_ASC');
   const [viewMode, setViewMode] = useState<'GRID' | 'TABLE'>('GRID');
 
@@ -102,13 +102,16 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   const categories = Array.from(
     new Set([...DEFAULT_CATEGORIES, ...products.map((p) => p.category), ...customCategories])
   );
-  const totalCount = products.length;
   const activeProducts = products.filter((p) => p.status === 'ativo');
   const activeCount = activeProducts.length;
-  const inactiveCount = products.filter((p) => p.status === 'inativo').length;
+  const inactiveProducts = products.filter((p) => p.status === 'inativo');
+  const inactiveCount = inactiveProducts.length;
   const alertStockCount = activeProducts.filter(
     (p) => p.stockQuantity <= p.minStockThreshold
   ).length;
+
+  const relevantProducts = selectedStatus === 'inativo' ? inactiveProducts : activeProducts;
+  const totalCount = relevantProducts.length;
 
   // Filtragem
   const filteredProducts = products.filter((p) => {
@@ -122,10 +125,14 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
       selectedCategory === 'ALL' || p.category === selectedCategory;
 
     let matchesStatus = true;
-    if (selectedStatus === 'ativo') matchesStatus = p.status === 'ativo';
-    else if (selectedStatus === 'inativo') matchesStatus = p.status === 'inativo';
-    else if (selectedStatus === 'ALERTA') {
+    if (selectedStatus === 'inativo') {
+      matchesStatus = p.status === 'inativo';
+    } else if (selectedStatus === 'ALERTA') {
       matchesStatus = p.status === 'ativo' && p.stockQuantity <= p.minStockThreshold;
+    } else {
+      // Por padrão em 'ALL', exibe apenas produtos ativos no cardápio.
+      // Os itens inativados são retirados da tabela comum com os outros e só aparecem no botão "Itens Inativados"
+      matchesStatus = p.status === 'ativo';
     }
 
     return matchesSearch && matchesCategory && matchesStatus;
@@ -283,7 +290,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           </button>
 
           {categories.map((cat) => {
-            const count = products.filter((p) => p.category === cat).length;
+            const count = relevantProducts.filter((p) => p.category === cat).length;
             const isActive = selectedCategory === cat;
             return (
               <button
@@ -344,7 +351,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
 
       {/* 3. Barra de Filtros: Dimensões Padronizadas (h-8), Chips Compactos e Busca */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 pt-0.5">
-        {/* Lado Esquerdo: Chips de Status Compactos */}
+        {/* Lado Esquerdo: Chips de Status Compactos e Botão Dedicado de Itens Inativados */}
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
@@ -363,49 +370,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   : 'bg-stone-200/70 text-stone-600'
               }`}
             >
-              {totalCount}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedStatus('ativo')}
-            className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 cursor-pointer ${
-              selectedStatus === 'ativo'
-                ? 'bg-[#850D2C] text-white shadow-2xs'
-                : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-            }`}
-          >
-            <span>No Cardápio</span>
-            <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                selectedStatus === 'ativo'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-[#858F6D]/20 text-[#4c543c]'
-              }`}
-            >
               {activeCount}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedStatus('inativo')}
-            className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 cursor-pointer ${
-              selectedStatus === 'inativo'
-                ? 'bg-[#850D2C] text-white shadow-2xs'
-                : 'bg-stone-50 text-[#35312F] hover:bg-stone-100 border border-stone-200'
-            }`}
-          >
-            <span>Inativos</span>
-            <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                selectedStatus === 'inativo'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-rose-100/70 text-[#850D2C]'
-              }`}
-            >
-              {inactiveCount}
             </span>
           </button>
 
@@ -427,6 +392,30 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               }`}
             >
               {alertStockCount}
+            </span>
+          </button>
+
+          {/* Botão dedicado apenas para os itens inativados (posicionado no local indicado) */}
+          <button
+            type="button"
+            onClick={() => setSelectedStatus(selectedStatus === 'inativo' ? 'ALL' : 'inativo')}
+            className={`h-8 px-3 rounded-full text-xs font-medium transition flex items-center space-x-1.5 cursor-pointer ${
+              selectedStatus === 'inativo'
+                ? 'bg-[#850D2C] text-white shadow-2xs ring-2 ring-[#850D2C]/25'
+                : 'bg-stone-50 hover:bg-rose-50 text-stone-600 hover:text-[#850D2C] border border-stone-200'
+            }`}
+            title="Visualizar apenas os itens que foram inativados do catálogo"
+          >
+            <EyeOff className="w-3.5 h-3.5 shrink-0" />
+            <span>Itens Inativados</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                selectedStatus === 'inativo'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-rose-100/80 text-[#850D2C]'
+              }`}
+            >
+              {inactiveCount}
             </span>
           </button>
         </div>
@@ -485,6 +474,25 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Aviso contextual ao visualizar apenas itens inativados */}
+      {selectedStatus === 'inativo' && (
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-rose-50/70 border border-[#850D2C]/20 text-xs text-[#850D2C] animate-in fade-in">
+          <div className="flex items-center space-x-2">
+            <EyeOff className="w-4 h-4 shrink-0 text-[#850D2C]" />
+            <span>
+              <strong>Visualizando apenas itens inativados:</strong> Estes produtos foram retirados da listagem principal. Clique em <em>"Reativar no cardápio"</em> para devolvê-los à venda.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedStatus('ALL')}
+            className="text-xs font-semibold text-[#850D2C] hover:underline cursor-pointer shrink-0 ml-3"
+          >
+            Voltar aos produtos ativos
+          </button>
+        </div>
+      )}
 
       {/* 5. Listagem de Produtos: Modo Grade (Cards) ou Modo Lista (Tabela) */}
       {paginatedProducts.length === 0 ? (
