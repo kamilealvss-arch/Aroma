@@ -265,7 +265,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               style={{
                 backgroundImage: `url(${ginghamPattern})`,
                 backgroundRepeat: 'repeat',
-                backgroundSize: '200px auto',
+                backgroundSize: '260px 260px',
                 backgroundPosition: 'center top',
               }}
             />
