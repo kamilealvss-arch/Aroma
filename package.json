@@ -5,16 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/tsx/dist/cli.mjs backend/server.ts",
-    "build": "vite build",
+    "build": "node ./node_modules/vite/bin/vite.js build",
     "preview": "node ./node_modules/vite/bin/vite.js preview",
     "start": "node ./node_modules/tsx/dist/cli.mjs backend/server.ts",
     "clean": "rm -rf dist server.js",
     "lint": "node ./node_modules/typescript/bin/tsc --noEmit",
-    "test": "node --test shared/logic/cafeRules.test.ts"
+    "test": "node --test shared/logic/cafeRules.test.ts",
+    "prisma": "node ./node_modules/prisma/build/index.js",
+    "db:generate": "node ./node_modules/prisma/build/index.js generate",
+    "db:push": "node ./node_modules/prisma/build/index.js db push",
+    "db:studio": "node ./node_modules/prisma/build/index.js studio",
+    "db:seed": "node ./node_modules/tsx/dist/cli.mjs prisma/seed.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@imgly/background-removal": "^1.7.0",
+    "@prisma/client": "^6.19.3",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
     "dotenv": "^17.2.3",
@@ -32,6 +38,7 @@
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.28.2",
+    "prisma": "^6.19.3",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2"
