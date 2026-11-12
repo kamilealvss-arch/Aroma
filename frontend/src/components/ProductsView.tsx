@@ -24,6 +24,7 @@ import {
 import { Product } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 import { ProductModal, DEFAULT_CATEGORIES } from './ProductModal.tsx';
+import { ComboBuilderModal } from './ComboBuilderModal.tsx';
 
 const CUSTOM_CATEGORIES_KEY = 'aroma_custom_product_categories_v1';
 
@@ -63,6 +64,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   // Modal de Criação / Edição
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Modal Dedicado do Criador de Combos
+  const [isComboModalOpen, setIsComboModalOpen] = useState(false);
+  const [comboToEdit, setComboToEdit] = useState<Product | null>(null);
 
   // Modal de Confirmação de Exclusão Lógica (Desativação)
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -189,9 +194,31 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
     setIsModalOpen(true);
   };
 
+  const handleOpenCreateCombo = () => {
+    setComboToEdit(null);
+    setIsComboModalOpen(true);
+  };
+
+  const handleOpenEditCombo = (product: Product) => {
+    setComboToEdit(product);
+    setIsComboModalOpen(true);
+  };
+
   const handleOpenEdit = (product: Product) => {
+    if (product.isCombo) {
+      handleOpenEditCombo(product);
+      return;
+    }
     setEditingProduct(product);
     setIsModalOpen(true);
+  };
+
+  const handleSaveCombo = async (comboData: Partial<Product>) => {
+    if (comboToEdit) {
+      await onUpdateProduct(comboToEdit.id, comboData);
+    } else {
+      await onCreateProduct(comboData);
+    }
   };
 
   const handleSaveProduct = async (data: Partial<Product>) => {
@@ -246,8 +273,18 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           </p>
         </div>
 
-        {/* Botão Principal "Cadastrar Produto" em Vinho Escuro (#850D2C) */}
+        {/* Botões Principais no Cabeçalho */}
         <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+          <button
+            type="button"
+            onClick={handleOpenCreateCombo}
+            className="inline-flex items-center space-x-2 h-8.5 px-4 rounded-full text-xs font-semibold text-[#850D2C] bg-[#850D2C]/10 hover:bg-[#850D2C] hover:text-white border border-[#850D2C]/20 shadow-xs transition cursor-pointer"
+            title="Criar combo promocional com produtos avulsos e desconto"
+          >
+            <Package className="w-3.5 h-3.5" />
+            <span>Criar combo</span>
+          </button>
+
           <button
             type="button"
             onClick={handleOpenCreate}
@@ -919,7 +956,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         </div>
       </div>
 
-      {/* Modal de Criação / Edição */}
+      {/* Modal de Criação / Edição de Produto Normal */}
       <ProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -927,6 +964,18 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         productToEdit={editingProduct}
         categories={categories}
         onCreateCategory={handleCreateCategory}
+      />
+
+      {/* Modal Dedicado de Criação / Edição de Combos */}
+      <ComboBuilderModal
+        isOpen={isComboModalOpen}
+        onClose={() => {
+          setIsComboModalOpen(false);
+          setComboToEdit(null);
+        }}
+        products={products}
+        onSaveCombo={handleSaveCombo}
+        comboToEdit={comboToEdit}
       />
 
       {/* Modal de Confirmação: Exclusão Lógica (Desativação Segura) */}

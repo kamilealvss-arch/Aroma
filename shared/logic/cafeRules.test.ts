@@ -184,6 +184,67 @@ test('REQUISITO 5 & RF04: Baixa automática de estoque após finalização do pe
   assert.match(auditLogs[0].details, /Baixa automática de estoque/);
 });
 
+test('COMBOS GOURMET: Baixa automática de estoque dos itens avulsos que compõem o combo', () => {
+  const paoAvulso: Product = { ...sampleProduct, id: 'p_pao', name: 'Pão de Queijo', stockQuantity: 50 };
+  const cafeAvulso: Product = { ...sampleProduct, id: 'p_cafe', name: 'Café Espresso', stockQuantity: 30 };
+  const comboGourmet: Product = {
+    ...sampleProduct,
+    id: 'combo_manha',
+    name: 'Combo Café & Pão de Queijo',
+    category: 'Combos & Brunch',
+    price: 18.0,
+    costPrice: 5.5,
+    stockQuantity: 20,
+    isCombo: true,
+    comboItems: [
+      { productId: 'p_pao', productName: 'Pão de Queijo', quantity: 2, unitPrice: 7.5 },
+      { productId: 'p_cafe', productName: 'Café Espresso', quantity: 1, unitPrice: 6.5 },
+    ],
+  };
+
+  const products = [paoAvulso, cafeAvulso, comboGourmet];
+
+  const order: Order = {
+    id: 'ord_combo_1',
+    orderNumber: 2005,
+    customerName: 'Cliente Combo',
+    tableOrTakeaway: 'Mesa 02',
+    items: [
+      {
+        productId: 'combo_manha',
+        productName: 'Combo Café & Pão de Queijo',
+        unitPrice: 18.0,
+        costPrice: 5.5,
+        quantity: 2, // Pediu 2 combos: deve descontar 2 combos, 4 pães de queijo e 2 cafés
+        subtotal: 36.0,
+      },
+    ],
+    totalAmount: 36.0,
+    totalCost: 11.0,
+    status: 'recebido',
+    paymentMethod: 'PIX',
+    stockDeducted: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const { updatedProducts, updatedOrder, auditLogs } = deductStockForOrder(
+    order,
+    products,
+    mockAdmin
+  );
+
+  assert.equal(updatedOrder.stockDeducted, true);
+  const updatedCombo = updatedProducts.find((p) => p.id === 'combo_manha');
+  const updatedPao = updatedProducts.find((p) => p.id === 'p_pao');
+  const updatedCafe = updatedProducts.find((p) => p.id === 'p_cafe');
+
+  assert.equal(updatedCombo?.stockQuantity, 18); // 20 - 2
+  assert.equal(updatedPao?.stockQuantity, 46);   // 50 - (2 * 2) = 46
+  assert.equal(updatedCafe?.stockQuantity, 28);  // 30 - (2 * 1) = 28
+  assert.equal(auditLogs.length, 3); // Registrou log de auditoria para os 3 produtos afetados
+});
+
 test('REQUISITO 8: Métricas do Dashboard Gerencial calculam faturamento, pedidos e ticket médio', () => {
   const todayStr = '2026-10-16';
   const orders: Order[] = [

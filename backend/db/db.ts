@@ -234,6 +234,10 @@ class DatabaseStore {
       sizes: data.sizes,
       hasAddons: data.hasAddons,
       addons: data.addons,
+      isCombo: Boolean(data.isCombo),
+      comboItems: data.comboItems,
+      originalComboPrice: data.originalComboPrice ? Number(data.originalComboPrice) : undefined,
+      discountPercentage: data.discountPercentage ? Number(data.discountPercentage) : undefined,
       createdAt: now,
       updatedAt: now,
     };

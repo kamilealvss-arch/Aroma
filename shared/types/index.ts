@@ -20,6 +20,14 @@ export interface ProductAddon {
   price: number;
 }
 
+export interface ComboItemConfig {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  costPrice?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -36,6 +44,10 @@ export interface Product {
   sizes?: ProductSizeOption[]; // Lista opcional de tamanhos disponíveis
   hasAddons?: boolean;       // Se possui opções de adicionais/complementos específicos
   addons?: ProductAddon[];   // Lista de adicionais configurados para este produto
+  isCombo?: boolean;
+  comboItems?: ComboItemConfig[];
+  originalComboPrice?: number;
+  discountPercentage?: number;
   createdAt: string;
   updatedAt: string;
 }
