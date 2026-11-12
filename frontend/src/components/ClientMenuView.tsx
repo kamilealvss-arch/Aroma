@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Coffee,
   ShoppingBag,
@@ -17,6 +17,8 @@ import {
   Cake,
   GlassWater,
   Package,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Product, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -60,6 +62,147 @@ interface ClientMenuViewProps {
   onSelectCategory?: (category: string) => void;
   onBackToAdmin?: () => void;
 }
+
+interface HorizontalCategoryRowProps {
+  category: string;
+  products: Product[];
+  renderCard: (product: Product, isHorizontal?: boolean) => React.ReactNode;
+  onSelectCategory: (category: string) => void;
+}
+
+const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
+  category,
+  products,
+  renderCard,
+  onSelectCategory,
+}) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  // Arraste com o mouse
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+
+  const checkScroll = () => {
+    if (!scrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    setCanScrollLeft(scrollLeft > 10);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+  };
+
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScroll);
+      window.addEventListener('resize', checkScroll);
+      return () => {
+        el.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+      };
+    }
+  }, [products]);
+
+  const scrollByAmount = (amount: number) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    isDraggingRef.current = true;
+    startXRef.current = e.pageX - scrollRef.current.offsetLeft;
+    scrollLeftRef.current = scrollRef.current.scrollLeft;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    scrollRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDraggingRef.current = false;
+  };
+
+  return (
+    <div className="space-y-2 pt-2">
+      {/* Cabeçalho da Linha com Título e Controles */}
+      <div className="flex items-center justify-between pb-2 border-b border-stone-200/80">
+        <div className="flex items-center space-x-3">
+          <h2
+            className="text-xl sm:text-2xl font-normal text-[#35312F] tracking-tight"
+            style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+          >
+            {category}
+          </h2>
+          <span className="text-[11px] font-bold text-[#820b28] bg-[#820b28]/10 px-2.5 py-0.5 rounded-full border border-[#820b28]/20">
+            {products.length} {products.length === 1 ? 'opção' : 'opções'}
+          </span>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          {/* Botões de Navegação Horizontal */}
+          <div className="flex items-center space-x-1.5">
+            <button
+              type="button"
+              onClick={() => scrollByAmount(-330)}
+              disabled={!canScrollLeft}
+              className="w-8 h-8 rounded-full bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition shadow-2xs cursor-pointer"
+              title="Rolar para a esquerda"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollByAmount(330)}
+              disabled={!canScrollRight}
+              className="w-8 h-8 rounded-full bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition shadow-2xs cursor-pointer"
+              title="Rolar para a direita"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onSelectCategory(category)}
+            className="text-xs font-bold text-[#820b28] hover:underline cursor-pointer flex items-center space-x-1 pl-1"
+          >
+            <span>Ver tudo</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Fileira Horizontal Arrastável */}
+      <div
+        ref={scrollRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUpOrLeave}
+        onMouseLeave={handleMouseUpOrLeave}
+        className="flex items-stretch space-x-6 overflow-x-auto scrollbar-none pt-18 pb-6 px-1 cursor-grab active:cursor-grabbing select-none scroll-smooth"
+        style={{ scrollSnapType: 'x proximity' }}
+      >
+        {products.map((product) => (
+          <div
+            key={product.id}
+            className="w-[285px] sm:w-[315px] shrink-0"
+            style={{ scrollSnapAlign: 'start' }}
+          >
+            {renderCard(product, true)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   products,
@@ -110,8 +253,8 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     : orders.find((o) => o.customerName.toLowerCase() === customerName.toLowerCase() && o.status !== 'entregue' && o.status !== 'cancelado') || activeOrders[0] || null;
 
   // Notificação sonora quando o barista finaliza o pedido (vai para 'pronto')
-  const previousStatusRef = React.useRef<string | undefined>(liveOrder?.status);
-  React.useEffect(() => {
+  const previousStatusRef = useRef<string | undefined>(liveOrder?.status);
+  useEffect(() => {
     if (liveOrder && previousStatusRef.current && previousStatusRef.current !== 'pronto' && liveOrder.status === 'pronto') {
       try {
         import('../utils/sound.ts').then((mod) => mod.playChimeSound());
@@ -321,8 +464,17 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     },
   ];
 
+  // Ordem de apresentação das categorias na visualização horizontal de TODOS
+  const categoryOrder = [
+    'Cafés Especiais',
+    'Salgados Artesanais',
+    'Doces & Bolos',
+    'Bebidas Geladas',
+    'Combos & Brunch',
+  ];
+
   // Helper para renderizar card padrão de produto
-  const renderProductCard = (product: Product) => {
+  const renderProductCard = (product: Product, isHorizontal = false) => {
     const isOutOfStock = product.stockQuantity <= 0;
     const cardImage = product.cutoutImageUrl || product.imageUrl || '';
     const isTransparentCutout =
@@ -346,8 +498,8 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
       <div
         key={product.id}
         className={`relative bg-white rounded-[34px] pt-18 sm:pt-20 pb-5 px-5 sm:px-6 border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group ${
-          isOutOfStock ? 'opacity-80' : ''
-        }`}
+          isHorizontal ? 'h-full min-h-[360px]' : ''
+        } ${isOutOfStock ? 'opacity-80' : ''}`}
       >
         {/* 1. Imagem Flutuante: Metade para fora do card */}
         <div
@@ -385,7 +537,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         </div>
 
         {/* 2. Informações do Produto */}
-        <div className="space-y-1.5 pt-2">
+        <div className="space-y-1.5 pt-2 flex-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
               {product.category}
@@ -445,7 +597,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         </div>
 
         {/* 3. Rodapé do Card: Preço + Ação */}
-        <div className="pt-4 mt-1 border-t border-stone-100/80 flex items-center justify-between gap-3">
+        <div className="pt-4 mt-2 border-t border-stone-100/80 flex items-center justify-between gap-3">
           <div className="text-lg font-black text-stone-950 tracking-tight">
             {formatCurrencyBRL(activePrice)}
           </div>
@@ -757,7 +909,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         </div>
       ) : (
         /* ========================================================
-            CENÁRIO 2: LISTA DE PRODUTOS DA CATEGORIA FILTRADA
+            CENÁRIO 2: LISTA DE PRODUTOS (activeCategory !== 'HOME')
            ======================================================== */
         <div className="space-y-6">
           {/* Cabeçalho da Categoria com Voltar ao Início e Voltar ao Admin */}
@@ -788,8 +940,11 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 </h1>
 
                 <p className="text-xs text-stone-500">
-                  Mostrando {filteredProducts.length}{' '}
-                  {filteredProducts.length === 1 ? 'delícia disponível' : 'delícias disponíveis'}.
+                  {activeCategory === 'ALL'
+                    ? `Mostrando ${activeProducts.length} delícias divididas por categoria horizontal. Arraste para o lado para explorar!`
+                    : `Mostrando ${filteredProducts.length} ${
+                        filteredProducts.length === 1 ? 'delícia disponível' : 'delícias disponíveis'
+                      }.`}
                 </p>
               </div>
 
@@ -853,30 +1008,71 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
             </div>
           </div>
 
-          {/* Grid de Produtos da Categoria */}
-          {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20 pt-16">
-              {filteredProducts.map((product) => renderProductCard(product))}
+          {/* ========================================================
+              SUB-CENÁRIO A: activeCategory === 'ALL'
+              ARRUMADO POR COLUNAS NA HORIZONTAL POR CATEGORIA (ARRASTAR PARA O LADO)
+             ======================================================== */}
+          {activeCategory === 'ALL' ? (
+            <div className="space-y-12">
+              {categoryOrder.map((catName) => {
+                const categoryProducts = activeProducts.filter((p) => p.category === catName);
+                if (categoryProducts.length === 0) return null;
+                return (
+                  <HorizontalCategoryRow
+                    key={catName}
+                    category={catName}
+                    products={categoryProducts}
+                    renderCard={renderProductCard}
+                    onSelectCategory={handleCategorySelect}
+                  />
+                );
+              })}
+
+              {/* Categorias adicionais não listadas na ordem padrão */}
+              {Array.from(new Set(activeProducts.map((p) => p.category)))
+                .filter((cat) => !categoryOrder.includes(cat))
+                .map((catName) => {
+                  const categoryProducts = activeProducts.filter((p) => p.category === catName);
+                  if (categoryProducts.length === 0) return null;
+                  return (
+                    <HorizontalCategoryRow
+                      key={catName}
+                      category={catName}
+                      products={categoryProducts}
+                      renderCard={renderProductCard}
+                      onSelectCategory={handleCategorySelect}
+                    />
+                  );
+                })}
             </div>
           ) : (
-            <div className="bg-white rounded-3xl p-12 text-center border border-stone-200/80 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-amber-50 text-[#924529] mx-auto flex items-center justify-center">
-                <Coffee className="w-8 h-8" />
+            /* ========================================================
+                SUB-CENÁRIO B: CATEGORIA ESPECÍFICA (GRID TRADICIONAL COMPLETO)
+               ======================================================== */
+            filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20 pt-16">
+                {filteredProducts.map((product) => renderProductCard(product))}
               </div>
-              <h3 className="text-lg font-bold text-stone-800">
-                Nenhum produto encontrado nesta categoria
-              </h3>
-              <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                Todos os itens desta categoria podem estar inativos ou fora de estoque no momento.
-              </p>
-              <button
-                type="button"
-                onClick={() => handleCategorySelect('HOME')}
-                className="px-5 py-2.5 bg-[#820b28] text-white rounded-xl text-xs font-bold shadow-md hover:bg-[#631a09] transition cursor-pointer"
-              >
-                Voltar à Página Inicial do Cardápio
-              </button>
-            </div>
+            ) : (
+              <div className="bg-white rounded-3xl p-12 text-center border border-stone-200/80 space-y-4">
+                <div className="w-16 h-16 rounded-full bg-amber-50 text-[#924529] mx-auto flex items-center justify-center">
+                  <Coffee className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-stone-800">
+                  Nenhum produto encontrado nesta categoria
+                </h3>
+                <p className="text-xs text-stone-500 max-w-sm mx-auto">
+                  Todos os itens desta categoria podem estar inativos ou fora de estoque no momento.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleCategorySelect('HOME')}
+                  className="px-5 py-2.5 bg-[#820b28] text-white rounded-xl text-xs font-bold shadow-md hover:bg-[#631a09] transition cursor-pointer"
+                >
+                  Voltar à Página Inicial do Cardápio
+                </button>
+              </div>
+            )
           )}
         </div>
       )}
