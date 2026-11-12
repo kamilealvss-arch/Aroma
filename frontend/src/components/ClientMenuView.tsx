@@ -655,35 +655,21 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         <div className="space-y-8">
           {/* Cabeçalho de Boas-Vindas */}
           <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 text-[#35312F]">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="space-y-1">
-                <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
-                  <span>Cardápio Digital</span>
-                  <span>/</span>
-                  <span className="text-[#850D2C] font-semibold">Experiência Gourmet</span>
-                </nav>
-                <h1
-                  className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight"
-                  style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
-                >
-                  Sabores Artesanais & Cardápio
-                </h1>
-                <p className="text-xs text-stone-500">
-                  Navegue pelas categorias na lateral ou escolha os destaques selecionados da semana.
-                </p>
-              </div>
-
-              {onBackToAdmin && (
-                <button
-                  type="button"
-                  onClick={onBackToAdmin}
-                  className="self-start sm:self-center inline-flex items-center space-x-2 px-4 py-2 rounded-full text-xs font-bold text-[#820b28] bg-[#820b28]/10 hover:bg-[#820b28] hover:text-white border border-[#820b28]/20 transition cursor-pointer shadow-2xs"
-                  title="Voltar ao Painel Administrativo do Café"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Voltar ao Painel (Admin)</span>
-                </button>
-              )}
+            <div className="space-y-1">
+              <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
+                <span>Cardápio Digital</span>
+                <span>/</span>
+                <span className="text-[#850D2C] font-semibold">Experiência Gourmet</span>
+              </nav>
+              <h1
+                className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight"
+                style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+              >
+                Sabores Artesanais & Cardápio
+              </h1>
+              <p className="text-xs text-stone-500">
+                Navegue pelas categorias na lateral ou escolha os destaques selecionados da semana.
+              </p>
             </div>
           </div>
 
@@ -912,99 +898,39 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
             CENÁRIO 2: LISTA DE PRODUTOS (activeCategory !== 'HOME')
            ======================================================== */
         <div className="space-y-6">
-          {/* Cabeçalho da Categoria com Voltar ao Início e Voltar ao Admin */}
-          <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 space-y-4 text-[#35312F]">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-stone-100">
-              <div className="space-y-1">
-                {/* Breadcrumb Navegável */}
-                <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
-                  <button
-                    type="button"
-                    onClick={() => handleCategorySelect('HOME')}
-                    className="hover:text-[#820b28] font-bold transition cursor-pointer"
-                  >
-                    Cardápio Início
-                  </button>
-                  <span>/</span>
-                  <span className="text-[#850D2C] font-semibold">
-                    {activeCategory === 'ALL' ? 'Todos os Itens' : activeCategory}
-                  </span>
-                </nav>
-
-                {/* Título com Fonte Amarego */}
-                <h1
-                  className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight"
-                  style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
-                >
-                  {activeCategory === 'ALL' ? 'Todos os Sabores Artesanais' : activeCategory}
-                </h1>
-
-                <p className="text-xs text-stone-500">
-                  {activeCategory === 'ALL'
-                    ? `Mostrando ${activeProducts.length} delícias divididas por categoria horizontal. Arraste para o lado para explorar!`
-                    : `Mostrando ${filteredProducts.length} ${
-                        filteredProducts.length === 1 ? 'delícia disponível' : 'delícias disponíveis'
-                      }.`}
-                </p>
-              </div>
-
-              {/* Botões de Ação Rápida no Topo */}
-              <div className="flex flex-wrap items-center gap-2">
+          {/* Cabeçalho da Categoria */}
+          <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 text-[#35312F]">
+            <div className="space-y-1">
+              {/* Breadcrumb Navegável */}
+              <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
                 <button
                   type="button"
                   onClick={() => handleCategorySelect('HOME')}
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-stone-700 bg-stone-100 hover:bg-stone-200 transition cursor-pointer"
+                  className="hover:text-[#820b28] font-bold transition cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-[#924529]" />
-                  <span>Início & Destaques</span>
+                  Cardápio Início
                 </button>
+                <span>/</span>
+                <span className="text-[#850D2C] font-semibold">
+                  {activeCategory === 'ALL' ? 'Todos os Itens' : activeCategory}
+                </span>
+              </nav>
 
-                {onBackToAdmin && (
-                  <button
-                    type="button"
-                    onClick={onBackToAdmin}
-                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#820b28] bg-[#820b28]/10 hover:bg-[#820b28] hover:text-white border border-[#820b28]/20 transition cursor-pointer"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>Voltar ao Admin</span>
-                  </button>
-                )}
-              </div>
-            </div>
+              {/* Título com Fonte Amarego */}
+              <h1
+                className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight"
+                style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+              >
+                {activeCategory === 'ALL' ? 'Todos os Sabores Artesanais' : activeCategory}
+              </h1>
 
-            {/* Pílulas de Sub-Navegação Rápida entre categorias */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-1">
-              {['ALL', 'Cafés Especiais', 'Salgados Artesanais', 'Doces & Bolos', 'Bebidas Geladas', 'Combos & Brunch'].map(
-                (cat) => {
-                  const isCurrent = activeCategory === cat;
-                  const label = cat === 'ALL' ? 'Todos os Itens' : cat;
-                  const count =
-                    cat === 'ALL'
-                      ? activeProducts.length
-                      : activeProducts.filter((p) => p.category === cat).length;
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => handleCategorySelect(cat)}
-                      className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                        isCurrent
-                          ? 'bg-[#820b28] text-white shadow-2xs'
-                          : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                      }`}
-                    >
-                      <span>{label}</span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                          isCurrent ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-700'
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    </button>
-                  );
-                }
-              )}
+              <p className="text-xs text-stone-500">
+                {activeCategory === 'ALL'
+                  ? `Mostrando ${activeProducts.length} delícias divididas por categoria horizontal. Arraste para o lado para explorar!`
+                  : `Mostrando ${filteredProducts.length} ${
+                      filteredProducts.length === 1 ? 'delícia disponível' : 'delícias disponíveis'
+                    }.`}
+              </p>
             </div>
           </div>
 
