@@ -10,8 +10,13 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
+  UtensilsCrossed,
+  Cake,
+  GlassWater,
+  ArrowLeft,
 } from 'lucide-react';
-import { SystemUser, StockAlert } from '../../../shared/types/index.ts';
+import { SystemUser, StockAlert, Product } from '../../../shared/types/index.ts';
 
 export type AdminTabType = 'dashboard' | 'kanban' | 'products' | 'stock' | 'reports' | 'audit';
 
@@ -26,6 +31,10 @@ interface SidebarProps {
   alerts: StockAlert[];
   activeOrdersCount?: number;
   onResetDemo: () => void;
+  clientCategory?: string;
+  onClientCategoryChange?: (category: string) => void;
+  products?: Product[];
+  onBackToAdmin?: () => void;
 }
 
 interface NavItemConfig {
@@ -34,7 +43,7 @@ interface NavItemConfig {
   icon: React.FC<{ className?: string }>;
   circleBg: string;
   activeText: string;
-  badge?: number;
+  badge?: number | string;
   badgeColor?: string;
   onClick: () => void;
   isActive: boolean;
@@ -51,6 +60,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   alerts,
   activeOrdersCount = 0,
   onResetDemo,
+  clientCategory = 'HOME',
+  onClientCategoryChange,
+  products = [],
+  onBackToAdmin,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -58,7 +71,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const warningCount = alerts.filter((a) => !a.isOutOfStock).length;
   const totalAlerts = criticalCount + warningCount;
 
-  const navItems: NavItemConfig[] = [
+  // Filtra apenas produtos ativos para contagens do cliente
+  const activeProducts = products.filter((p) => p.status === 'ativo');
+  const countForCategory = (cat: string) =>
+    activeProducts.filter((p) => p.category === cat).length;
+
+  // Itens de Navegação do Painel Administrativo
+  const adminNavItems: NavItemConfig[] = [
     {
       id: 'dashboard',
       label: 'INÍCIO',
@@ -117,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: ShoppingCart,
       circleBg: 'bg-[#c68e5b]',
       activeText: 'text-[#924529]',
-      isActive: currentView === 'client',
+      isActive: false,
       onClick: () => {
         onViewChange('client');
       },
@@ -149,6 +168,103 @@ export const Sidebar: React.FC<SidebarProps> = ({
       },
     },
   ];
+
+  // Itens de Navegação Dinâmica do Cardápio Digital (quando currentView === 'client')
+  const clientNavItems: NavItemConfig[] = [
+    {
+      id: 'HOME',
+      label: 'INÍCIO',
+      icon: Sparkles,
+      circleBg: 'bg-[#924529]',
+      activeText: 'text-[#924529]',
+      badge: '★',
+      badgeColor: 'bg-amber-400 text-stone-900',
+      isActive: currentView === 'client' && (clientCategory === 'HOME' || !clientCategory),
+      onClick: () => {
+        onClientCategoryChange?.('HOME');
+      },
+    },
+    {
+      id: 'Cafés Especiais',
+      label: 'CAFÉS',
+      icon: Coffee,
+      circleBg: 'bg-[#c68e5b]',
+      activeText: 'text-[#924529]',
+      badge: countForCategory('Cafés Especiais') || undefined,
+      badgeColor: 'bg-[#c68e5b] text-white',
+      isActive: currentView === 'client' && clientCategory === 'Cafés Especiais',
+      onClick: () => {
+        onClientCategoryChange?.('Cafés Especiais');
+      },
+    },
+    {
+      id: 'Salgados Artesanais',
+      label: 'SALGADOS',
+      icon: UtensilsCrossed,
+      circleBg: 'bg-[#7e8b60]',
+      activeText: 'text-[#626d4a]',
+      badge: countForCategory('Salgados Artesanais') || undefined,
+      badgeColor: 'bg-[#7e8b60] text-white',
+      isActive: currentView === 'client' && clientCategory === 'Salgados Artesanais',
+      onClick: () => {
+        onClientCategoryChange?.('Salgados Artesanais');
+      },
+    },
+    {
+      id: 'Doces & Bolos',
+      label: 'DOCES',
+      icon: Cake,
+      circleBg: 'bg-[#820b28]',
+      activeText: 'text-[#820b28]',
+      badge: countForCategory('Doces & Bolos') || undefined,
+      badgeColor: 'bg-[#820b28] text-white',
+      isActive: currentView === 'client' && clientCategory === 'Doces & Bolos',
+      onClick: () => {
+        onClientCategoryChange?.('Doces & Bolos');
+      },
+    },
+    {
+      id: 'Bebidas Geladas',
+      label: 'GELADOS',
+      icon: GlassWater,
+      circleBg: 'bg-[#7e8b60]',
+      activeText: 'text-[#626d4a]',
+      badge: countForCategory('Bebidas Geladas') || undefined,
+      badgeColor: 'bg-[#7e8b60] text-white',
+      isActive: currentView === 'client' && clientCategory === 'Bebidas Geladas',
+      onClick: () => {
+        onClientCategoryChange?.('Bebidas Geladas');
+      },
+    },
+    {
+      id: 'Combos & Brunch',
+      label: 'COMBOS',
+      icon: Package,
+      circleBg: 'bg-[#924529]',
+      activeText: 'text-[#924529]',
+      badge: countForCategory('Combos & Brunch') || undefined,
+      badgeColor: 'bg-[#924529] text-white',
+      isActive: currentView === 'client' && clientCategory === 'Combos & Brunch',
+      onClick: () => {
+        onClientCategoryChange?.('Combos & Brunch');
+      },
+    },
+    {
+      id: 'ALL',
+      label: 'TODOS',
+      icon: ShoppingCart,
+      circleBg: 'bg-[#820b28]',
+      activeText: 'text-[#820b28]',
+      badge: activeProducts.length || undefined,
+      badgeColor: 'bg-white/30 text-white',
+      isActive: currentView === 'client' && clientCategory === 'ALL',
+      onClick: () => {
+        onClientCategoryChange?.('ALL');
+      },
+    },
+  ];
+
+  const navItems = currentView === 'client' ? clientNavItems : adminNavItems;
 
   return (
     <aside
@@ -193,14 +309,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             />
           </div>
 
-          {/* Nome da Marca abaixo da Logo (Tipografia estilizada Aroma) */}
+          {/* Nome da Marca abaixo da Logo */}
           {!isCollapsed && (
-            <div className="text-center mt-1 px-4 flex items-center justify-center overflow-hidden">
+            <div className="text-center mt-1 px-4 flex flex-col items-center justify-center overflow-hidden">
               <img
                 src="/aroma-text.png"
                 alt="Aroma"
                 className="w-28 h-auto object-contain select-none hover:scale-105 transition-transform duration-300 brightness-0 invert"
               />
+              {currentView === 'client' && (
+                <span className="text-[9px] uppercase font-bold tracking-[0.18em] text-[#fcd34d] bg-white/10 px-2.5 py-0.5 rounded-full mt-1.5 border border-[#fcd34d]/30">
+                  Cardápio Digital
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -238,7 +359,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <Icon className="w-5 h-5 stroke-[2.2]" />
                       {isCollapsed && item.badge !== undefined && (
                         <span
-                          className={`absolute -top-1 -right-1 text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center ${item.badgeColor} shadow`}
+                          className={`absolute -top-1 -right-1 text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center ${
+                            item.badgeColor || 'bg-white/20 text-white'
+                          } shadow`}
                         >
                           {item.badge}
                         </span>
@@ -255,7 +378,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </span>
                         {item.badge !== undefined && (
                           <span
-                            className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${item.badgeColor}`}
+                            className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                              item.badgeColor || 'bg-stone-200 text-stone-800'
+                            }`}
                           >
                             {item.badge}
                           </span>
@@ -278,7 +403,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Icon className="w-5 h-5 stroke-[1.75] group-hover:scale-110 transition-transform" />
                     {isCollapsed && item.badge !== undefined && (
                       <span
-                        className={`absolute top-0 right-4 text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center ${item.badgeColor}`}
+                        className={`absolute top-0 right-4 text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center ${
+                          item.badgeColor || 'bg-white/20 text-white'
+                        }`}
                       >
                         {item.badge}
                       </span>
@@ -291,7 +418,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </span>
                       {item.badge !== undefined && (
                         <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.badgeColor}`}
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            item.badgeColor || 'bg-white/20 text-white'
+                          }`}
                         >
                           {item.badge}
                         </span>
@@ -304,62 +433,116 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
-        {/* Rodapé: Card Branco estilo referência com Perfil e Botão Circular de Sair no topo */}
+        {/* Rodapé: Card Branco com Perfil e Botão Circular de Ação no topo */}
         {isCollapsed ? (
           <div className="pb-5 pt-3 px-2 flex flex-col items-center space-y-3">
             {/* Avatar compacto quando recolhido */}
             <div
               className="relative group cursor-pointer"
-              title={`${currentUser?.name || 'Usuário'} (${currentUser?.role || ''}) - Clique para trocar`}
+              title={
+                currentView === 'client'
+                  ? 'Cliente Gourmet (Cardápio Digital) - Clique para alternar perfil'
+                  : `${currentUser?.name || 'Usuário'} (${currentUser?.role || ''}) - Clique para trocar`
+              }
             >
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-[#820b28] bg-white shadow-sm ring-2 ring-white/40 group-hover:scale-105 transition"
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ring-2 ring-white/40 group-hover:scale-105 transition ${
+                  currentView === 'client'
+                    ? 'bg-[#924529] text-white'
+                    : 'bg-white text-[#820b28]'
+                }`}
               >
-                {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                {currentView === 'client' ? (
+                  'C'
+                ) : currentUser?.name ? (
+                  currentUser.name.charAt(0).toUpperCase()
+                ) : (
+                  'U'
+                )}
               </div>
               <select
-                value={currentUser?.id || ''}
+                value={currentView === 'client' ? 'usr_cliente' : currentUser?.id || ''}
                 onChange={(e) => onSwitchUser(e.target.value)}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                 aria-label="Trocar usuário"
               >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id} className="bg-stone-900 text-white">
-                    {u.name} ({u.role})
-                  </option>
-                ))}
+                {currentView === 'client' ? (
+                  <>
+                    <option value="usr_cliente" className="bg-stone-900 text-white">
+                      🛍️ Cliente (Cardápio Digital)
+                    </option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id} className="bg-stone-900 text-white">
+                        👤 {u.name} ({u.role})
+                      </option>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id} className="bg-stone-900 text-white">
+                        {u.name} ({u.role})
+                      </option>
+                    ))}
+                    <option value="usr_cliente" className="bg-stone-900 text-white">
+                      🛍️ Cliente (Cardápio Digital)
+                    </option>
+                  </>
+                )}
               </select>
             </div>
 
-            {/* Botão Sair compacto */}
-            <button
-              type="button"
-              onClick={onResetDemo}
-              title="Sair / Restaurar demonstração"
-              className="w-10 h-10 rounded-full bg-white text-[#820b28] hover:bg-stone-100 flex items-center justify-center shadow-sm transition-transform hover:scale-105 cursor-pointer"
-            >
-              <LogOut className="w-4 h-4 stroke-[2.2]" />
-            </button>
+            {/* Botão de Ação compacto */}
+            {currentView === 'client' ? (
+              <button
+                type="button"
+                onClick={onBackToAdmin || (() => onViewChange('admin'))}
+                title="Voltar ao Painel Administrativo"
+                className="w-10 h-10 rounded-full bg-white text-[#820b28] hover:bg-stone-100 flex items-center justify-center shadow-sm transition-transform hover:scale-105 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4 stroke-[2.2]" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onResetDemo}
+                title="Sair / Restaurar demonstração"
+                className="w-10 h-10 rounded-full bg-white text-[#820b28] hover:bg-stone-100 flex items-center justify-center shadow-sm transition-transform hover:scale-105 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 stroke-[2.2]" />
+              </button>
+            )}
           </div>
         ) : (
           <div className="px-4 pb-5 pt-7">
             <div className="relative bg-white rounded-[26px] shadow-md">
-              {/* Botão Circular Superior Recortado (Sair / Reset) igual à imagem de referência */}
-              <button
-                type="button"
-                onClick={onResetDemo}
-                title="Sair / Restaurar dados de demonstração"
-                className="absolute -top-5 left-1/2 -translate-x-1/2 z-20 w-11 h-11 rounded-full bg-white border-[5px] border-[#820b28] text-[#820b28] hover:bg-rose-50 hover:scale-105 transition-all flex items-center justify-center cursor-pointer shadow-xs"
-              >
-                <LogOut className="w-4 h-4 stroke-[2.2]" />
-              </button>
+              {/* Botão Circular Superior Recortado: Voltar ao Admin ou Sair/Reset */}
+              {currentView === 'client' ? (
+                <button
+                  type="button"
+                  onClick={onBackToAdmin || (() => onViewChange('admin'))}
+                  title="Voltar ao Painel Administrativo"
+                  className="absolute -top-5 left-1/2 -translate-x-1/2 z-20 w-11 h-11 rounded-full bg-white border-[5px] border-[#820b28] text-[#820b28] hover:bg-rose-50 hover:scale-105 transition-all flex items-center justify-center cursor-pointer shadow-xs"
+                >
+                  <ArrowLeft className="w-4 h-4 stroke-[2.2]" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onResetDemo}
+                  title="Sair / Restaurar dados de demonstração"
+                  className="absolute -top-5 left-1/2 -translate-x-1/2 z-20 w-11 h-11 rounded-full bg-white border-[5px] border-[#820b28] text-[#820b28] hover:bg-rose-50 hover:scale-105 transition-all flex items-center justify-center cursor-pointer shadow-xs"
+                >
+                  <LogOut className="w-4 h-4 stroke-[2.2]" />
+                </button>
+              )}
 
-              {/* Conteúdo Interno do Card Branco com elementos gráficos e seletor de Perfil */}
+              {/* Conteúdo Interno do Card Branco com seletor de Perfil */}
               <div
                 className="relative overflow-hidden rounded-[26px] pt-7 pb-4 px-4 cursor-pointer group"
-                title="Clique para alternar o perfil de usuário (Auditoria)"
+                title="Clique para alternar o perfil (Auditoria / Cardápio)"
               >
-                {/* Semicírculo decorativo suave no canto inferior esquerdo (como na referência) */}
+                {/* Semicírculo decorativo suave no canto inferior esquerdo */}
                 <div
                   className="pointer-events-none absolute -bottom-6 -left-4 w-36 h-24 bg-[#820b28]/[0.06] rounded-t-full transition-transform duration-300 group-hover:scale-105"
                   aria-hidden="true"
@@ -371,40 +554,76 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {/* Avatar do Perfil */}
                     <div
                       className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-extrabold text-white shadow-xs transition-transform group-hover:scale-105 ${
-                        currentUser?.role === 'Administrador'
+                        currentView === 'client'
+                          ? 'bg-[#924529]'
+                          : currentUser?.role === 'Administrador'
                           ? 'bg-[#820b28]'
                           : currentUser?.role === 'Sub-gerente'
                           ? 'bg-[#7e8b60]'
                           : 'bg-[#924529]'
                       }`}
                     >
-                      {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                      {currentView === 'client' ? (
+                        'C'
+                      ) : currentUser?.name ? (
+                        currentUser.name.charAt(0).toUpperCase()
+                      ) : (
+                        'U'
+                      )}
                     </div>
 
-                    {/* Nome e Cargo (como o bloco tipográfico inferior esquerdo da referência) */}
+                    {/* Nome e Cargo */}
                     <div className="pt-0.5">
                       <div className="text-xs font-extrabold text-stone-900 leading-tight truncate">
-                        {currentUser?.name || 'Carregando...'}
+                        {currentView === 'client'
+                          ? 'Cliente Gourmet'
+                          : currentUser?.name || 'Carregando...'}
                       </div>
                       <div className="text-[10px] font-semibold text-[#820b28] leading-tight mt-0.5">
-                        {currentUser?.role || 'Perfil'}
+                        {currentView === 'client'
+                          ? 'Cardápio Digital'
+                          : currentUser?.role || 'Perfil'}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Select invisível sobre o card para permitir trocar de usuário ao clicar no perfil */}
+                {/* Select invisível sobre o card para permitir trocar de perfil ao clicar */}
                 <select
-                  value={currentUser?.id || ''}
+                  value={currentView === 'client' ? 'usr_cliente' : currentUser?.id || ''}
                   onChange={(e) => onSwitchUser(e.target.value)}
                   className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                  aria-label="Trocar usuário"
+                  aria-label="Trocar perfil"
                 >
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id} className="bg-white text-stone-900">
-                      {u.name} ({u.role})
-                    </option>
-                  ))}
+                  {currentView === 'client' ? (
+                    <>
+                      <option value="usr_cliente" className="bg-white text-stone-900 font-bold">
+                        🛍️ Cliente (Cardápio Digital)
+                      </option>
+                      <optgroup label="Voltar ao Painel Administrativo">
+                        {users.map((u) => (
+                          <option key={u.id} value={u.id} className="bg-white text-stone-900">
+                            👤 {u.name} ({u.role})
+                          </option>
+                        ))}
+                      </optgroup>
+                    </>
+                  ) : (
+                    <>
+                      <optgroup label="Equipe do Café (Auditoria)">
+                        {users.map((u) => (
+                          <option key={u.id} value={u.id} className="bg-white text-stone-900">
+                            {u.name} ({u.role})
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Visualizar como Cliente">
+                        <option value="usr_cliente" className="bg-white text-[#820b28] font-bold">
+                          🛍️ Cliente (Cardápio Digital)
+                        </option>
+                      </optgroup>
+                    </>
+                  )}
                 </select>
               </div>
             </div>

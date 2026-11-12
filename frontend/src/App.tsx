@@ -22,6 +22,7 @@ import { CheckCircle2, AlertCircle } from 'lucide-react';
 export default function App() {
   const [currentView, setCurrentView] = useState<'admin' | 'client'>('admin');
   const [adminTab, setAdminTab] = useState<'dashboard' | 'kanban' | 'products' | 'stock' | 'reports' | 'audit'>('dashboard');
+  const [clientCategory, setClientCategory] = useState<string>('HOME');
   const [orders, setOrders] = useState<Order[]>([]);
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -107,7 +108,7 @@ export default function App() {
   // ⭐ REQUISITO 4 (PONTO DE OURO): Exclusão Lógica
   const handleSoftDeleteProduct = async (id: string) => {
     try {
-      const res = await api.softDeleteProduct(id);
+      await api.softDeleteProduct(id);
       showToast('Exclusão lógica realizada: Produto inativado sem apagar histórico!', 'info');
       await refreshAllData();
     } catch (err: any) {
@@ -206,16 +207,28 @@ export default function App() {
     }
   };
 
-  // Troca de usuário logado (para testar a auditoria em nome de Carlos - Sub-gerente, Maria - Admin, etc.)
+  // Troca de perfil / usuário: Suporta alternar entre equipe do café (Admin/Sub/Barista) e Cliente (Cardápio)
   const handleSwitchUser = async (userId: string) => {
+    if (userId === 'usr_cliente') {
+      setCurrentView('client');
+      showToast('Visualizando Cardápio Digital do Cliente!', 'info');
+      return;
+    }
     try {
       const user = await api.switchUser(userId);
       setCurrentUser(user);
+      setCurrentView('admin');
       showToast(`Perfil alterado para ${user.name} (${user.role}). Ações serão auditadas em seu nome!`, 'info');
       await refreshAllData();
     } catch (err: any) {
       showToast(err.message, 'error');
     }
+  };
+
+  // Retorno rápido ao painel administrativo
+  const handleBackToAdmin = () => {
+    setCurrentView('admin');
+    showToast('Retornou ao Painel Administrativo.', 'info');
   };
 
   const handleResetDemo = async () => {
@@ -232,7 +245,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white flex font-sans">
-      {/* Sidebar Lateral com Recorte Curvo e Perfis */}
+      {/* Sidebar Lateral com Recorte Curvo, Categorias Dinâmicas e Troca de Perfil */}
       <Sidebar
         currentView={currentView}
         onViewChange={setCurrentView}
@@ -244,6 +257,10 @@ export default function App() {
         alerts={alerts}
         activeOrdersCount={activeOrdersCount}
         onResetDemo={handleResetDemo}
+        clientCategory={clientCategory}
+        onClientCategoryChange={setClientCategory}
+        products={products}
+        onBackToAdmin={handleBackToAdmin}
       />
 
       {/* Conteúdo Principal */}
@@ -297,12 +314,15 @@ export default function App() {
             {adminTab === 'audit' && <AuditView />}
           </div>
         ) : (
-          /* Visão do Cardápio do Cliente com Acompanhamento em Tempo Real */
+          /* Visão do Cardápio do Cliente com Acompanhamento em Tempo Real e Categorias Laterais */
           <ClientMenuView
             products={products}
             orders={orders}
             onCreateOrder={handleCreateOrder}
             onOrderSuccess={refreshAllData}
+            selectedCategory={clientCategory}
+            onSelectCategory={setClientCategory}
+            onBackToAdmin={handleBackToAdmin}
           />
         )}
       </main>
