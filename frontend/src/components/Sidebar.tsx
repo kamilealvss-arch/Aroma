@@ -190,8 +190,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: ShoppingCart,
       circleBg: 'bg-[#820b28]',
       activeText: 'text-[#820b28]',
-      badge: activeProducts.length || undefined,
-      badgeColor: 'bg-white/30 text-white',
       isActive: currentView === 'client' && clientCategory === 'ALL',
       onClick: () => {
         onClientCategoryChange?.('ALL');
@@ -203,8 +201,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Coffee,
       circleBg: 'bg-[#c68e5b]',
       activeText: 'text-[#924529]',
-      badge: countForCategory('Cafés Especiais') || undefined,
-      badgeColor: 'bg-[#c68e5b] text-white',
       isActive: currentView === 'client' && clientCategory === 'Cafés Especiais',
       onClick: () => {
         onClientCategoryChange?.('Cafés Especiais');
@@ -216,8 +212,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: UtensilsCrossed,
       circleBg: 'bg-[#7e8b60]',
       activeText: 'text-[#626d4a]',
-      badge: countForCategory('Salgados Artesanais') || undefined,
-      badgeColor: 'bg-[#7e8b60] text-white',
       isActive: currentView === 'client' && clientCategory === 'Salgados Artesanais',
       onClick: () => {
         onClientCategoryChange?.('Salgados Artesanais');
@@ -229,8 +223,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Cake,
       circleBg: 'bg-[#820b28]',
       activeText: 'text-[#820b28]',
-      badge: countForCategory('Doces & Bolos') || undefined,
-      badgeColor: 'bg-[#820b28] text-white',
       isActive: currentView === 'client' && clientCategory === 'Doces & Bolos',
       onClick: () => {
         onClientCategoryChange?.('Doces & Bolos');
@@ -242,8 +234,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: GlassWater,
       circleBg: 'bg-[#7e8b60]',
       activeText: 'text-[#626d4a]',
-      badge: countForCategory('Bebidas Geladas') || undefined,
-      badgeColor: 'bg-[#7e8b60] text-white',
       isActive: currentView === 'client' && clientCategory === 'Bebidas Geladas',
       onClick: () => {
         onClientCategoryChange?.('Bebidas Geladas');
@@ -255,8 +245,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Package,
       circleBg: 'bg-[#924529]',
       activeText: 'text-[#924529]',
-      badge: countForCategory('Combos & Brunch') || undefined,
-      badgeColor: 'bg-[#924529] text-white',
       isActive: currentView === 'client' && clientCategory === 'Combos & Brunch',
       onClick: () => {
         onClientCategoryChange?.('Combos & Brunch');
