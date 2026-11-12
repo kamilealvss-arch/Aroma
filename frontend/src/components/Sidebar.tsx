@@ -185,6 +185,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       },
     },
     {
+      id: 'ALL',
+      label: 'TODOS',
+      icon: ShoppingCart,
+      circleBg: 'bg-[#820b28]',
+      activeText: 'text-[#820b28]',
+      badge: activeProducts.length || undefined,
+      badgeColor: 'bg-white/30 text-white',
+      isActive: currentView === 'client' && clientCategory === 'ALL',
+      onClick: () => {
+        onClientCategoryChange?.('ALL');
+      },
+    },
+    {
       id: 'Cafés Especiais',
       label: 'CAFÉS',
       icon: Coffee,
@@ -247,19 +260,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       isActive: currentView === 'client' && clientCategory === 'Combos & Brunch',
       onClick: () => {
         onClientCategoryChange?.('Combos & Brunch');
-      },
-    },
-    {
-      id: 'ALL',
-      label: 'TODOS',
-      icon: ShoppingCart,
-      circleBg: 'bg-[#820b28]',
-      activeText: 'text-[#820b28]',
-      badge: activeProducts.length || undefined,
-      badgeColor: 'bg-white/30 text-white',
-      isActive: currentView === 'client' && clientCategory === 'ALL',
-      onClick: () => {
-        onClientCategoryChange?.('ALL');
       },
     },
   ];
