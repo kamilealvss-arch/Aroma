@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { app } from './app.ts';
+import { db } from './db/db.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +13,9 @@ async function startServer() {
   const ROOT_DIR = path.resolve(__dirname, '..');
   const FRONTEND_DIR = path.resolve(ROOT_DIR, 'frontend');
   const DIST_DIR = path.resolve(ROOT_DIR, 'dist');
+
+  // Inicializa conexão e sincronização com PostgreSQL
+  await db.initFromPostgres();
 
   // Integração com Vite SPA
   if (process.env.NODE_ENV === 'production') {

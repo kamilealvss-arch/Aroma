@@ -15,6 +15,7 @@ import {
   createAuditLog,
   generateUniqueId,
 } from '../../shared/logic/cafeRules.ts';
+import { prisma, testDatabaseConnection } from './prisma.ts';
 
 class DatabaseStore {
   private products: Product[] = [];
@@ -24,9 +25,154 @@ class DatabaseStore {
   private users: SystemUser[] = [];
   private currentUserId: string = 'usr_admin';
   private nextOrderNumber: number = 2000;
+  private isPostgresConnected: boolean = false;
 
   constructor() {
     this.resetToDefaults();
+  }
+
+  public async initFromPostgres(): Promise<boolean> {
+    try {
+      this.isPostgresConnected = await testDatabaseConnection();
+      if (!this.isPostgresConnected) {
+        console.log('💡 PostgreSQL: Modo local ativo (armazenamento em memória).');
+        console.log('   Para conectar e persistir no PostgreSQL, execute: docker compose up -d\n');
+        return false;
+      }
+
+      console.log('🐘 PostgreSQL: Conectado com sucesso via Prisma!');
+
+      // Carrega usuários
+      const dbUsers = await prisma.user.findMany();
+      if (dbUsers.length > 0) {
+        this.users = dbUsers.map((u) => ({
+          id: u.id,
+          name: u.name,
+          role: u.role as any,
+          email: u.email,
+          avatarColor: u.avatarColor,
+        }));
+      }
+
+      // Carrega produtos com tamanhos e adicionais
+      const dbProducts = await prisma.product.findMany({
+        include: { sizes: true, addons: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (dbProducts.length > 0) {
+        this.products = dbProducts.map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price: p.price,
+          costPrice: p.costPrice,
+          category: p.category as any,
+          imageUrl: p.imageUrl,
+          cutoutImageUrl: p.cutoutImageUrl || undefined,
+          stockQuantity: p.stockQuantity,
+          minStockThreshold: p.minStockThreshold,
+          status: p.status as any,
+          hasSizes: p.hasSizes,
+          hasAddons: p.hasAddons,
+          sizes: p.sizes.map((s) => ({ name: s.name, price: s.price, costPrice: s.costPrice || undefined })),
+          addons: p.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
+          createdAt: p.createdAt.toISOString(),
+          updatedAt: p.updatedAt.toISOString(),
+        }));
+      }
+
+      // Carrega insumos
+      const dbIngredients = await prisma.ingredient.findMany({
+        orderBy: { name: 'asc' },
+      });
+      if (dbIngredients.length > 0) {
+        this.ingredients = dbIngredients.map((i) => ({
+          id: i.id,
+          name: i.name,
+          category: i.category as any,
+          currentStock: i.currentStock,
+          unit: i.unit as any,
+          minStockThreshold: i.minStockThreshold,
+          costPerUnit: i.costPerUnit,
+          supplier: i.supplier || undefined,
+          isAddonIngredient: i.isAddonIngredient,
+          updatedAt: i.updatedAt.toISOString(),
+        }));
+      }
+
+      // Carrega pedidos
+      const dbOrders = await prisma.order.findMany({
+        include: { items: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (dbOrders.length > 0) {
+        this.orders = dbOrders.map((o) => ({
+          id: o.id,
+          orderNumber: o.orderNumber,
+          customerName: o.customerName,
+          customerPhone: o.customerPhone || undefined,
+          tableOrTakeaway: o.tableOrTakeaway,
+          consumptionType: o.consumptionType as any,
+          notes: o.notes || undefined,
+          totalAmount: o.totalAmount,
+          totalCost: o.totalCost,
+          status: o.status as any,
+          paymentMethod: o.paymentMethod as any,
+          stockDeducted: o.stockDeducted,
+          createdAt: o.createdAt.toISOString(),
+          updatedAt: o.updatedAt.toISOString(),
+          startedPreparingAt: o.startedPreparingAt?.toISOString(),
+          readyAt: o.readyAt?.toISOString(),
+          deliveredAt: o.deliveredAt?.toISOString(),
+          items: o.items.map((it) => ({
+            productId: it.productId,
+            productName: it.productName,
+            selectedSize: it.selectedSize || undefined,
+            selectedAddons: it.selectedAddons ? JSON.parse(it.selectedAddons) : undefined,
+            unitPrice: it.unitPrice,
+            costPrice: it.costPrice,
+            quantity: it.quantity,
+            subtotal: it.subtotal,
+            notes: it.notes || undefined,
+          })),
+        }));
+        this.nextOrderNumber = Math.max(2000, ...this.orders.map((o) => o.orderNumber + 1));
+      }
+
+      // Carrega logs de auditoria
+      const dbAuditLogs = await prisma.auditLog.findMany({
+        orderBy: { timestamp: 'desc' },
+        take: 200,
+      });
+      if (dbAuditLogs.length > 0) {
+        this.auditLogs = dbAuditLogs.map((a) => ({
+          id: a.id,
+          timestamp: a.timestamp.toISOString(),
+          userId: a.userId,
+          userName: a.userName,
+          userRole: a.userRole as any,
+          actionType: a.actionType as any,
+          targetEntity: a.targetEntity as any,
+          targetId: a.targetId || undefined,
+          details: a.details,
+          oldValue: a.oldValue ?? undefined,
+          newValue: a.newValue ?? undefined,
+        }));
+      }
+
+      return true;
+    } catch (err) {
+      console.warn('⚠️  Aviso: Não foi possível conectar ao PostgreSQL:', err);
+      return false;
+    }
+  }
+
+  private asyncPersist(operation: () => Promise<void>): void {
+    if (!this.isPostgresConnected) return;
+    operation().catch((err) => {
+      console.warn('⚠️  Erro assíncrono ao persistir no PostgreSQL:', err?.message || err);
+    });
   }
 
   public resetToDefaults(): void {
@@ -106,6 +252,46 @@ class DatabaseStore {
     );
     this.auditLogs.unshift(log);
 
+    this.asyncPersist(async () => {
+      await prisma.product.create({
+        data: {
+          id: newProduct.id,
+          name: newProduct.name,
+          description: newProduct.description,
+          price: newProduct.price,
+          costPrice: newProduct.costPrice,
+          category: newProduct.category,
+          imageUrl: newProduct.imageUrl,
+          cutoutImageUrl: newProduct.cutoutImageUrl,
+          stockQuantity: newProduct.stockQuantity,
+          minStockThreshold: newProduct.minStockThreshold,
+          status: newProduct.status,
+          hasSizes: Boolean(newProduct.hasSizes),
+          hasAddons: Boolean(newProduct.hasAddons),
+          sizes: newProduct.sizes && newProduct.sizes.length > 0 ? {
+            create: newProduct.sizes.map((s) => ({ name: s.name, price: s.price, costPrice: s.costPrice })),
+          } : undefined,
+          addons: newProduct.addons && newProduct.addons.length > 0 ? {
+            create: newProduct.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
+          } : undefined,
+        },
+      });
+      await prisma.auditLog.create({
+        data: {
+          id: log.id,
+          timestamp: new Date(log.timestamp),
+          userId: log.userId,
+          userName: log.userName,
+          userRole: log.userRole,
+          actionType: log.actionType,
+          targetEntity: log.targetEntity,
+          targetId: log.targetId,
+          details: log.details,
+          newValue: log.newValue !== undefined && log.newValue !== null ? String(log.newValue) : null,
+        },
+      });
+    });
+
     return newProduct;
   }
 
@@ -128,6 +314,43 @@ class DatabaseStore {
       this.auditLogs.unshift(log);
     }
 
+    this.asyncPersist(async () => {
+      await prisma.product.update({
+        where: { id: updatedProduct.id },
+        data: {
+          name: updatedProduct.name,
+          description: updatedProduct.description,
+          price: updatedProduct.price,
+          costPrice: updatedProduct.costPrice,
+          category: updatedProduct.category,
+          imageUrl: updatedProduct.imageUrl,
+          cutoutImageUrl: updatedProduct.cutoutImageUrl,
+          stockQuantity: updatedProduct.stockQuantity,
+          minStockThreshold: updatedProduct.minStockThreshold,
+          status: updatedProduct.status,
+          hasSizes: Boolean(updatedProduct.hasSizes),
+          hasAddons: Boolean(updatedProduct.hasAddons),
+        },
+      });
+      for (const log of auditLogs) {
+        await prisma.auditLog.create({
+          data: {
+            id: log.id,
+            timestamp: new Date(log.timestamp),
+            userId: log.userId,
+            userName: log.userName,
+            userRole: log.userRole,
+            actionType: log.actionType,
+            targetEntity: log.targetEntity,
+            targetId: log.targetId,
+            details: log.details,
+            oldValue: log.oldValue !== undefined && log.oldValue !== null ? String(log.oldValue) : null,
+            newValue: log.newValue !== undefined && log.newValue !== null ? String(log.newValue) : null,
+          },
+        });
+      }
+    });
+
     return updatedProduct;
   }
 
@@ -146,6 +369,27 @@ class DatabaseStore {
     this.products[index] = updatedProduct;
 
     this.auditLogs.unshift(auditLog);
+
+    this.asyncPersist(async () => {
+      await prisma.product.update({
+        where: { id: updatedProduct.id },
+        data: { status: 'inativo' },
+      });
+      await prisma.auditLog.create({
+        data: {
+          id: auditLog.id,
+          timestamp: new Date(auditLog.timestamp),
+          userId: auditLog.userId,
+          userName: auditLog.userName,
+          userRole: auditLog.userRole,
+          actionType: auditLog.actionType,
+          targetEntity: auditLog.targetEntity,
+          targetId: auditLog.targetId,
+          details: auditLog.details,
+        },
+      });
+    });
+
     return updatedProduct;
   }
 
@@ -160,6 +404,27 @@ class DatabaseStore {
     this.products[index] = updatedProduct;
 
     this.auditLogs.unshift(auditLog);
+
+    this.asyncPersist(async () => {
+      await prisma.product.update({
+        where: { id: updatedProduct.id },
+        data: { status: 'ativo' },
+      });
+      await prisma.auditLog.create({
+        data: {
+          id: auditLog.id,
+          timestamp: new Date(auditLog.timestamp),
+          userId: auditLog.userId,
+          userName: auditLog.userName,
+          userRole: auditLog.userRole,
+          actionType: auditLog.actionType,
+          targetEntity: auditLog.targetEntity,
+          targetId: auditLog.targetId,
+          details: auditLog.details,
+        },
+      });
+    });
+
     return updatedProduct;
   }
 
@@ -187,6 +452,28 @@ class DatabaseStore {
       newStock
     );
     this.auditLogs.unshift(auditLog);
+
+    this.asyncPersist(async () => {
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { stockQuantity: product.stockQuantity },
+      });
+      await prisma.auditLog.create({
+        data: {
+          id: auditLog.id,
+          timestamp: new Date(auditLog.timestamp),
+          userId: auditLog.userId,
+          userName: auditLog.userName,
+          userRole: auditLog.userRole,
+          actionType: auditLog.actionType,
+          targetEntity: auditLog.targetEntity,
+          targetId: auditLog.targetId,
+          details: auditLog.details,
+          oldValue: String(oldStock),
+          newValue: String(newStock),
+        },
+      });
+    });
 
     return { ...product };
   }
@@ -228,6 +515,28 @@ class DatabaseStore {
     );
     this.auditLogs.unshift(auditLog);
 
+    this.asyncPersist(async () => {
+      await prisma.ingredient.update({
+        where: { id: ingredient.id },
+        data: { currentStock: ingredient.currentStock },
+      });
+      await prisma.auditLog.create({
+        data: {
+          id: auditLog.id,
+          timestamp: new Date(auditLog.timestamp),
+          userId: auditLog.userId,
+          userName: auditLog.userName,
+          userRole: auditLog.userRole,
+          actionType: auditLog.actionType,
+          targetEntity: auditLog.targetEntity,
+          targetId: auditLog.targetId,
+          details: auditLog.details,
+          oldValue: String(oldStock),
+          newValue: String(newStock),
+        },
+      });
+    });
+
     return { ...ingredient };
   }
 
@@ -265,6 +574,37 @@ class DatabaseStore {
       newIngredient.currentStock
     );
     this.auditLogs.unshift(auditLog);
+
+    this.asyncPersist(async () => {
+      await prisma.ingredient.create({
+        data: {
+          id: newIngredient.id,
+          name: newIngredient.name,
+          category: newIngredient.category,
+          unit: newIngredient.unit,
+          currentStock: newIngredient.currentStock,
+          minStockThreshold: newIngredient.minStockThreshold,
+          costPerUnit: newIngredient.costPerUnit,
+          supplier: newIngredient.supplier,
+          isAddonIngredient: newIngredient.isAddonIngredient,
+          updatedAt: new Date(newIngredient.updatedAt),
+        },
+      });
+      await prisma.auditLog.create({
+        data: {
+          id: auditLog.id,
+          timestamp: new Date(auditLog.timestamp),
+          userId: auditLog.userId,
+          userName: auditLog.userName,
+          userRole: auditLog.userRole,
+          actionType: auditLog.actionType,
+          targetEntity: auditLog.targetEntity,
+          targetId: auditLog.targetId,
+          details: auditLog.details,
+          newValue: String(newIngredient.currentStock),
+        },
+      });
+    });
 
     return { ...newIngredient };
   }
@@ -417,6 +757,60 @@ class DatabaseStore {
       this.auditLogs.unshift(log);
     }
 
+    this.asyncPersist(async () => {
+      await prisma.order.create({
+        data: {
+          id: updatedOrder.id,
+          orderNumber: updatedOrder.orderNumber,
+          customerName: updatedOrder.customerName,
+          customerPhone: updatedOrder.customerPhone,
+          tableOrTakeaway: updatedOrder.tableOrTakeaway,
+          consumptionType: updatedOrder.consumptionType || 'MESA',
+          notes: updatedOrder.notes,
+          totalAmount: updatedOrder.totalAmount,
+          totalCost: updatedOrder.totalCost,
+          status: updatedOrder.status,
+          paymentMethod: updatedOrder.paymentMethod,
+          stockDeducted: updatedOrder.stockDeducted,
+          createdAt: new Date(updatedOrder.createdAt),
+          updatedAt: new Date(updatedOrder.updatedAt),
+          items: {
+            create: updatedOrder.items.map((it) => ({
+              productId: it.productId,
+              productName: it.productName,
+              selectedSize: it.selectedSize,
+              selectedAddons: it.selectedAddons ? JSON.stringify(it.selectedAddons) : null,
+              unitPrice: it.unitPrice,
+              costPrice: it.costPrice,
+              quantity: it.quantity,
+              subtotal: it.subtotal,
+              notes: it.notes,
+            })),
+          },
+        },
+      });
+      for (const p of updatedProducts) {
+        await prisma.product.update({
+          where: { id: p.id },
+          data: { stockQuantity: p.stockQuantity },
+        });
+      }
+      await prisma.auditLog.create({
+        data: {
+          id: orderLog.id,
+          timestamp: new Date(orderLog.timestamp),
+          userId: orderLog.userId,
+          userName: orderLog.userName,
+          userRole: orderLog.userRole,
+          actionType: orderLog.actionType,
+          targetEntity: orderLog.targetEntity,
+          targetId: orderLog.targetId,
+          details: orderLog.details,
+          newValue: String(orderLog.newValue),
+        },
+      });
+    });
+
     return updatedOrder;
   }
 
@@ -449,6 +843,33 @@ class DatabaseStore {
       newStatus
     );
     this.auditLogs.unshift(log);
+
+    this.asyncPersist(async () => {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          status: order.status,
+          startedPreparingAt: order.startedPreparingAt ? new Date(order.startedPreparingAt) : undefined,
+          readyAt: order.readyAt ? new Date(order.readyAt) : undefined,
+          deliveredAt: order.deliveredAt ? new Date(order.deliveredAt) : undefined,
+        },
+      });
+      await prisma.auditLog.create({
+        data: {
+          id: log.id,
+          timestamp: new Date(log.timestamp),
+          userId: log.userId,
+          userName: log.userName,
+          userRole: log.userRole,
+          actionType: log.actionType,
+          targetEntity: log.targetEntity,
+          targetId: log.targetId,
+          details: log.details,
+          oldValue: log.oldValue !== undefined && log.oldValue !== null ? String(log.oldValue) : null,
+          newValue: log.newValue !== undefined && log.newValue !== null ? String(log.newValue) : null,
+        },
+      });
+    });
 
     return { ...order };
   }
