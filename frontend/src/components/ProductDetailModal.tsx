@@ -44,7 +44,7 @@ interface ProductDetailModalProps {
 }
 
 // Adicionais padrão de acordo com a categoria
-const COFFEE_ADDONS: ProductAddonOption[] = [
+export const COFFEE_ADDONS: ProductAddonOption[] = [
   { id: 'chantilly', name: 'Chantilly Artesanal', price: 3.0 },
   { id: 'caramelo', name: 'Calda de Caramelo Salgado', price: 2.5 },
   { id: 'shot_extra', name: 'Shot Extra de Espresso', price: 4.0 },
@@ -53,13 +53,36 @@ const COFFEE_ADDONS: ProductAddonOption[] = [
   { id: 'chocolate', name: 'Gotas de Chocolate Belga', price: 3.0 },
 ];
 
-const FOOD_ADDONS: ProductAddonOption[] = [
+export const FOOD_ADDONS: ProductAddonOption[] = [
   { id: 'aquecer', name: 'Aquecer no Forno / Tostado', price: 0.0 },
   { id: 'geleia', name: 'Geléia Artesanal de Frutas', price: 3.5 },
   { id: 'requeijao', name: 'Requeijão Cremoso Extra', price: 3.5 },
   { id: 'parmesao', name: 'Parmesão Ralado Maçaricado', price: 4.0 },
   { id: 'brigadeiro', name: 'Cobertura Extra de Brigadeiro', price: 4.0 },
 ];
+
+export const getProductAvailableAddons = (product: Product | null): ProductAddonOption[] => {
+  if (!product) return [];
+  if (product.hasAddons && product.addons && product.addons.length > 0) {
+    return product.addons.map((a) => ({
+      id: a.id || (a.name || '').toLowerCase().replace(/\s+/g, '_'),
+      name: a.name || 'Adicional',
+      price: Number(a.price) || 0,
+    }));
+  }
+
+  const category = product.category || '';
+  const name = product.name?.toLowerCase() || '';
+  const isBeverage =
+    category === 'Cafés Especiais' ||
+    category === 'Bebidas Geladas' ||
+    name.includes('café') ||
+    name.includes('cappuccino') ||
+    name.includes('latte') ||
+    name.includes('chá');
+
+  return isBeverage ? COFFEE_ADDONS : FOOD_ADDONS;
+};
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   isOpen,
@@ -138,28 +161,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   // Determina adicionais disponíveis (definido no topo para respeitar as regras dos Hooks do React)
   const availableAddons: ProductAddonOption[] = useMemo(() => {
-    if (!product) return [];
-
-    // Se o produto possuir adicionais específicos cadastrados pelo administrador
-    if (product.hasAddons && product.addons && product.addons.length > 0) {
-      return product.addons.map((a) => ({
-        id: a.id || (a.name || '').toLowerCase().replace(/\s+/g, '_'),
-        name: a.name || 'Adicional',
-        price: Number(a.price) || 0,
-      }));
-    }
-
-    // Caso contrário, oferece os adicionais pré-configurados inteligentes para a categoria
-    const category = product.category || '';
-    const name = product.name?.toLowerCase() || '';
-    const isBeverage =
-      category === 'Cafés Especiais' ||
-      category === 'Bebidas Geladas' ||
-      name.includes('café') ||
-      name.includes('latte') ||
-      name.includes('cappuccino');
-
-    return isBeverage ? COFFEE_ADDONS : FOOD_ADDONS;
+    return getProductAvailableAddons(product);
   }, [product]);
 
   // Redefine estados quando o produto mudar

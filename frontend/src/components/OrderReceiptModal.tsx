@@ -431,14 +431,26 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
                   </div>
 
                   {order.items.map((item, index) => (
-                    <div key={index} className="flex justify-between items-baseline text-xs leading-snug">
-                      <div className="flex-1 pr-2 truncate">
-                        <span className="font-bold text-[#2B1810] mr-1">{item.quantity}x</span>
-                        <span className="text-[#3A2E28] font-medium">{item.productName}</span>
+                    <div key={index} className="flex flex-col text-xs leading-snug py-0.5">
+                      <div className="flex justify-between items-baseline">
+                        <div className="flex-1 pr-2 truncate">
+                          <span className="font-bold text-[#2B1810] mr-1">{item.quantity}x</span>
+                          <span className="text-[#3A2E28] font-medium">{item.productName}</span>
+                        </div>
+                        <span className="font-bold text-[#2B1810] whitespace-nowrap">
+                          {formatCurrencyBRL(item.subtotal || item.unitPrice * item.quantity)}
+                        </span>
                       </div>
-                      <span className="font-bold text-[#2B1810] whitespace-nowrap">
-                        {formatCurrencyBRL(item.subtotal || item.unitPrice * item.quantity)}
-                      </span>
+                      {item.selectedAddons && item.selectedAddons.length > 0 && (
+                        <div className="text-[10px] text-stone-500 pl-4">
+                          + {item.selectedAddons.join(', ')}
+                        </div>
+                      )}
+                      {item.notes && (
+                        <div className="text-[10px] text-[#820b28] font-semibold pl-4">
+                          Obs: {item.notes}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
