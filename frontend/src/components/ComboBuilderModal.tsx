@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   X,
-  Package,
   Plus,
   Minus,
   Sparkles,
@@ -391,22 +390,17 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-stone-950/75 backdrop-blur-xs overflow-y-auto font-sans">
       <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-stone-200 overflow-hidden animate-in fade-in zoom-in-95 my-auto max-h-[92vh] flex flex-col">
         {/* Cabeçalho do Modal */}
-        <div className="px-6 py-4 bg-gradient-to-r from-[#820b28] to-[#924529] text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
-              <Package className="w-5 h-5 text-amber-200" />
-            </div>
-            <div>
-              <h2
-                className="text-lg font-normal tracking-tight text-white leading-tight"
-                style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
-              >
-                {comboToEdit ? 'Editar Combo Promocional' : 'Criador de Combos Gourmet'}
-              </h2>
-              <p className="text-[11px] text-amber-100/80">
-                Selecione produtos individuais, defina descontos e monte ofertas exclusivas.
-              </p>
-            </div>
+        <div className="px-6 py-4 bg-[#820b28] text-white flex items-center justify-between shrink-0">
+          <div>
+            <h2
+              className="text-lg font-normal tracking-tight text-white leading-tight"
+              style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+            >
+              {comboToEdit ? 'Editar Combo Promocional' : 'Criador de Combos Gourmet'}
+            </h2>
+            <p className="text-[11px] text-white/80">
+              Selecione produtos individuais, defina descontos e monte ofertas exclusivas.
+            </p>
           </div>
           <button
             onClick={onClose}
