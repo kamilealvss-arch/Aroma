@@ -90,46 +90,60 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sincroniza formulário ao abrir ou alterar comboToEdit
+  const prevIsOpenRef = useRef(false);
+  const prevComboIdRef = useRef<string | undefined>(undefined);
+
+  // Sincroniza formulário ao abrir ou alterar comboToEdit (sem resetar por polling de produtos)
   useEffect(() => {
-    if (!isOpen) return;
-
-    if (comboToEdit) {
-      setName(comboToEdit.name || '');
-      setDescription(comboToEdit.description || '');
-      setCustomPrice(comboToEdit.price ? comboToEdit.price.toFixed(2) : '');
-      setIsManualPrice(false);
-      setDiscountPercent(comboToEdit.discountPercentage ?? 15);
-
-      const initialQtys: { [productId: string]: number } = {};
-      comboToEdit.comboItems?.forEach((ci) => {
-        initialQtys[ci.productId] = ci.quantity;
-      });
-      setItemQuantities(initialQtys);
-
-      const matchingItem = comboToEdit.comboItems?.find(
-        (ci) => products.find((p) => p.id === ci.productId)?.imageUrl === comboToEdit.imageUrl
-      );
-
-      if (matchingItem) {
-        setSelectedProductImageId(matchingItem.productId);
-        setCustomUploadedImageUrl(null);
-      } else {
-        setCustomUploadedImageUrl(comboToEdit.imageUrl || null);
-        setSelectedProductImageId(null);
-      }
-    } else {
-      setName('');
-      setDescription('');
-      setCustomPrice('');
-      setIsManualPrice(false);
-      setDiscountPercent(15);
-      setItemQuantities({});
-      setCustomUploadedImageUrl(null);
-      setSelectedProductImageId(null);
-      setError(null);
+    if (!isOpen) {
+      prevIsOpenRef.current = false;
+      return;
     }
-  }, [isOpen, comboToEdit, products]);
+
+    const wasClosed = !prevIsOpenRef.current;
+    const comboIdChanged = prevComboIdRef.current !== comboToEdit?.id;
+
+    if (wasClosed || comboIdChanged) {
+      prevIsOpenRef.current = true;
+      prevComboIdRef.current = comboToEdit?.id;
+
+      if (comboToEdit) {
+        setName(comboToEdit.name || '');
+        setDescription(comboToEdit.description || '');
+        setCustomPrice(comboToEdit.price ? comboToEdit.price.toFixed(2) : '');
+        setIsManualPrice(false);
+        setDiscountPercent(comboToEdit.discountPercentage ?? 15);
+
+        const initialQtys: { [productId: string]: number } = {};
+        comboToEdit.comboItems?.forEach((ci) => {
+          initialQtys[ci.productId] = ci.quantity;
+        });
+        setItemQuantities(initialQtys);
+
+        const matchingItem = comboToEdit.comboItems?.find(
+          (ci) => products.find((p) => p.id === ci.productId)?.imageUrl === comboToEdit.imageUrl
+        );
+
+        if (matchingItem) {
+          setSelectedProductImageId(matchingItem.productId);
+          setCustomUploadedImageUrl(null);
+        } else {
+          setCustomUploadedImageUrl(comboToEdit.imageUrl || null);
+          setSelectedProductImageId(null);
+        }
+      } else {
+        setName('');
+        setDescription('');
+        setCustomPrice('');
+        setIsManualPrice(false);
+        setDiscountPercent(15);
+        setItemQuantities({});
+        setCustomUploadedImageUrl(null);
+        setSelectedProductImageId(null);
+        setError(null);
+      }
+    }
+  }, [isOpen, comboToEdit?.id]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -433,83 +447,128 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
                 </div>
               </div>
 
+              {/* Itens Atualmente no Combo (Resumo Rápido) */}
+              {selectedItemsList.length > 0 && (
+                <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-2.5 flex items-center gap-2 overflow-x-auto scrollbar-none shadow-2xs">
+                  <span className="text-[11px] font-bold text-[#820b28] uppercase shrink-0 pl-1">
+                    No Combo ({selectedItemsList.reduce((acc, i) => acc + i.quantity, 0)}):
+                  </span>
+                  {selectedItemsList.map((item) => (
+                    <div
+                      key={item.productId}
+                      className="bg-white border border-amber-300/80 rounded-xl px-2.5 py-1 text-xs font-bold text-stone-800 flex items-center gap-1.5 shrink-0 shadow-2xs"
+                    >
+                      <span className="truncate max-w-[120px]">{item.product?.name}</span>
+                      <span className="bg-[#820b28] text-white text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">
+                        {item.quantity}x
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSetQuantity(item.productId, -item.quantity)}
+                        className="text-stone-400 hover:text-rose-600 transition p-0.5 cursor-pointer"
+                        title="Remover do combo"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Lista Scrollável de Produtos Disponíveis */}
               <div className="space-y-2.5 max-h-[calc(100vh-310px)] overflow-y-auto pr-1.5">
-                {filteredAvailable.map((product) => {
-                  const qty = itemQuantities[product.id] || 0;
-                  const isSelected = qty > 0;
+                {filteredAvailable.length === 0 ? (
+                  <div className="p-8 text-center bg-white rounded-2xl border border-stone-200 text-stone-500 text-xs">
+                    Nenhum produto encontrado nesta categoria.
+                  </div>
+                ) : (
+                  filteredAvailable.map((product) => {
+                    const qty = itemQuantities[product.id] || 0;
+                    const isSelected = qty > 0;
 
-                  return (
-                    <div
-                      key={product.id}
-                      className={`p-3 rounded-2xl border transition-all duration-150 flex items-center justify-between gap-3 ${
-                        isSelected
-                          ? 'bg-amber-50/70 border-amber-300 shadow-2xs'
-                          : 'bg-white border-stone-200 hover:border-stone-300'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3 min-w-0">
-                        <div className="w-12 h-12 rounded-xl bg-stone-100 shrink-0 overflow-hidden flex items-center justify-center border border-stone-200/80 p-0.5">
-                          <GourmetCutoutImage
-                            src={product.cutoutImageUrl || product.imageUrl}
-                            alt={product.name}
-                            className="w-full h-full object-contain"
-                          />
+                    return (
+                      <div
+                        key={product.id}
+                        onClick={() => handleSetQuantity(product.id, 1)}
+                        className={`p-3 rounded-2xl border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer select-none ${
+                          isSelected
+                            ? 'bg-amber-50/70 border-amber-300 shadow-2xs'
+                            : 'bg-white border-stone-200 hover:border-[#820b28]/40 hover:bg-stone-50/60'
+                        }`}
+                        title="Clique para adicionar ao combo"
+                      >
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <div className="w-12 h-12 rounded-xl bg-stone-100 shrink-0 overflow-hidden flex items-center justify-center border border-stone-200/80 p-0.5">
+                            <GourmetCutoutImage
+                              src={product.cutoutImageUrl || product.imageUrl}
+                              alt={product.name}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 truncate">
+                              {product.category}
+                            </div>
+                            <div className="text-xs font-bold text-stone-900 truncate">
+                              {product.name}
+                            </div>
+                            <div className="flex items-center space-x-2 text-[11px] text-stone-500">
+                              <span className="font-extrabold text-stone-900">
+                                {formatCurrencyBRL(product.price)}
+                              </span>
+                              <span>•</span>
+                              <span>Estoque: {product.stockQuantity} un.</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 truncate">
-                            {product.category}
-                          </div>
-                          <div className="text-xs font-bold text-stone-900 truncate">
-                            {product.name}
-                          </div>
-                          <div className="flex items-center space-x-2 text-[11px] text-stone-500">
-                            <span className="font-extrabold text-stone-900">
-                              {formatCurrencyBRL(product.price)}
-                            </span>
-                            <span>•</span>
-                            <span>Estoque: {product.stockQuantity} un.</span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Controle de Quantidade */}
-                      <div className="flex items-center space-x-1.5 shrink-0">
-                        {qty > 0 && (
+                        {/* Controle de Quantidade */}
+                        <div
+                          className="flex items-center space-x-1.5 shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {qty > 0 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSetQuantity(product.id, -1);
+                              }}
+                              className="w-7 h-7 rounded-full bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 flex items-center justify-center transition shadow-2xs cursor-pointer"
+                              title="Diminuir"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          <span
+                            className={`w-7 text-center text-xs font-extrabold ${
+                              qty > 0 ? 'text-[#820b28]' : 'text-stone-400'
+                            }`}
+                          >
+                            {qty}
+                          </span>
+
                           <button
                             type="button"
-                            onClick={() => handleSetQuantity(product.id, -1)}
-                            className="w-7 h-7 rounded-full bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 flex items-center justify-center transition shadow-2xs cursor-pointer"
-                            title="Diminuir"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSetQuantity(product.id, 1);
+                            }}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition shadow-2xs cursor-pointer ${
+                              qty > 0
+                                ? 'bg-[#820b28] text-white hover:bg-[#631a09]'
+                                : 'bg-stone-900 text-white hover:bg-[#820b28]'
+                            }`}
+                            title="Adicionar ao combo"
                           >
-                            <Minus className="w-3.5 h-3.5" />
+                            <Plus className="w-3.5 h-3.5" />
                           </button>
-                        )}
-
-                        <span
-                          className={`w-7 text-center text-xs font-extrabold ${
-                            qty > 0 ? 'text-[#820b28]' : 'text-stone-400'
-                          }`}
-                        >
-                          {qty}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => handleSetQuantity(product.id, 1)}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition shadow-2xs cursor-pointer ${
-                            qty > 0
-                              ? 'bg-[#820b28] text-white hover:bg-[#631a09]'
-                              : 'bg-stone-900 text-white hover:bg-[#820b28]'
-                          }`}
-                          title="Adicionar ao combo"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
 
