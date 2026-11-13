@@ -131,6 +131,17 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
     }
   }, [isOpen, comboToEdit, products]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Lista dos itens selecionados com dados completos
   const selectedItemsList = useMemo(() => {
     return Object.entries(itemQuantities)
@@ -327,39 +338,45 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-stone-950/75 backdrop-blur-xs overflow-y-auto font-sans">
-      <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-stone-200 overflow-hidden animate-in fade-in zoom-in-95 my-auto max-h-[92vh] flex flex-col">
-        {/* Cabeçalho do Modal */}
-        <div className="px-6 py-4 bg-[#820b28] text-white flex items-center justify-between shrink-0">
-          <div>
-            <h2
-              className="text-lg font-normal tracking-tight text-white leading-tight"
-              style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
-            >
-              {comboToEdit ? 'Editar Combo Promocional' : 'Criador de Combos Gourmet'}
-            </h2>
-            <p className="text-[11px] text-white/80">
-              Selecione produtos individuais, defina descontos e monte ofertas exclusivas.
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-white/70 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex flex-col bg-[#fcfbf9] text-[#35312F] font-sans overflow-hidden animate-in fade-in duration-150"
+    >
+      {/* Cabeçalho do Modal em Largura Total da Janela */}
+      <div className="w-full px-6 sm:px-10 py-4 bg-[#820b28] text-white flex items-center justify-between shrink-0 shadow-md">
+        <div>
+          <h2
+            className="text-xl sm:text-2xl font-normal tracking-tight text-white leading-tight"
+            style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
           >
-            <X className="w-5 h-5" />
-          </button>
+            {comboToEdit ? 'Editar Combo Promocional' : 'Criador de Combos Gourmet'}
+          </h2>
+          <p className="text-xs text-white/80 mt-0.5">
+            Selecione produtos individuais, defina descontos e monte ofertas exclusivas.
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-10 h-10 rounded-full text-white/80 hover:text-white hover:bg-white/15 flex items-center justify-center transition cursor-pointer"
+          title="Fechar tela inteira (ESC)"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      </div>
 
-        {error && (
-          <div className="mx-6 mt-3 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs flex items-center space-x-2 shrink-0">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
+      {error && (
+        <div className="mx-6 sm:mx-10 mt-3 p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs flex items-center space-x-2 shrink-0">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
-        {/* Corpo do Criador de Combos com Duas Colunas */}
-        <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Corpo do Criador de Combos em Tela Inteira */}
+      <form onSubmit={handleSave} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-6">
+          <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* ========================================================
                 COLUNA ESQUERDA (7 colunas): Seleção de Produtos do Cardápio
                ======================================================== */}
@@ -383,18 +400,18 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Buscar produto por nome..."
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#820b28] focus:outline-none"
+                    className="w-full pl-9 pr-3 py-2 text-xs border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#820b28] focus:outline-none bg-white shadow-2xs"
                   />
                 </div>
 
-                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none pb-1">
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
                   <button
                     type="button"
                     onClick={() => setSelectedCategoryFilter('ALL')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition shrink-0 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
                       selectedCategoryFilter === 'ALL'
-                        ? 'bg-[#820b28] text-white shadow-2xs'
-                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        ? 'bg-[#820b28] text-white shadow-xs'
+                        : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-100'
                     }`}
                   >
                     Todos
@@ -404,10 +421,10 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
                       key={cat}
                       type="button"
                       onClick={() => setSelectedCategoryFilter(cat)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition shrink-0 cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
                         selectedCategoryFilter === cat
-                          ? 'bg-[#820b28] text-white shadow-2xs'
-                          : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                          ? 'bg-[#820b28] text-white shadow-xs'
+                          : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-100'
                       }`}
                     >
                       {cat}
@@ -417,7 +434,7 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
               </div>
 
               {/* Lista Scrollável de Produtos Disponíveis */}
-              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+              <div className="space-y-2.5 max-h-[calc(100vh-310px)] overflow-y-auto pr-1.5">
                 {filteredAvailable.map((product) => {
                   const qty = itemQuantities[product.id] || 0;
                   const isSelected = qty > 0;
@@ -499,13 +516,13 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
             {/* ========================================================
                 COLUNA DIREITA (5 colunas): Cálculos, Desconto & Configuração
                ======================================================== */}
-            <div className="lg:col-span-5 space-y-4 bg-stone-50/80 p-5 rounded-3xl border border-stone-200/90">
+            <div className="lg:col-span-5 space-y-4 bg-white p-6 rounded-3xl border border-stone-200 shadow-xs">
               <h3 className="text-xs font-bold uppercase tracking-wider text-stone-700">
                 2. Precificação & Inteligência
               </h3>
 
               {/* Card de Resumo de Preços */}
-              <div className="bg-white p-4 rounded-2xl border border-stone-200 space-y-3 shadow-2xs">
+              <div className="bg-stone-50/70 p-4 rounded-2xl border border-stone-200/80 space-y-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-stone-500">Soma dos Itens Avulsos:</span>
                   <span className="font-bold text-stone-800 line-through">
@@ -770,43 +787,50 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Rodapé do Modal com Ações */}
-          <div className="pt-4 border-t border-stone-200 flex items-center justify-between">
+        {/* Rodapé Fixo no final da janela */}
+        <div className="w-full bg-white border-t border-stone-200/90 px-6 sm:px-10 py-4 flex items-center justify-between shrink-0 shadow-lg z-10">
+          <div className="flex items-center space-x-4">
             <div>
               <span className="text-[11px] text-stone-400 block font-medium">Preço Final do Combo</span>
-              <span className="text-2xl font-black text-stone-900">
+              <span className="text-2xl sm:text-3xl font-black text-stone-900">
                 {formatCurrencyBRL(calculatedPrice)}
               </span>
             </div>
-
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 rounded-full text-xs font-bold text-stone-600 hover:bg-stone-100 transition cursor-pointer"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="submit"
-                disabled={isSubmitting || selectedItemsList.length === 0}
-                className="px-6 py-2.5 bg-[#820b28] hover:bg-[#631a09] text-white rounded-full text-xs font-bold shadow-md transition flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
-              >
-                {isSubmitting ? (
-                  <span>Salvando Combo...</span>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Salvar Combo no Cardápio</span>
-                  </>
-                )}
-              </button>
-            </div>
+            {effectiveDiscountPercent > 0 && (
+              <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-rose-100 text-[#820b28]">
+                {Math.round(effectiveDiscountPercent)}% OFF
+              </span>
+            )}
           </div>
-        </form>
-      </div>
+
+          <div className="flex items-center space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-full text-xs font-bold text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSubmitting || selectedItemsList.length === 0}
+              className="px-7 py-2.5 bg-[#820b28] hover:bg-[#631a09] text-white rounded-full text-xs font-bold shadow-md transition flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
+            >
+              {isSubmitting ? (
+                <span>Salvando Combo...</span>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Salvar Combo no Cardápio</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   );
 };
