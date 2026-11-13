@@ -66,9 +66,9 @@ const computeItemUnitPrice = (
         name.includes('chá');
 
       if (isBeverage) {
-        if (selectedSize === 'Small') basePrice = Number((basePrice * 0.85).toFixed(2));
-        else if (selectedSize === 'Medium') basePrice = basePrice;
-        else if (selectedSize === 'Large') basePrice = Number((basePrice * 1.35).toFixed(2));
+        if (selectedSize === 'Small' || selectedSize === 'Pequeno') basePrice = Number((basePrice * 0.85).toFixed(2));
+        else if (selectedSize === 'Medium' || selectedSize === 'Médio') basePrice = basePrice;
+        else if (selectedSize === 'Large' || selectedSize === 'Grande') basePrice = Number((basePrice * 1.35).toFixed(2));
       } else {
         if (selectedSize === 'Combo Duplo') basePrice = Number((basePrice * 1.85).toFixed(2));
       }
