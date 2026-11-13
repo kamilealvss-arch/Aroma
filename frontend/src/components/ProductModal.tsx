@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   X,
   Upload,
@@ -52,6 +52,69 @@ export const DEFAULT_CATEGORIES: ProductCategory[] = [
   'Combos & Brunch',
 ];
 
+export const DEFAULT_SUBCATEGORIES: Record<string, string[]> = {
+  'Cafés Especiais': [
+    'Espressos & Puros',
+    'Com Leite Vaporizado',
+    'Filtrados Especiais',
+    'Cold Brews & Gelados',
+  ],
+  'Bebidas Geladas': [
+    'Sucos Naturais',
+    'Frappés & Shakes',
+    'Chás & Infusões Geladas',
+    'Sodas Italianas',
+  ],
+  'Doces & Bolos': [
+    'Fatias de Bolo',
+    'Tortas & Cheesecakes',
+    'Docinhos & Brigadeiros',
+    'Cookies & Waffles',
+  ],
+  'Salgados Artesanais': [
+    'Pães de Queijo Tradicionais',
+    'Folhados & Croissants',
+    'Quiches & Empadas',
+    'Sanduíches & Toasts',
+  ],
+  'Combos & Brunch': [
+    'Brunch & Matinal',
+    'Combos da Tarde',
+    'Café da Manhã Duplo',
+  ],
+};
+
+const CUSTOM_SUBCATEGORIES_KEY = 'aroma_custom_subcategories_v1';
+
+export function getStoredCustomSubcategories(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(CUSTOM_SUBCATEGORIES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveStoredCustomSubcategory(category: string, newSubcategory: string) {
+  try {
+    const current = getStoredCustomSubcategories();
+    const list = current[category] || [];
+    if (!list.includes(newSubcategory)) {
+      current[category] = [...list, newSubcategory];
+      localStorage.setItem(CUSTOM_SUBCATEGORIES_KEY, JSON.stringify(current));
+    }
+  } catch {}
+}
+
+export function getAllSubcategoriesForCategory(category: string, products: Product[] = []): string[] {
+  const defaults = DEFAULT_SUBCATEGORIES[category] || [];
+  const customs = getStoredCustomSubcategories()[category] || [];
+  const fromProds = products
+    .filter((p) => p.category === category && p.subcategory)
+    .map((p) => p.subcategory as string);
+  return Array.from(new Set([...defaults, ...customs, ...fromProds]));
+}
+
 export const PRESET_ADDON_SUGGESTIONS: Array<{ name: string; price: number }> = [
   { name: 'Chantilly Artesanal', price: 3.0 },
   { name: 'Calda de Caramelo Salgado', price: 2.5 },
@@ -102,6 +165,27 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   // Estado para criação de nova categoria diretamente no modal
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Estado para seleção e criação de subcategoria dentro da categoria selecionada
+  const [subcategory, setSubcategory] = useState<string>('');
+  const [isCreatingSubcategory, setIsCreatingSubcategory] = useState(false);
+  const [newSubcategoryName, setNewSubcategoryName] = useState('');
+
+  const availableSubcategories = useMemo(() => {
+    const customMap = getStoredCustomSubcategories();
+    const defaults = DEFAULT_SUBCATEGORIES[category] || [];
+    const customs = customMap[category] || [];
+    return Array.from(new Set([...defaults, ...customs, ...(subcategory ? [subcategory] : [])]));
+  }, [category, subcategory]);
+
+  const handleConfirmNewSubcategory = () => {
+    const trimmed = newSubcategoryName.trim();
+    if (!trimmed) return;
+    saveStoredCustomSubcategory(category, trimmed);
+    setSubcategory(trimmed);
+    setNewSubcategoryName('');
+    setIsCreatingSubcategory(false);
+  };
 
   // ================= ESTADO DE OPÇÃO DE TAMANHOS (CAFÉS & BEBIDAS) =================
   const [hasSizes, setHasSizes] = useState<boolean>(false);
@@ -210,6 +294,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setPrice(productToEdit.price.toString());
       setCostPrice(productToEdit.costPrice.toString());
       setCategory(productToEdit.category);
+      setSubcategory(productToEdit.subcategory || '');
       setStockQuantity(productToEdit.stockQuantity.toString());
       setMinStockThreshold(productToEdit.minStockThreshold.toString());
       setImageUrl(initialImg);
@@ -231,6 +316,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setPrice('12.00');
       setCostPrice('4.00');
       setCategory(categories[0] || 'Cafés Especiais');
+      setSubcategory('');
       setStockQuantity('50');
       setMinStockThreshold('5');
       setImageUrl(initialImg);
@@ -912,6 +998,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         price: hasSizes && cleanedSizes && cleanedSizes.length > 0 ? cleanedSizes[0].price : numPrice,
         costPrice: isNaN(numCost) ? numPrice * 0.4 : numCost,
         category: finalCategory,
+        subcategory: subcategory.trim() || undefined,
         stockQuantity: isNaN(numStock) ? 0 : numStock,
         minStockThreshold: isNaN(numMin) ? 5 : numMin,
         imageUrl: originalImageUrl || imageUrl,
@@ -1013,8 +1100,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
         <div className="bg-white rounded-3xl border border-stone-200/90 shadow-xl p-6 sm:p-8 space-y-5">
           <form id="product-form" onSubmit={handleSubmit} className="space-y-4">
-          {/* Nome & Categoria (com opção de criar nova categoria) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {/* Nome, Categoria & Subcategoria */}
+          <div className="space-y-3.5">
             <div>
               <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider mb-1">
                 Nome do Produto *
@@ -1029,82 +1116,172 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               />
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider">
-                  Categoria *
-                </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* 1. Categoria Principal */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider">
+                    Categoria *
+                  </label>
+                  {!isCreatingCategory ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingCategory(true)}
+                      className="inline-flex items-center space-x-1 text-[11px] font-semibold text-[#850D2C] hover:text-[#6e0a24] transition cursor-pointer"
+                      title="Criar uma nova categoria de cardápio"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Nova categoria</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreatingCategory(false);
+                        setNewCategoryName('');
+                      }}
+                      className="text-[11px] font-medium text-stone-400 hover:text-stone-600 transition cursor-pointer"
+                    >
+                      Selecionar existente
+                    </button>
+                  )}
+                </div>
+
                 {!isCreatingCategory ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsCreatingCategory(true)}
-                    className="inline-flex items-center space-x-1 text-[11px] font-semibold text-[#850D2C] hover:text-[#6e0a24] transition cursor-pointer"
-                    title="Criar uma nova categoria de cardápio"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>Nova categoria</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCreatingCategory(false);
-                      setNewCategoryName('');
+                  <select
+                    value={category}
+                    onChange={(e) => {
+                      if (e.target.value === '__NEW__') {
+                        setIsCreatingCategory(true);
+                      } else {
+                        setCategory(e.target.value as ProductCategory);
+                        setSubcategory('');
+                      }
                     }}
-                    className="text-[11px] font-medium text-stone-400 hover:text-stone-600 transition cursor-pointer"
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] font-medium focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition cursor-pointer"
                   >
-                    Selecionar existente
-                  </button>
+                    {allCategories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="__NEW__">+ Criar nova categoria...</option>
+                  </select>
+                ) : (
+                  <div className="flex items-center space-x-1.5">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleConfirmNewCategory();
+                        }
+                      }}
+                      placeholder="Ex: Chás & Infusões"
+                      className="flex-1 px-3 py-2.5 text-xs border border-[#850D2C] rounded-xl bg-white text-[#35312F] placeholder-stone-400 focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition font-medium"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleConfirmNewCategory}
+                      disabled={!newCategoryName.trim()}
+                      className="h-9 px-3 rounded-xl bg-[#850D2C] hover:bg-[#6e0a24] disabled:opacity-40 text-white text-xs font-semibold inline-flex items-center space-x-1 transition cursor-pointer shrink-0"
+                      title="Adicionar categoria"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Criar</span>
+                    </button>
+                  </div>
                 )}
               </div>
 
-              {!isCreatingCategory ? (
-                <select
-                  value={category}
-                  onChange={(e) => {
-                    if (e.target.value === '__NEW__') {
-                      setIsCreatingCategory(true);
-                    } else {
-                      setCategory(e.target.value as ProductCategory);
-                    }
-                  }}
-                  className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] font-medium focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition cursor-pointer"
-                >
-                  {allCategories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                  <option value="__NEW__">+ Criar nova categoria...</option>
-                </select>
-              ) : (
-                <div className="flex items-center space-x-1.5">
-                  <input
-                    type="text"
-                    autoFocus
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleConfirmNewCategory();
+              {/* 2. Subcategoria dentro da categoria selecionada */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-[#35312F] uppercase tracking-wider truncate">
+                    Subcategoria ({category})
+                  </label>
+                  {!isCreatingSubcategory ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingSubcategory(true)}
+                      className="inline-flex items-center space-x-1 text-[11px] font-semibold text-[#850D2C] hover:text-[#6e0a24] transition cursor-pointer shrink-0 ml-1"
+                      title="Criar uma nova subcategoria dentro deste item"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Nova subcategoria</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreatingSubcategory(false);
+                        setNewSubcategoryName('');
+                      }}
+                      className="text-[11px] font-medium text-stone-400 hover:text-stone-600 transition cursor-pointer shrink-0 ml-1"
+                    >
+                      Selecionar existente
+                    </button>
+                  )}
+                </div>
+
+                {!isCreatingSubcategory ? (
+                  <select
+                    value={subcategory}
+                    onChange={(e) => {
+                      if (e.target.value === '__NEW_SUB__') {
+                        setIsCreatingSubcategory(true);
+                      } else {
+                        setSubcategory(e.target.value);
                       }
                     }}
-                    placeholder="Ex: Chás & Infusões"
-                    className="flex-1 px-3 py-2.5 text-xs border border-[#850D2C] rounded-xl bg-white text-[#35312F] placeholder-stone-400 focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition font-medium"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleConfirmNewCategory}
-                    disabled={!newCategoryName.trim()}
-                    className="h-9 px-3 rounded-xl bg-[#850D2C] hover:bg-[#6e0a24] disabled:opacity-40 text-white text-xs font-semibold inline-flex items-center space-x-1 transition cursor-pointer shrink-0"
-                    title="Adicionar categoria"
+                    className="w-full px-3.5 py-2.5 text-xs border border-stone-300 rounded-xl bg-stone-50/50 text-[#35312F] font-medium focus:bg-white focus:ring-1 focus:ring-[#850D2C] focus:border-[#850D2C] focus:outline-none transition cursor-pointer"
                   >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Criar</span>
-                  </button>
-                </div>
-              )}
+                    <option value="">(Sem subcategoria / Geral)</option>
+                    {availableSubcategories.map((sub: string) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    ))}
+                    <option value="__NEW_SUB__">+ Criar nova subcategoria...</option>
+                  </select>
+                ) : (
+                  <div className="flex items-center space-x-1.5">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={newSubcategoryName}
+                      onChange={(e) => setNewSubcategoryName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleConfirmNewSubcategory();
+                        }
+                      }}
+                      placeholder={`Ex: ${
+                        category === 'Cafés Especiais'
+                          ? 'Espressos, Filtrados...'
+                          : category === 'Salgados Artesanais'
+                          ? 'Croissants, Pães de Queijo...'
+                          : 'Nova subcategoria'
+                      }`}
+                      className="flex-1 px-3 py-2.5 text-xs border border-[#850D2C] rounded-xl bg-white text-[#35312F] placeholder-stone-400 focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition font-medium"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleConfirmNewSubcategory}
+                      disabled={!newSubcategoryName.trim()}
+                      className="h-9 px-3 rounded-xl bg-[#850D2C] hover:bg-[#6e0a24] disabled:opacity-40 text-white text-xs font-semibold inline-flex items-center space-x-1 transition cursor-pointer shrink-0"
+                      title="Salvar subcategoria"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Salvar</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

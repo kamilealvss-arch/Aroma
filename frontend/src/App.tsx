@@ -22,6 +22,13 @@ import { CheckCircle2, AlertCircle } from 'lucide-react';
 export default function App() {
   const [currentView, setCurrentView] = useState<'admin' | 'client'>('admin');
   const [adminTab, setAdminTab] = useState<'dashboard' | 'kanban' | 'products' | 'stock' | 'reports' | 'audit'>('dashboard');
+  const [clientCategory, setClientCategory] = useState<string>('HOME');
+  const [clientSubcategory, setClientSubcategory] = useState<string>('ALL');
+
+  const handleClientCategoryChange = (cat: string) => {
+    setClientCategory(cat);
+    setClientSubcategory('ALL');
+  };
   const [orders, setOrders] = useState<Order[]>([]);
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -107,7 +114,7 @@ export default function App() {
   // ⭐ REQUISITO 4 (PONTO DE OURO): Exclusão Lógica
   const handleSoftDeleteProduct = async (id: string) => {
     try {
-      const res = await api.softDeleteProduct(id);
+      await api.softDeleteProduct(id);
       showToast('Exclusão lógica realizada: Produto inativado sem apagar histórico!', 'info');
       await refreshAllData();
     } catch (err: any) {
@@ -206,16 +213,28 @@ export default function App() {
     }
   };
 
-  // Troca de usuário logado (para testar a auditoria em nome de Carlos - Sub-gerente, Maria - Admin, etc.)
+  // Troca de perfil / usuário: Suporta alternar entre equipe do café (Admin/Sub/Barista) e Cliente (Cardápio)
   const handleSwitchUser = async (userId: string) => {
+    if (userId === 'usr_cliente') {
+      setCurrentView('client');
+      showToast('Visualizando Cardápio Digital do Cliente!', 'info');
+      return;
+    }
     try {
       const user = await api.switchUser(userId);
       setCurrentUser(user);
+      setCurrentView('admin');
       showToast(`Perfil alterado para ${user.name} (${user.role}). Ações serão auditadas em seu nome!`, 'info');
       await refreshAllData();
     } catch (err: any) {
       showToast(err.message, 'error');
     }
+  };
+
+  // Retorno rápido ao painel administrativo
+  const handleBackToAdmin = () => {
+    setCurrentView('admin');
+    showToast('Retornou ao Painel Administrativo.', 'info');
   };
 
   const handleResetDemo = async () => {
@@ -231,8 +250,8 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-white flex font-sans">
-      {/* Sidebar Lateral com Recorte Curvo e Perfis */}
+    <div className="min-h-screen bg-stone-50 md:bg-white flex flex-col md:flex-row font-sans w-full max-w-full">
+      {/* Sidebar Lateral com Recorte Curvo, Categorias Dinâmicas e Troca de Perfil */}
       <Sidebar
         currentView={currentView}
         onViewChange={setCurrentView}
@@ -244,10 +263,16 @@ export default function App() {
         alerts={alerts}
         activeOrdersCount={activeOrdersCount}
         onResetDemo={handleResetDemo}
+        clientCategory={clientCategory}
+        onClientCategoryChange={handleClientCategoryChange}
+        clientSubcategory={clientSubcategory}
+        onClientSubcategoryChange={setClientSubcategory}
+        products={products}
+        onBackToAdmin={handleBackToAdmin}
       />
 
       {/* Conteúdo Principal */}
-      <main className="flex-1 min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 min-w-0 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 md:pb-6">
         {currentView === 'admin' ? (
           <div>
             {adminTab === 'dashboard' && (
@@ -297,12 +322,17 @@ export default function App() {
             {adminTab === 'audit' && <AuditView />}
           </div>
         ) : (
-          /* Visão do Cardápio do Cliente com Acompanhamento em Tempo Real */
+          /* Visão do Cardápio do Cliente com Acompanhamento em Tempo Real e Categorias Laterais */
           <ClientMenuView
             products={products}
             orders={orders}
             onCreateOrder={handleCreateOrder}
             onOrderSuccess={refreshAllData}
+            selectedCategory={clientCategory}
+            onSelectCategory={handleClientCategoryChange}
+            selectedSubcategory={clientSubcategory}
+            onSelectSubcategory={setClientSubcategory}
+            onBackToAdmin={handleBackToAdmin}
           />
         )}
       </main>

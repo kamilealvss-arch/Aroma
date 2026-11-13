@@ -20,6 +20,14 @@ export interface ProductAddon {
   price: number;
 }
 
+export interface ComboItemConfig {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  costPrice?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -27,6 +35,7 @@ export interface Product {
   price: number;
   costPrice: number;
   category: ProductCategory;
+  subcategory?: string;      // Subcategoria dentro da categoria principal (ex: 'Espressos & Puros', 'Folhados & Croissants')
   imageUrl: string;          // Imagem quadrada normal (catálogo de produtos / gestão)
   cutoutImageUrl?: string;   // Imagem recortada sem fundo (cardápio do cliente e modal de detalhes)
   stockQuantity: number;
@@ -36,6 +45,10 @@ export interface Product {
   sizes?: ProductSizeOption[]; // Lista opcional de tamanhos disponíveis
   hasAddons?: boolean;       // Se possui opções de adicionais/complementos específicos
   addons?: ProductAddon[];   // Lista de adicionais configurados para este produto
+  isCombo?: boolean;
+  comboItems?: ComboItemConfig[];
+  originalComboPrice?: number;
+  discountPercentage?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -68,6 +81,7 @@ export interface StockAlert {
   productId: string;
   productName: string;
   category: ProductCategory;
+  subcategory?: string;      // Subcategoria dentro da categoria principal (ex: 'Espressos & Puros', 'Folhados & Croissants')
   currentStock: number;
   minStockThreshold: number;
   isOutOfStock: boolean;
@@ -166,6 +180,7 @@ export interface ABCCurveItem {
   productId: string;
   productName: string;
   category: ProductCategory;
+  subcategory?: string;      // Subcategoria dentro da categoria principal (ex: 'Espressos & Puros', 'Folhados & Croissants')
   quantitySold: number;
   totalRevenue: number;
   percentageOfRevenue: number;

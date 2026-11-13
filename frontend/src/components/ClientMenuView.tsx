@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Coffee,
   ShoppingBag,
@@ -13,15 +13,22 @@ import {
   CreditCard,
   Banknote,
   ArrowRight,
+  ArrowLeft,
+  UtensilsCrossed,
+  Cake,
+  GlassWater,
+  Package,
+  ChevronLeft,
+  ChevronRight,
+  SlidersHorizontal,
   Clock,
   Flame,
-  ArrowLeft,
   Trash2,
   Edit3,
   User,
   MapPin,
 } from 'lucide-react';
-import { Product, ProductCategory, Order, PaymentMethod } from '../../../shared/types/index.ts';
+import { Product, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 import { OrderReceiptModal } from './OrderReceiptModal.tsx';
 import {
@@ -31,6 +38,7 @@ import {
   ProductAddonOption,
 } from './ProductDetailModal.tsx';
 import { GourmetCutoutImage } from './GourmetCutoutImage.tsx';
+import { getAllSubcategoriesForCategory } from './ProductModal.tsx';
 
 export interface DetailedCartItem {
   cartKey: string;
@@ -104,18 +112,208 @@ interface ClientMenuViewProps {
     }>;
   }) => Promise<Order>;
   onOrderSuccess: () => void;
+  selectedCategory?: string;
+  onSelectCategory?: (category: string) => void;
+  selectedSubcategory?: string;
+  onSelectSubcategory?: (subcategory: string) => void;
+  onBackToAdmin?: () => void;
 }
+
+interface HorizontalCategoryRowProps {
+  category: string;
+  products: Product[];
+  renderCard: (product: Product, isHorizontal?: boolean) => React.ReactNode;
+  onSelectCategory: (category: string) => void;
+  onSelectSubcategory?: (category: string, subcategory: string) => void;
+}
+
+const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
+  category,
+  products,
+  renderCard,
+  onSelectCategory,
+  onSelectSubcategory,
+}) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const rowSubcategories = useMemo(() => {
+    return getAllSubcategoriesForCategory(category, products);
+  }, [category, products]);
+
+  // Arraste com o mouse
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+
+  const checkScroll = () => {
+    if (!scrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    setCanScrollLeft(scrollLeft > 10);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+  };
+
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScroll);
+      window.addEventListener('resize', checkScroll);
+      return () => {
+        el.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+      };
+    }
+  }, [products]);
+
+  const scrollByAmount = (amount: number) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    isDraggingRef.current = true;
+    startXRef.current = e.pageX - scrollRef.current.offsetLeft;
+    scrollLeftRef.current = scrollRef.current.scrollLeft;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    scrollRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDraggingRef.current = false;
+  };
+
+  return (
+    <div className="space-y-2 pt-2">
+      {/* Cabeçalho da Linha com Título e Controles */}
+      <div className="flex items-center justify-between pb-2 border-b border-stone-200/80">
+        <div className="flex items-center space-x-3">
+          <h2
+            className="text-xl sm:text-2xl font-normal text-[#35312F] tracking-tight"
+            style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+          >
+            {category}
+          </h2>
+          <span className="hidden sm:inline-block text-[11px] font-bold text-[#820b28] bg-[#820b28]/10 px-2.5 py-0.5 rounded-full border border-[#820b28]/20">
+            {products.length} {products.length === 1 ? 'opção' : 'opções'}
+          </span>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          {/* Botões de Navegação Horizontal */}
+          <div className="flex items-center space-x-1.5">
+            <button
+              type="button"
+              onClick={() => scrollByAmount(-330)}
+              disabled={!canScrollLeft}
+              className="w-8 h-8 rounded-full bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition shadow-2xs cursor-pointer"
+              title="Rolar para a esquerda"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollByAmount(330)}
+              disabled={!canScrollRight}
+              className="w-8 h-8 rounded-full bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition shadow-2xs cursor-pointer"
+              title="Rolar para a direita"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onSelectCategory(category)}
+            className="text-xs font-bold text-[#820b28] hover:underline cursor-pointer flex items-center space-x-1 pl-1"
+          >
+            <span>Ver tudo</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Subcategorias da Categoria */}
+      {rowSubcategories.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-1">
+          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider shrink-0 mr-1">
+            Subcategorias:
+          </span>
+          {rowSubcategories.map((sub) => (
+            <button
+              key={sub}
+              type="button"
+              onClick={() => onSelectSubcategory ? onSelectSubcategory(category, sub) : onSelectCategory(category)}
+              className="text-[10.5px] font-semibold text-stone-600 bg-stone-100 hover:bg-[#820b28] hover:text-white px-2.5 py-0.5 rounded-full transition-colors cursor-pointer shrink-0 shadow-2xs"
+            >
+              {sub}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Fileira Horizontal Arrastável */}
+      <div
+        ref={scrollRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUpOrLeave}
+        onMouseLeave={handleMouseUpOrLeave}
+        className="flex items-stretch space-x-6 overflow-x-auto scrollbar-none pt-20 pb-6 px-1 cursor-grab active:cursor-grabbing select-none scroll-smooth"
+        style={{ scrollSnapType: 'x proximity' }}
+      >
+        {products.map((product) => (
+          <div
+            key={product.id}
+            className="w-[285px] sm:w-[315px] shrink-0"
+            style={{ scrollSnapAlign: 'start' }}
+          >
+            {renderCard(product, true)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   products,
   orders = [],
   onCreateOrder,
   onOrderSuccess,
+  selectedCategory = 'HOME',
+  onSelectCategory,
+  selectedSubcategory = 'ALL',
+  onSelectSubcategory,
+  onBackToAdmin,
 }) => {
   // Apenas produtos ATIVOS são exibidos para o cliente (cumpre o Requisito 4 de Exclusão Lógica!)
   const activeProducts = products.filter((p) => p.status === 'ativo');
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [internalCategory, setInternalCategory] = useState<string>('HOME');
+  const activeCategory = selectedCategory !== undefined ? selectedCategory : internalCategory;
+
+  const handleCategorySelect = (cat: string) => {
+    if (onSelectCategory) {
+      onSelectCategory(cat);
+    } else {
+      setInternalCategory(cat);
+    }
+    if (onSelectSubcategory) {
+      onSelectSubcategory('ALL');
+    }
+    setSelectedSubcategoryFilter('ALL');
+  };
+
   const [cartItems, setCartItems] = useState<DetailedCartItem[]>([]);
   const [selectedProductForDetail, setSelectedProductForDetail] = useState<Product | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -145,8 +343,8 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     : orders.find((o) => o.customerName.toLowerCase() === customerName.toLowerCase() && o.status !== 'entregue' && o.status !== 'cancelado') || activeOrders[0] || null;
 
   // Notificação sonora quando o barista finaliza o pedido (vai para 'pronto')
-  const previousStatusRef = React.useRef<string | undefined>(liveOrder?.status);
-  React.useEffect(() => {
+  const previousStatusRef = useRef<string | undefined>(liveOrder?.status);
+  useEffect(() => {
     if (liveOrder && previousStatusRef.current && previousStatusRef.current !== 'pronto' && liveOrder.status === 'pronto') {
       try {
         import('../utils/sound.ts').then((mod) => mod.playChimeSound());
@@ -157,17 +355,58 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     previousStatusRef.current = liveOrder?.status;
   }, [liveOrder?.status]);
 
-  const categories = Array.from(new Set(activeProducts.map((p) => p.category)));
+  // Subcategoria ativa para filtro no cardápio
+  const [selectedSubcategoryFilter, setSelectedSubcategoryFilter] = useState<string>('ALL');
 
+  const currentSubcategory =
+    selectedSubcategory !== undefined && onSelectSubcategory
+      ? selectedSubcategory
+      : selectedSubcategoryFilter;
+
+  const handleSubcategorySelect = (sub: string) => {
+    if (onSelectSubcategory) {
+      onSelectSubcategory(sub);
+    }
+    setSelectedSubcategoryFilter(sub);
+  };
+
+  useEffect(() => {
+    setSelectedSubcategoryFilter('ALL');
+  }, [activeCategory]);
+
+  // Lista de subcategorias existentes na categoria ativa
+  const subcategoriesInActiveCategory = useMemo(() => {
+    if (activeCategory === 'HOME' || activeCategory === 'ALL') return [];
+    return getAllSubcategoriesForCategory(activeCategory, activeProducts);
+  }, [activeCategory, activeProducts]);
+
+  // Produtos filtrados pela categoria e subcategoria selecionada
   const filteredProducts = activeProducts.filter((p) => {
-    if (selectedCategory === 'ALL') return true;
-    return p.category === selectedCategory;
+    if (activeCategory === 'ALL') return true;
+    const matchesCat = p.category === activeCategory;
+    const matchesSub =
+      currentSubcategory === 'ALL' || p.subcategory === currentSubcategory;
+    return matchesCat && matchesSub;
   });
+
+  // Especial da Semana (destaque do Cappuccino Italiano ou primeiro café gourmet)
+  const specialProduct =
+    activeProducts.find((p) => p.id === 'prod_cappuccino') ||
+    activeProducts.find((p) => p.category === 'Cafés Especiais') ||
+    activeProducts[0];
+
+  // Combos & Brunch disponíveis
+  const comboProducts = activeProducts.filter((p) => p.category === 'Combos & Brunch');
+
+  // Mais pedidos para a Home
+  const topFavorites = activeProducts
+    .filter((p) => p.id !== specialProduct?.id)
+    .slice(0, 3);
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
-  // Abre a tela de detalhes do produto (mockup com tamanho, adicionais, quantidade)
+  // Abre a tela de detalhes do produto
   const handleOpenProductDetail = (product: Product) => {
     if (product.stockQuantity <= 0) return;
     setSelectedProductForDetail(product);
@@ -383,282 +622,719 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     }
   };
 
-  return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-24">
-      {/* Cabeçalho da Página: Padrão Elegante e Minimalista com Amarego */}
-      <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 space-y-4 text-[#35312F]">
-        <div className="pb-3 border-b border-stone-100">
-          <div className="space-y-0.5">
-            {/* Breadcrumb Discreto */}
-            <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
-              <span className="hover:text-[#35312F] transition">Cardápio</span>
-              <span>/</span>
-              <span className="text-[#850D2C] font-semibold">
-                {selectedCategory === 'ALL' ? 'Experiência Gourmet' : selectedCategory}
-              </span>
-            </nav>
+  // Configuração das Categorias Gerais para a Landing Page
+  const generalCategories = [
+    {
+      id: 'Cafés Especiais',
+      label: 'Cafés Especiais',
+      icon: Coffee,
+      circleBg: 'bg-[#924529]',
+      borderHover: 'hover:border-[#924529]',
+      desc: 'Grãos 100% arábica da Mogiana, expressos encorpados e métodos filtrados.',
+      count: activeProducts.filter((p) => p.category === 'Cafés Especiais').length,
+      subcategories: getAllSubcategoriesForCategory('Cafés Especiais', activeProducts),
+    },
+    {
+      id: 'Salgados Artesanais',
+      label: 'Salgados Artesanais',
+      icon: UtensilsCrossed,
+      circleBg: 'bg-[#7e8b60]',
+      borderHover: 'hover:border-[#7e8b60]',
+      desc: 'Pães de queijo da Canastra, croissants franceses folhados e quiches.',
+      count: activeProducts.filter((p) => p.category === 'Salgados Artesanais').length,
+      subcategories: getAllSubcategoriesForCategory('Salgados Artesanais', activeProducts),
+    },
+    {
+      id: 'Doces & Bolos',
+      label: 'Doces & Bolos',
+      icon: Cake,
+      circleBg: 'bg-[#820b28]',
+      borderHover: 'hover:border-[#820b28]',
+      desc: 'Tortas holandesas cremosas, bolos caseiros e brigadeiros belgas.',
+      count: activeProducts.filter((p) => p.category === 'Doces & Bolos').length,
+      subcategories: getAllSubcategoriesForCategory('Doces & Bolos', activeProducts),
+    },
+    {
+      id: 'Bebidas Geladas',
+      label: 'Bebidas Geladas',
+      icon: GlassWater,
+      circleBg: 'bg-[#7e8b60]',
+      borderHover: 'hover:border-[#7e8b60]',
+      desc: 'Iced caramel macchiato, cold brew artesanal e refrescos especiais.',
+      count: activeProducts.filter((p) => p.category === 'Bebidas Geladas').length,
+      subcategories: getAllSubcategoriesForCategory('Bebidas Geladas', activeProducts),
+    },
+    {
+      id: 'Combos & Brunch',
+      label: 'Combos & Brunch',
+      icon: Package,
+      circleBg: 'bg-[#924529]',
+      borderHover: 'hover:border-[#924529]',
+      desc: 'Combos completos para café da manhã ou tarde com economia e sabor.',
+      count: activeProducts.filter((p) => p.category === 'Combos & Brunch').length,
+      subcategories: getAllSubcategoriesForCategory('Combos & Brunch', activeProducts),
+    },
+    {
+      id: 'ALL',
+      label: 'Todos os Itens',
+      icon: ShoppingBag,
+      circleBg: 'bg-[#820b28]',
+      borderHover: 'hover:border-[#820b28]',
+      desc: 'Explore todo o cardápio artesanal em uma única lista completa.',
+      count: activeProducts.length,
+      subcategories: [],
+    },
+  ];
 
-            {/* Título com Fonte Amarego da Identidade */}
-            <div className="flex flex-wrap items-center gap-3 pt-0.5">
+  // Ordem de apresentação das categorias na visualização horizontal de TODOS
+  const categoryOrder = [
+    'Cafés Especiais',
+    'Salgados Artesanais',
+    'Doces & Bolos',
+    'Bebidas Geladas',
+    'Combos & Brunch',
+  ];
+
+  // Helper para renderizar card padrão de produto
+  const renderProductCard = (product: Product, isHorizontal = false) => {
+    const isOutOfStock = product.stockQuantity <= 0;
+    const cardImage = product.cutoutImageUrl || product.imageUrl || '';
+    const isTransparentCutout =
+      Boolean(product.cutoutImageUrl) ||
+      (typeof cardImage === 'string' &&
+        (cardImage.startsWith('data:image/png') || cardImage.startsWith('data:image/webp')));
+
+    const hasSizes = !!(product.hasSizes && product.sizes && product.sizes.length > 0);
+    const currentSizeName =
+      selectedProductSizes[product.id] || (hasSizes ? product.sizes![0].name : undefined);
+    const currentSizeOption = hasSizes
+      ? product.sizes!.find((s) => s.name === currentSizeName) || product.sizes![0]
+      : undefined;
+    const activePrice = currentSizeOption ? currentSizeOption.price : product.price;
+
+    const inCartQty = cartItems
+      .filter((item) => item.productId === product.id)
+      .reduce((sum, item) => sum + item.quantity, 0);
+
+    return (
+      <div
+        key={product.id}
+        className={`relative bg-white rounded-[34px] pt-24 sm:pt-28 pb-5 px-5 sm:px-6 border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group ${
+          isHorizontal ? 'h-full min-h-[390px]' : ''
+        } ${isOutOfStock ? 'opacity-80' : ''}`}
+      >
+        {/* 1. Imagem Flutuante: Metade para fora do card */}
+        <div
+          onClick={() => !isOutOfStock && handleOpenProductDetail(product)}
+          className={`absolute -top-14 sm:-top-16 left-1/2 -translate-x-1/2 w-38 h-38 sm:w-42 sm:h-42 z-20 flex items-center justify-center ${
+            !isOutOfStock ? 'cursor-pointer' : ''
+          }`}
+          title={!isOutOfStock ? `Personalizar ${product.name}` : undefined}
+        >
+          {isTransparentCutout ? (
+            <div className="w-full h-full flex items-center justify-center p-0.5">
+              <GourmetCutoutImage
+                src={cardImage}
+                alt={product.name}
+                className={`w-full h-full object-contain scale-95 sm:scale-100 drop-shadow-[0_14px_20px_rgba(0,0,0,0.20)] ${
+                  isOutOfStock ? 'grayscale-70' : ''
+                }`}
+              />
+            </div>
+          ) : (
+            <div className="w-full h-full rounded-full overflow-hidden shadow-lg border-[3.5px] border-white bg-white flex items-center justify-center">
+              <img
+                src={cardImage}
+                alt={product.name}
+                className={`w-full h-full object-cover ${isOutOfStock ? 'grayscale-70' : ''}`}
+              />
+            </div>
+          )}
+
+          {isOutOfStock && (
+            <span className="absolute bottom-1 bg-[#850D2C] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
+              Esgotado
+            </span>
+          )}
+        </div>
+
+        {/* 2. Informações do Produto */}
+        <div className="space-y-1.5 pt-4 sm:pt-5 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+              {product.subcategory ? `${product.category} • ${product.subcategory}` : product.category}
+            </span>
+            {product.stockQuantity > 0 && product.stockQuantity <= 5 && (
+              <span className="text-[10px] font-semibold text-[#924529] bg-amber-50 px-2 py-0.5 rounded-full">
+                Últimas {product.stockQuantity} un.
+              </span>
+            )}
+          </div>
+
+          <h3
+            onClick={() => !isOutOfStock && handleOpenProductDetail(product)}
+            className={`font-extrabold text-stone-950 text-lg leading-tight tracking-tight ${
+              !isOutOfStock ? 'cursor-pointer hover:text-[#c58d59] transition' : ''
+            }`}
+          >
+            {product.name}
+          </h3>
+
+          <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed min-h-[2.25rem]">
+            {product.description || 'Preparo artesanal com insumos selecionados.'}
+          </p>
+
+          {/* Opções de Tamanho */}
+          {hasSizes && (
+            <div className="pt-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">
+                Escolha o tamanho:
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {product.sizes!.map((sz) => {
+                  const isSelected = sz.name === currentSizeName;
+                  return (
+                    <button
+                      key={sz.name}
+                      type="button"
+                      onClick={() =>
+                        setSelectedProductSizes((prev) => ({
+                          ...prev,
+                          [product.id]: sz.name,
+                        }))
+                      }
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-stone-900 text-white shadow-2xs'
+                          : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                      }`}
+                    >
+                      <span>{sz.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 3. Rodapé do Card: Preço + Ação */}
+        <div className="pt-4 mt-2 border-t border-stone-100/80 flex items-center justify-between gap-3">
+          <div className="text-lg font-black text-stone-950 tracking-tight">
+            {formatCurrencyBRL(activePrice)}
+          </div>
+
+          {isOutOfStock ? (
+            <button
+              disabled
+              className="h-11 px-4 bg-stone-100 text-stone-400 rounded-full text-xs font-semibold cursor-not-allowed"
+            >
+              Indisponível
+            </button>
+          ) : inCartQty > 0 ? (
+            <div className="h-11 inline-flex items-center space-x-2 bg-stone-100 rounded-full px-2 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => handleDecreaseProductQty(product.id)}
+                className="w-8 h-8 rounded-full bg-white text-stone-900 shadow-2xs flex items-center justify-center font-bold hover:bg-stone-50 transition cursor-pointer"
+                title="Diminuir quantidade"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-xs font-extrabold text-stone-900 px-1">{inCartQty}</span>
+              <button
+                type="button"
+                onClick={() => handleOpenProductDetail(product)}
+                disabled={inCartQty >= product.stockQuantity}
+                className="w-8 h-8 rounded-full bg-[#c58d59] text-white shadow-2xs flex items-center justify-center font-bold hover:bg-[#b07842] transition disabled:opacity-40 cursor-pointer"
+                title="Personalizar e adicionar mais"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleOpenProductDetail(product)}
+              aria-label={`Personalizar e adicionar ${product.name} ao Pedido`}
+              className="w-11 h-11 rounded-full bg-stone-950 hover:bg-[#c58d59] active:scale-95 text-white flex items-center justify-center shadow-md transition cursor-pointer"
+              title="Personalizar e adicionar"
+            >
+              <Plus className="w-5 h-5 stroke-[2.5]" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-8 pb-24">
+      {/* ========================================================
+          CENÁRIO 1: PÁGINA INICIAL DO CARDÁPIO (activeCategory === 'HOME')
+         ======================================================== */}
+      {activeCategory === 'HOME' ? (
+        <div className="space-y-8">
+          {/* Cabeçalho de Boas-Vindas */}
+          <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 text-[#35312F]">
+            <div className="space-y-1">
+              <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
+                <span>Cardápio Digital</span>
+                <span>/</span>
+                <span className="text-[#850D2C] font-semibold">Experiência Gourmet</span>
+              </nav>
               <h1
                 className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight"
                 style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
               >
                 Sabores Artesanais & Cardápio
               </h1>
+              <p className="text-xs text-stone-500">
+                Navegue pelas categorias na lateral ou escolha os destaques selecionados da semana.
+              </p>
             </div>
-
-            {/* Subtítulo Curto */}
-            <p className="text-xs text-stone-500">
-              Selecione suas delícias favoritas preparadas no momento exato do seu pedido.
-            </p>
           </div>
-        </div>
 
-        {/* Abas de Categorias Harmonizadas no padrão das demais telas */}
-        <div className="flex items-center gap-2 pt-0.5 overflow-x-auto scrollbar-none w-full">
-          <div className="inline-flex items-center p-1 bg-stone-100/90 rounded-2xl border border-stone-200/80 gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('ALL')}
-              className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer shrink-0 ${
-                selectedCategory === 'ALL'
-                  ? 'bg-[#850D2C] text-white shadow-2xs'
-                  : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
-              }`}
-            >
-              <Coffee
-                className={`w-3.5 h-3.5 shrink-0 ${
-                  selectedCategory === 'ALL' ? 'text-white' : 'text-stone-400'
-                }`}
-              />
-              <span>Todos os Itens</span>
-              <span
-                className={`text-[10px] px-2 py-0.5 rounded-full font-bold leading-none transition ${
-                  selectedCategory === 'ALL'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-stone-200/80 text-stone-600'
-                }`}
-              >
-                {activeProducts.length}
-              </span>
-            </button>
-            {categories.map((cat) => {
-              const count = activeProducts.filter((p) => p.category === cat).length;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition duration-150 cursor-pointer shrink-0 ${
-                    selectedCategory === cat
-                      ? 'bg-[#850D2C] text-white shadow-2xs'
-                      : 'text-stone-600 hover:text-[#35312F] hover:bg-white/60'
-                  }`}
-                >
-                  <span>{cat}</span>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold leading-none transition ${
-                      selectedCategory === cat
-                        ? 'bg-white/20 text-white'
-                        : 'bg-stone-200/80 text-stone-600'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Grid de Produtos do Cardápio - Disposição Padronizada com Prato Sobreposto (Metade para fora do card) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20 pt-16">
-        {filteredProducts.map((product) => {
-          const isOutOfStock = product.stockQuantity <= 0; // Regra de Estoque Zero (RF04)
-          const isFavorite = !!favorites[product.id];
-          const cardImage = product.cutoutImageUrl || product.imageUrl || '';
-          const isTransparentCutout =
-            Boolean(product.cutoutImageUrl) ||
-            (typeof cardImage === 'string' &&
-              (cardImage.startsWith('data:image/png') ||
-                cardImage.startsWith('data:image/webp')));
-
-          const hasSizes = !!(product.hasSizes && product.sizes && product.sizes.length > 0);
-          const currentSizeName =
-            selectedProductSizes[product.id] || (hasSizes ? product.sizes![0].name : undefined);
-          const currentSizeOption = hasSizes
-            ? product.sizes!.find((s) => s.name === currentSizeName) || product.sizes![0]
-            : undefined;
-          const activePrice = currentSizeOption ? currentSizeOption.price : product.price;
-
-          const inCartQty = cartItems
-            .filter((item) => item.productId === product.id)
-            .reduce((sum, item) => sum + item.quantity, 0);
-
-          return (
-            <div
-              key={product.id}
-              className={`relative bg-white rounded-[34px] pt-18 sm:pt-20 pb-5 px-5 sm:px-6 border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group ${
-                isOutOfStock ? 'opacity-80' : ''
-              }`}
-            >
-              {/* 1. Imagem Flutuante: O card pega apenas a metade inferior, e a metade superior fica para fora do card */}
+          {/* 1. SEÇÃO "ESPECIAL DA SEMANA" (HERO HIGHLIGHT) */}
+          {specialProduct && (
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#820b28] via-[#924529] to-[#5a1202] rounded-[36px] p-7 sm:p-10 text-white shadow-xl border border-white/10">
+              {/* Círculo decorativo de iluminação suave */}
               <div
-                onClick={() => !isOutOfStock && handleOpenProductDetail(product)}
-                className={`absolute -top-14 sm:-top-16 left-1/2 -translate-x-1/2 w-38 h-38 sm:w-42 sm:h-42 z-20 flex items-center justify-center ${
-                  !isOutOfStock ? 'cursor-pointer' : ''
-                }`}
-                title={!isOutOfStock ? `Personalizar ${product.name}` : undefined}
-              >
-                {isTransparentCutout ? (
-                  <div className="w-full h-full flex items-center justify-center p-0.5">
-                    <GourmetCutoutImage
-                      src={cardImage}
-                      alt={product.name}
-                      className={`w-full h-full object-contain scale-95 sm:scale-100 drop-shadow-[0_14px_20px_rgba(0,0,0,0.20)] ${
-                        isOutOfStock ? 'grayscale-70' : ''
-                      }`}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full h-full rounded-full overflow-hidden shadow-lg border-[3.5px] border-white bg-white flex items-center justify-center">
-                    <img
-                      src={cardImage}
-                      alt={product.name}
-                      className={`w-full h-full object-cover ${
-                        isOutOfStock ? 'grayscale-70' : ''
-                      }`}
-                    />
-                  </div>
-                )}
+                className="pointer-events-none absolute -right-16 -top-16 w-80 h-80 bg-white/10 rounded-full blur-2xl"
+                aria-hidden="true"
+              />
 
-                {/* Badge de Esgotado sobreposto ao prato */}
-                {isOutOfStock && (
-                  <span className="absolute bottom-1 bg-[#850D2C] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
-                    Esgotado
-                  </span>
-                )}
-              </div>
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                {/* Lado Esquerdo: Textos do Especial */}
+                <div className="space-y-4 max-w-xl text-center md:text-left">
+                  <h2
+                    className="text-3xl sm:text-5xl font-normal tracking-tight text-white leading-tight"
+                    style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+                  >
+                    {specialProduct.name}
+                  </h2>
 
-              {/* 2. Informações do Produto (Nome, Categoria e Descrição - Layout Imagem 2) */}
-              <div className="space-y-1.5 pt-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                    {product.category}
-                  </span>
-                  {product.stockQuantity > 0 && product.stockQuantity <= 5 && (
-                    <span className="text-[10px] font-semibold text-[#924529] bg-amber-50 px-2 py-0.5 rounded-full">
-                      Últimas {product.stockQuantity} un.
-                    </span>
-                  )}
+                  <p className="text-sm sm:text-base text-amber-100/90 leading-relaxed font-light">
+                    {specialProduct.description ||
+                      'Expresso encorpado, leite vaporizado com microespuma sedosa, cacau belga e canela em pó.'}
+                  </p>
+
+                  <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-4">
+                    <div className="text-2xl sm:text-3xl font-extrabold text-[#fcd34d] tracking-tight">
+                      {formatCurrencyBRL(specialProduct.price)}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenProductDetail(specialProduct)}
+                      className="px-6 py-3 bg-white text-[#820b28] hover:bg-amber-50 active:scale-95 rounded-full text-xs font-black uppercase tracking-wider shadow-lg hover:shadow-xl transition-all cursor-pointer flex items-center space-x-2"
+                    >
+                      <Plus className="w-4 h-4 stroke-[3]" />
+                      <span>Pedir Especial da Semana</span>
+                    </button>
+                  </div>
                 </div>
 
-                <h3
-                  onClick={() => !isOutOfStock && handleOpenProductDetail(product)}
-                  className={`font-extrabold text-stone-950 text-lg leading-tight tracking-tight ${
-                    !isOutOfStock ? 'cursor-pointer hover:text-[#c58d59] transition' : ''
-                  }`}
+                {/* Lado Direito: Prato Flutuante com Recorte Gourmet */}
+                <div
+                  onClick={() => handleOpenProductDetail(specialProduct)}
+                  className="relative shrink-0 w-52 h-52 sm:w-64 sm:h-64 cursor-pointer group flex items-center justify-center"
+                  title={`Personalizar ${specialProduct.name}`}
                 >
-                  {product.name}
-                </h3>
+                  <div className="absolute inset-0 bg-white/10 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <GourmetCutoutImage
+                      src={specialProduct.cutoutImageUrl || specialProduct.imageUrl}
+                      alt={specialProduct.name}
+                      className="w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.45)] group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-                <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed min-h-[2.25rem]">
-                  {product.description || 'Preparo artesanal com insumos selecionados.'}
+          {/* 2. SEÇÃO "CATEGORIAS GERAIS" (GRID INTERATIVO) */}
+          <div className="space-y-4">
+            <div className="flex items-end justify-between border-b border-stone-200/80 pb-3">
+              <div>
+                <h2
+                  className="text-2xl font-normal text-[#35312F]"
+                  style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+                >
+                  Categorias Gerais
+                </h2>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Clique para navegar diretamente pelos sabores artesanais do cardápio
                 </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCategorySelect('ALL')}
+                className="text-xs font-bold text-[#820b28] hover:underline cursor-pointer flex items-center space-x-1"
+              >
+                <span>Ver tudo ({activeProducts.length})</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-                {/* Opções de Tamanho Opcionais para Cafés & Bebidas */}
-                {hasSizes && (
-                  <div className="pt-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">
-                      Escolha o tamanho:
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {product.sizes!.map((sz) => {
-                        const isSelected = sz.name === currentSizeName;
-                        return (
-                          <button
-                            key={sz.name}
-                            type="button"
-                            onClick={() =>
-                              setSelectedProductSizes((prev) => ({
-                                ...prev,
-                                [product.id]: sz.name,
-                              }))
-                            }
-                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer ${
-                              isSelected
-                                ? 'bg-stone-900 text-white shadow-2xs'
-                                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                            }`}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {generalCategories.map((cat) => {
+                const Icon = cat.icon;
+                return (
+                  <div
+                    key={cat.id}
+                    onClick={() => handleCategorySelect(cat.id)}
+                    className={`bg-white rounded-[26px] p-5 border border-stone-200/80 shadow-xs hover:shadow-md ${cat.borderHover} transition-all duration-200 cursor-pointer flex flex-col justify-between group`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div
+                        className={`w-12 h-12 rounded-2xl ${cat.circleBg} flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform`}
+                      >
+                        <Icon className="w-6 h-6 stroke-[2]" />
+                      </div>
+                      <span className="text-[11px] font-bold text-stone-500 bg-stone-100 px-2.5 py-1 rounded-full group-hover:bg-[#820b28] group-hover:text-white transition-colors">
+                        {cat.count} {cat.count === 1 ? 'item' : 'itens'}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 space-y-1">
+                      <h3 className="font-extrabold text-stone-900 text-base group-hover:text-[#820b28] transition-colors flex items-center justify-between">
+                        <span>{cat.label}</span>
+                        <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-[#820b28]" />
+                      </h3>
+                      <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed">
+                        {cat.desc}
+                      </p>
+                    </div>
+
+                    {/* Subcategorias da Categoria no Card */}
+                    {cat.subcategories && cat.subcategories.length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-stone-100 flex flex-wrap gap-1.5">
+                        {cat.subcategories.map((sub: string) => (
+                          <span
+                            key={sub}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCategorySelect(cat.id);
+                              handleSubcategorySelect(sub);
+                            }}
+                            className="text-[10.5px] font-semibold text-stone-600 bg-stone-100/90 hover:bg-[#820b28] hover:text-white px-2 py-0.5 rounded-md transition-colors cursor-pointer"
                           >
-                            <span>{sz.name}</span>
-                          </button>
-                        );
-                      })}
+                            {sub}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. SEÇÃO "COMBOS & BRUNCH" */}
+          {comboProducts.length > 0 && (
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between border-b border-stone-200/80 pb-3">
+                <div>
+                  <h2
+                    className="text-2xl font-normal text-[#35312F]"
+                    style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+                  >
+                    Combos & Brunch Especial
+                  </h2>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    Combinações completas com o melhor café, salgado e doce artesanal
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCategorySelect('Combos & Brunch')}
+                  className="text-xs font-bold text-[#820b28] hover:underline cursor-pointer flex items-center space-x-1"
+                >
+                  <span>Explorar Combos</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {comboProducts.map((combo) => (
+                  <div
+                    key={combo.id}
+                    className="bg-white rounded-[30px] p-6 border border-stone-200/90 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col sm:flex-row items-center gap-5 justify-between"
+                  >
+                    <div className="w-32 h-32 sm:w-36 sm:h-36 shrink-0 flex items-center justify-center">
+                      <GourmetCutoutImage
+                        src={combo.cutoutImageUrl || combo.imageUrl}
+                        alt={combo.name}
+                        className="w-full h-full object-contain drop-shadow-md hover:scale-105 transition-transform"
+                      />
+                    </div>
+                    <div className="flex-1 space-y-2 text-center sm:text-left">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#924529] bg-amber-50 px-2.5 py-0.5 rounded-full">
+                        Combo Completo
+                      </span>
+                      <h3 className="font-extrabold text-stone-900 text-lg leading-snug">
+                        {combo.name}
+                      </h3>
+                      <p className="text-xs text-stone-500 line-clamp-2">
+                        {combo.description}
+                      </p>
+                      <div className="pt-2 flex items-center justify-between gap-3">
+                        <span className="text-xl font-black text-stone-950">
+                          {formatCurrencyBRL(combo.price)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenProductDetail(combo)}
+                          className="px-4 py-2 bg-stone-950 hover:bg-[#820b28] text-white rounded-full text-xs font-bold transition flex items-center space-x-1.5 shadow-sm cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Pedir Combo</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-
-              {/* 3. Rodapé do Card: Preço em destaque + Ação (+) alinhados horizontalmente */}
-              <div className="pt-4 mt-1 border-t border-stone-100/80 flex items-center justify-between gap-3">
-                <div className="text-lg font-black text-stone-950 tracking-tight">
-                  {formatCurrencyBRL(activePrice)}
-                </div>
-
-                {/* Botão de Adicionar ao Pedido / Controle de Quantidade */}
-                {isOutOfStock ? (
-                  <button
-                    disabled
-                    className="h-11 px-4 bg-stone-100 text-stone-400 rounded-full text-xs font-semibold cursor-not-allowed"
-                  >
-                    Indisponível
-                  </button>
-                ) : inCartQty > 0 ? (
-                  <div className="h-11 inline-flex items-center space-x-2 bg-stone-100 rounded-full px-2 shadow-2xs">
-                    <button
-                      type="button"
-                      onClick={() => handleDecreaseProductQty(product.id)}
-                      className="w-8 h-8 rounded-full bg-white text-stone-900 shadow-2xs flex items-center justify-center font-bold hover:bg-stone-50 transition cursor-pointer"
-                      title="Diminuir quantidade"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-xs font-extrabold text-stone-900 px-1">
-                      {inCartQty}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenProductDetail(product)}
-                      disabled={inCartQty >= product.stockQuantity}
-                      className="w-8 h-8 rounded-full bg-[#c58d59] text-white shadow-2xs flex items-center justify-center font-bold hover:bg-[#b07842] transition disabled:opacity-40 cursor-pointer"
-                      title="Personalizar e adicionar mais"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenProductDetail(product)}
-                    aria-label={`Personalizar e adicionar ${product.name} ao Pedido`}
-                    className="w-11 h-11 rounded-full bg-stone-950 hover:bg-[#c58d59] active:scale-95 text-white flex items-center justify-center shadow-md transition cursor-pointer"
-                    title="Personalizar bebida e adicionar"
-                  >
-                    <Plus className="w-5 h-5 stroke-[2.5]" />
-                  </button>
-                )}
+                ))}
               </div>
             </div>
-          );
-        })}
-      </div>
+          )}
+
+          {/* 4. SEÇÃO "MAIS PEDIDOS DO CAFÉ" */}
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between border-b border-stone-200/80 pb-3">
+              <div>
+                <h2
+                  className="text-2xl font-normal text-[#35312F]"
+                  style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+                >
+                  Mais Pedidos da Cafeteria
+                </h2>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Os favoritos dos nossos clientes preparados na hora
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCategorySelect('ALL')}
+                className="text-xs font-bold text-[#820b28] hover:underline cursor-pointer flex items-center space-x-1"
+              >
+                <span>Ver cardápio completo</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
+              {topFavorites.map((product) => renderProductCard(product))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ========================================================
+            CENÁRIO 2: LISTA DE PRODUTOS (activeCategory !== 'HOME')
+           ======================================================== */
+        <div className="space-y-6">
+          {/* Cabeçalho da Categoria */}
+          <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 text-[#35312F]">
+            <div className="space-y-4">
+              {/* Breadcrumb Navegável */}
+              <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
+                <button
+                  type="button"
+                  onClick={() => handleCategorySelect('HOME')}
+                  className="hover:text-[#820b28] font-bold transition cursor-pointer"
+                >
+                  Cardápio Início
+                </button>
+                <span>/</span>
+                <span className="text-[#850D2C] font-semibold">
+                  {activeCategory === 'ALL' ? 'Todos os Itens' : activeCategory}
+                </span>
+                {currentSubcategory !== 'ALL' && (
+                  <>
+                    <span>/</span>
+                    <span className="text-stone-600 font-semibold">{currentSubcategory}</span>
+                  </>
+                )}
+              </nav>
+
+              {/* Título com Fonte Amarego */}
+              <div>
+                <h1
+                  className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight"
+                  style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+                >
+                  {activeCategory === 'ALL' ? 'Todos os Sabores Artesanais' : activeCategory}
+                </h1>
+
+                <p className="text-xs text-stone-500 mt-1">
+                  {activeCategory === 'ALL'
+                    ? `Mostrando ${activeProducts.length} delícias divididas por categoria horizontal. Arraste para o lado para explorar!`
+                    : `Mostrando ${filteredProducts.length} ${
+                        filteredProducts.length === 1 ? 'delícia disponível' : 'delícias disponíveis'
+                      }${currentSubcategory !== 'ALL' ? ` em "${currentSubcategory}"` : ''}.`}
+                </p>
+              </div>
+
+              {/* ========================================================
+                  BARRA DE FILTRO DE SUBCATEGORIAS (ONDE O USUÁRIO CIRCULOU)
+                 ======================================================== */}
+              {activeCategory !== 'ALL' && subcategoriesInActiveCategory.length > 0 && (
+                <div className="pt-4 border-t border-stone-100 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-xs font-bold text-stone-600">
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-[#820b28]" />
+                      <span>Filtrar por Subcategoria:</span>
+                    </div>
+                    {currentSubcategory !== 'ALL' && (
+                      <button
+                        type="button"
+                        onClick={() => handleSubcategorySelect('ALL')}
+                        className="text-xs font-semibold text-[#820b28] hover:underline cursor-pointer flex items-center space-x-1"
+                      >
+                        <span>Mostrar Todas ({activeProducts.filter((p) => p.category === activeCategory).length})</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-1 px-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSubcategorySelect('ALL')}
+                      className={`h-9 px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex items-center space-x-2 shadow-2xs ${
+                        currentSubcategory === 'ALL'
+                          ? 'bg-[#820b28] text-white shadow-md ring-2 ring-[#820b28]/20 scale-[1.02]'
+                          : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+                      }`}
+                    >
+                      <span>Todos</span>
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                          currentSubcategory === 'ALL'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-stone-200 text-stone-600'
+                        }`}
+                      >
+                        {activeProducts.filter((p) => p.category === activeCategory).length}
+                      </span>
+                    </button>
+
+                    {subcategoriesInActiveCategory.map((sub: string) => {
+                      const count = activeProducts.filter(
+                        (p) => p.category === activeCategory && p.subcategory === sub
+                      ).length;
+                      const isSubActive = currentSubcategory === sub;
+
+                      return (
+                        <button
+                          key={sub}
+                          type="button"
+                          onClick={() => handleSubcategorySelect(sub)}
+                          className={`h-9 px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex items-center space-x-2 shadow-2xs ${
+                            isSubActive
+                              ? 'bg-[#820b28] text-white shadow-md ring-2 ring-[#820b28]/20 scale-[1.02]'
+                              : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+                          }`}
+                        >
+                          <span>{sub}</span>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                              isSubActive
+                                ? 'bg-white/20 text-white'
+                                : 'bg-stone-200 text-stone-600'
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ========================================================
+              SUB-CENÁRIO A: activeCategory === 'ALL'
+              ARRUMADO POR COLUNAS NA HORIZONTAL POR CATEGORIA (ARRASTAR PARA O LADO)
+             ======================================================== */}
+          {activeCategory === 'ALL' ? (
+            <div className="space-y-12">
+              {categoryOrder.map((catName) => {
+                const categoryProducts = activeProducts.filter((p) => p.category === catName);
+                if (categoryProducts.length === 0) return null;
+                return (
+                  <HorizontalCategoryRow
+                    key={catName}
+                    category={catName}
+                    products={categoryProducts}
+                    renderCard={renderProductCard}
+                    onSelectCategory={handleCategorySelect}
+                    onSelectSubcategory={(cat, sub) => {
+                      handleCategorySelect(cat);
+                      handleSubcategorySelect(sub);
+                    }}
+                  />
+                );
+              })}
+
+              {/* Categorias adicionais não listadas na ordem padrão */}
+              {Array.from(new Set(activeProducts.map((p) => p.category)))
+                .filter((cat) => !categoryOrder.includes(cat))
+                .map((catName) => {
+                  const categoryProducts = activeProducts.filter((p) => p.category === catName);
+                  if (categoryProducts.length === 0) return null;
+                  return (
+                    <HorizontalCategoryRow
+                      key={catName}
+                      category={catName}
+                      products={categoryProducts}
+                      renderCard={renderProductCard}
+                      onSelectCategory={handleCategorySelect}
+                      onSelectSubcategory={(cat, sub) => {
+                        handleCategorySelect(cat);
+                        handleSubcategorySelect(sub);
+                      }}
+                    />
+                  );
+                })}
+            </div>
+          ) : (
+            /* ========================================================
+                SUB-CENÁRIO B: CATEGORIA ESPECÍFICA (GRID DIRETO COM FILTRAGEM DINÂMICA)
+               ======================================================== */
+            filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
+                {filteredProducts.map((product) => renderProductCard(product))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl p-12 text-center border border-stone-200/80 space-y-4">
+                <div className="w-16 h-16 rounded-full bg-amber-50 text-[#924529] mx-auto flex items-center justify-center">
+                  <Coffee className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-stone-800">
+                  Nenhum produto cadastrado nesta subcategoria
+                </h3>
+                <p className="text-xs text-stone-500 max-w-sm mx-auto">
+                  A subcategoria "{currentSubcategory}" ainda não possui produtos ativos no cardápio.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleSubcategorySelect('ALL')}
+                  className="px-5 py-2.5 bg-[#820b28] text-white rounded-xl text-xs font-bold shadow-md hover:bg-[#631a09] transition cursor-pointer"
+                >
+                  Ver todos os produtos de {activeCategory}
+                </button>
+              </div>
+            )
+          )}
+        </div>
+      )}
 
       {/* Barra Flutuante de Carrinho de Compras - Estilo Pílula Vinho Oficial */}
       {cartItemCount > 0 && (
-        <div className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 w-auto max-w-[94vw] z-40 animate-in slide-in-from-bottom-5 duration-300">
+        <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 w-auto max-w-[94vw] z-40 animate-in slide-in-from-bottom-5 duration-300">
           <div className="bg-gradient-to-r from-[#5a0c20] via-[#6a0e28] to-[#4e091b] p-1.5 sm:p-2 pl-2 sm:pl-2.5 pr-2 sm:pr-2.5 rounded-full shadow-[0_12px_28px_rgba(40,4,12,0.40)] border border-white/15 flex items-center">
             
             {/* Círculo do Carrinho com Badge Numérico */}
