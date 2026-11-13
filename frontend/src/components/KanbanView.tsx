@@ -236,11 +236,19 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                 </span>
               </div>
 
-              {/* Observação individual do item se houver */}
+              {/* Adicionais do item se houver */}
+              {item.selectedAddons && item.selectedAddons.length > 0 && (
+                <div className="text-[11px] text-amber-800 bg-amber-50/80 px-2 py-0.5 rounded-md mt-1 border border-amber-200/60 font-medium">
+                  <span className="text-amber-700 mr-1 font-semibold">+</span>
+                  {item.selectedAddons.join(', ')}
+                </div>
+              )}
+
+              {/* Observação individual do item para o barista */}
               {item.notes && (
-                <div className="text-[11px] text-stone-600 bg-stone-50 px-2 py-1 rounded-md mt-1 border border-stone-200/80 font-normal">
-                  <span className="text-stone-400 font-medium mr-1">Obs:</span>
-                  {item.notes}
+                <div className="text-[11px] text-[#820b28] bg-rose-50/90 px-2 py-1 rounded-md mt-1 border border-rose-200/80 font-semibold flex items-start gap-1">
+                  <span className="text-rose-700 font-bold shrink-0">Obs:</span>
+                  <span className="leading-tight">{item.notes}</span>
                 </div>
               )}
             </div>

@@ -249,12 +249,27 @@ export function deductStockForOrder(
   }
 
   const auditLogs: AuditLog[] = [];
-  const updatedProducts = products.map((prod) => {
-    const itemInOrder = order.items.find((item) => item.productId === prod.id);
-    if (!itemInOrder) return prod;
+  const stockDeltas = new Map<string, number>();
 
-    const newStock = Math.max(0, prod.stockQuantity - itemInOrder.quantity);
-    const detailMsg = `Baixa automática de estoque: Pedido #${order.orderNumber} (${order.customerName}) subtraiu ${itemInOrder.quantity} un. de "${prod.name}". Estoque atual: ${newStock}.`;
+  for (const item of order.items) {
+    stockDeltas.set(item.productId, (stockDeltas.get(item.productId) || 0) + item.quantity);
+
+    // Se o item for um combo composto por itens avulsos mapeados, dá baixa nos itens individuais do combo
+    const prod = products.find((p) => p.id === item.productId);
+    if (prod && prod.isCombo && prod.comboItems && prod.comboItems.length > 0) {
+      for (const cItem of prod.comboItems) {
+        const needed = cItem.quantity * item.quantity;
+        stockDeltas.set(cItem.productId, (stockDeltas.get(cItem.productId) || 0) + needed);
+      }
+    }
+  }
+
+  const updatedProducts = products.map((prod) => {
+    const qtyToDeduct = stockDeltas.get(prod.id);
+    if (!qtyToDeduct) return prod;
+
+    const newStock = Math.max(0, prod.stockQuantity - qtyToDeduct);
+    const detailMsg = `Baixa automática de estoque: Pedido #${order.orderNumber} (${order.customerName}) subtraiu ${qtyToDeduct} un. de "${prod.name}". Estoque atual: ${newStock}.`;
 
     auditLogs.push(
       createAuditLog(

@@ -29,6 +29,7 @@ model Product {
   price             Float
   costPrice         Float             @default(0)
   category          String            // 'Cafés Especiais', 'Doces & Bolos', etc.
+  subcategory       String?
   imageUrl          String
   cutoutImageUrl    String?
   stockQuantity     Int               @default(0)
