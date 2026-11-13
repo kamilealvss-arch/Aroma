@@ -19,6 +19,7 @@ import {
   Package,
   ChevronLeft,
   ChevronRight,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Product, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -982,7 +983,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         <div className="space-y-6">
           {/* Cabeçalho da Categoria */}
           <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-stone-200/80 text-[#35312F]">
-            <div className="space-y-1">
+            <div className="space-y-4">
               {/* Breadcrumb Navegável */}
               <nav className="flex items-center space-x-1.5 text-xs text-stone-400 font-medium">
                 <button
@@ -1005,64 +1006,97 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
               </nav>
 
               {/* Título com Fonte Amarego */}
-              <h1
-                className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight"
-                style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
-              >
-                {activeCategory === 'ALL' ? 'Todos os Sabores Artesanais' : activeCategory}
-              </h1>
+              <div>
+                <h1
+                  className="text-2xl sm:text-3xl font-normal text-[#35312F] tracking-tight"
+                  style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+                >
+                  {activeCategory === 'ALL' ? 'Todos os Sabores Artesanais' : activeCategory}
+                </h1>
 
-              <p className="text-xs text-stone-500">
-                {activeCategory === 'ALL'
-                  ? `Mostrando ${activeProducts.length} delícias divididas por categoria horizontal. Arraste para o lado para explorar!`
-                  : `Mostrando ${filteredProducts.length} ${
-                      filteredProducts.length === 1 ? 'delícia disponível' : 'delícias disponíveis'
-                    }.`}
-              </p>
+                <p className="text-xs text-stone-500 mt-1">
+                  {activeCategory === 'ALL'
+                    ? `Mostrando ${activeProducts.length} delícias divididas por categoria horizontal. Arraste para o lado para explorar!`
+                    : `Mostrando ${filteredProducts.length} ${
+                        filteredProducts.length === 1 ? 'delícia disponível' : 'delícias disponíveis'
+                      }${currentSubcategory !== 'ALL' ? ` em "${currentSubcategory}"` : ''}.`}
+                </p>
+              </div>
 
-              {/* Pílulas de Subcategorias da Categoria Selecionada */}
+              {/* ========================================================
+                  BARRA DE FILTRO DE SUBCATEGORIAS (ONDE O USUÁRIO CIRCULOU)
+                 ======================================================== */}
               {activeCategory !== 'ALL' && subcategoriesInActiveCategory.length > 0 && (
-                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-3">
-                  <button
-                    type="button"
-                    onClick={() => handleSubcategorySelect('ALL')}
-                    className={`h-7 px-3.5 rounded-full text-xs font-semibold transition cursor-pointer shrink-0 ${
-                      currentSubcategory === 'ALL'
-                        ? 'bg-[#820b28] text-white shadow-xs'
-                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                    }`}
-                  >
-                    Todos
-                  </button>
-                  {subcategoriesInActiveCategory.map((sub: string) => {
-                    const count = activeProducts.filter(
-                      (p) => p.category === activeCategory && p.subcategory === sub
-                    ).length;
-                    const isSubActive = currentSubcategory === sub;
-                    return (
+                <div className="pt-4 border-t border-stone-100 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-xs font-bold text-stone-600">
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-[#820b28]" />
+                      <span>Filtrar por Subcategoria:</span>
+                    </div>
+                    {currentSubcategory !== 'ALL' && (
                       <button
-                        key={sub}
                         type="button"
-                        onClick={() => handleSubcategorySelect(sub)}
-                        className={`h-7 px-3.5 rounded-full text-xs font-medium transition cursor-pointer shrink-0 inline-flex items-center space-x-1.5 ${
-                          isSubActive
-                            ? 'bg-[#820b28] text-white shadow-xs'
-                            : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                        onClick={() => handleSubcategorySelect('ALL')}
+                        className="text-xs font-semibold text-[#820b28] hover:underline cursor-pointer flex items-center space-x-1"
+                      >
+                        <span>Mostrar Todas ({activeProducts.filter((p) => p.category === activeCategory).length})</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-1 px-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSubcategorySelect('ALL')}
+                      className={`h-9 px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex items-center space-x-2 shadow-2xs ${
+                        currentSubcategory === 'ALL'
+                          ? 'bg-[#820b28] text-white shadow-md ring-2 ring-[#820b28]/20 scale-[1.02]'
+                          : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+                      }`}
+                    >
+                      <span>Todos</span>
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                          currentSubcategory === 'ALL'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-stone-200 text-stone-600'
                         }`}
                       >
-                        <span>{sub}</span>
-                        {count > 0 && (
+                        {activeProducts.filter((p) => p.category === activeCategory).length}
+                      </span>
+                    </button>
+
+                    {subcategoriesInActiveCategory.map((sub: string) => {
+                      const count = activeProducts.filter(
+                        (p) => p.category === activeCategory && p.subcategory === sub
+                      ).length;
+                      const isSubActive = currentSubcategory === sub;
+
+                      return (
+                        <button
+                          key={sub}
+                          type="button"
+                          onClick={() => handleSubcategorySelect(sub)}
+                          className={`h-9 px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex items-center space-x-2 shadow-2xs ${
+                            isSubActive
+                              ? 'bg-[#820b28] text-white shadow-md ring-2 ring-[#820b28]/20 scale-[1.02]'
+                              : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+                          }`}
+                        >
+                          <span>{sub}</span>
                           <span
-                            className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                              isSubActive ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-600'
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                              isSubActive
+                                ? 'bg-white/20 text-white'
+                                : 'bg-stone-200 text-stone-600'
                             }`}
                           >
                             {count}
                           </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -1115,96 +1149,29 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
             </div>
           ) : (
             /* ========================================================
-                SUB-CENÁRIO B: CATEGORIA ESPECÍFICA (ORGANIZADO POR SUBCATEGORIA OU GRID)
+                SUB-CENÁRIO B: CATEGORIA ESPECÍFICA (GRID DIRETO COM FILTRAGEM DINÂMICA)
                ======================================================== */
             filteredProducts.length > 0 ? (
-              currentSubcategory === 'ALL' && subcategoriesInActiveCategory.length > 0 ? (
-                <div className="space-y-16">
-                  {subcategoriesInActiveCategory.map((sub: string) => {
-                    const subProducts = filteredProducts.filter((p) => p.subcategory === sub);
-                    if (subProducts.length === 0) return null;
-                    return (
-                      <div key={sub} className="space-y-4">
-                        <div className="flex items-center justify-between border-b border-stone-200/80 pb-3">
-                          <div className="flex items-center space-x-2.5">
-                            <div className="w-2.5 h-2.5 rounded-full bg-[#820b28]" />
-                            <h2
-                              className="text-xl sm:text-2xl font-normal text-[#35312F]"
-                              style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
-                            >
-                              {sub}
-                            </h2>
-                            <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-full">
-                              {subProducts.length} {subProducts.length === 1 ? 'item' : 'itens'}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleSubcategorySelect(sub)}
-                            className="text-xs font-bold text-[#820b28] hover:underline cursor-pointer flex items-center space-x-1"
-                          >
-                            <span>Ver apenas {sub}</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
-                          {subProducts.map((product) => renderProductCard(product))}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Produtos da categoria sem subcategoria ou com subcategoria avulsa */}
-                  {(() => {
-                    const otherProducts = filteredProducts.filter(
-                      (p) => !p.subcategory || !subcategoriesInActiveCategory.includes(p.subcategory)
-                    );
-                    if (otherProducts.length === 0) return null;
-                    return (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between border-b border-stone-200/80 pb-3">
-                          <div className="flex items-center space-x-2.5">
-                            <div className="w-2.5 h-2.5 rounded-full bg-stone-400" />
-                            <h2
-                              className="text-xl sm:text-2xl font-normal text-[#35312F]"
-                              style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
-                            >
-                              Outras Opções da Categoria
-                            </h2>
-                            <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-full">
-                              {otherProducts.length} {otherProducts.length === 1 ? 'item' : 'itens'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
-                          {otherProducts.map((product) => renderProductCard(product))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
-                  {filteredProducts.map((product) => renderProductCard(product))}
-                </div>
-              )
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
+                {filteredProducts.map((product) => renderProductCard(product))}
+              </div>
             ) : (
               <div className="bg-white rounded-3xl p-12 text-center border border-stone-200/80 space-y-4">
                 <div className="w-16 h-16 rounded-full bg-amber-50 text-[#924529] mx-auto flex items-center justify-center">
                   <Coffee className="w-8 h-8" />
                 </div>
                 <h3 className="text-lg font-bold text-stone-800">
-                  Nenhum produto encontrado nesta categoria
+                  Nenhum produto cadastrado nesta subcategoria
                 </h3>
                 <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                  Todos os itens desta categoria podem estar inativos ou fora de estoque no momento.
+                  A subcategoria "{currentSubcategory}" ainda não possui produtos ativos no cardápio.
                 </p>
                 <button
                   type="button"
-                  onClick={() => handleCategorySelect('HOME')}
+                  onClick={() => handleSubcategorySelect('ALL')}
                   className="px-5 py-2.5 bg-[#820b28] text-white rounded-xl text-xs font-bold shadow-md hover:bg-[#631a09] transition cursor-pointer"
                 >
-                  Voltar à Página Inicial do Cardápio
+                  Ver todos os produtos de {activeCategory}
                 </button>
               </div>
             )

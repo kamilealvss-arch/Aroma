@@ -68,6 +68,7 @@ class DatabaseStore {
           price: p.price,
           costPrice: p.costPrice,
           category: p.category as any,
+          subcategory: (p as any).subcategory || undefined,
           imageUrl: p.imageUrl,
           cutoutImageUrl: p.cutoutImageUrl || undefined,
           stockQuantity: p.stockQuantity,
