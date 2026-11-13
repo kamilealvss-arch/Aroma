@@ -255,10 +255,112 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = currentView === 'client' ? clientNavItems : adminNavItems;
 
   return (
-    <aside
-      className="sticky top-0 h-screen shrink-0 z-40 flex select-none"
-      aria-label="Menu Lateral"
-    >
+    <>
+      {/* ========================================================
+          1. CABEÇALHO MOBILE SUPERIOR (md:hidden)
+         ======================================================== */}
+      <header className="md:hidden sticky top-0 z-30 bg-[#820b28] text-white px-4 py-2.5 flex items-center justify-between shadow-md select-none">
+        <div className="flex items-center space-x-2">
+          <img src="/logo.png" alt="Aroma" className="w-8 h-8 object-contain brightness-0 invert" />
+          <span
+            className="text-lg text-white font-normal tracking-tight"
+            style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+          >
+            Aroma
+          </span>
+          {currentView === 'client' && (
+            <span className="text-[10px] bg-white/20 text-white font-bold px-2 py-0.5 rounded-full ml-1">
+              Cardápio
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-2">
+          {currentView === 'client' ? (
+            <button
+              type="button"
+              onClick={onBackToAdmin || (() => onViewChange('admin'))}
+              className="px-3 py-1 bg-white/15 hover:bg-white/25 active:scale-95 text-white rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer"
+              title="Voltar ao Painel Administrativo"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Admin</span>
+            </button>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <div className="text-right">
+                <span className="text-[11px] font-bold block leading-none">{currentUser?.name || 'Admin'}</span>
+                <span className="text-[9px] text-white/70 block leading-tight">{currentUser?.role || ''}</span>
+              </div>
+              <button
+                type="button"
+                onClick={onResetDemo}
+                className="p-1.5 bg-white/15 hover:bg-white/25 active:scale-95 rounded-full text-white transition cursor-pointer"
+                title="Reset / Logout"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* ========================================================
+          2. BARRA INFERIOR MOBILE FIXA (md:hidden)
+         ======================================================== */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#820b28] border-t border-white/15 shadow-[0_-4px_25px_rgba(0,0,0,0.3)] flex items-center overflow-x-auto scrollbar-none px-2 py-1.5 gap-1 select-none"
+        aria-label="Navegação Inferior Mobile"
+      >
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active = item.isActive;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={item.onClick}
+              className={`flex flex-col items-center justify-center min-w-[58px] flex-1 py-1 px-1 rounded-2xl transition-all shrink-0 cursor-pointer ${
+                active
+                  ? 'bg-white text-stone-900 shadow-md scale-102'
+                  : 'text-white/80 hover:text-white hover:bg-white/10 active:scale-95'
+              }`}
+            >
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 relative transition-transform ${
+                  active ? `${item.circleBg} shadow-xs` : 'bg-white/15'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {item.badge !== undefined && (
+                  <span
+                    className={`absolute -top-1 -right-1 text-[8px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center ${
+                      item.badgeColor || 'bg-amber-400 text-stone-900'
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </div>
+              <span
+                className={`text-[9px] font-bold tracking-tight mt-0.5 truncate max-w-[56px] text-center ${
+                  active ? 'text-stone-950 font-black' : 'text-white/85'
+                }`}
+              >
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ========================================================
+          3. SIDEBAR LATERAL DESKTOP (hidden md:flex)
+         ======================================================== */}
+      <aside
+        className="hidden md:flex sticky top-0 h-screen shrink-0 z-40 select-none"
+        aria-label="Menu Lateral"
+      >
       {/* Barra Principal com recortes curvos para o item ativo */}
       <div
         className={`${
@@ -614,5 +716,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
     </aside>
+  </>
   );
 };

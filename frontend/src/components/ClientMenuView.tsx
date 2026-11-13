@@ -1073,7 +1073,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
           BARRA FLUTUANTE DE CARRINHO DE COMPRAS
          ======================================================== */}
       {cartItemCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-40 animate-in slide-in-from-bottom-6">
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-40 animate-in slide-in-from-bottom-6">
           <div className="bg-stone-900 text-white p-3.5 rounded-2xl shadow-2xl border border-stone-700 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-xl bg-[#820b28] flex items-center justify-center font-bold text-white shadow-md">
