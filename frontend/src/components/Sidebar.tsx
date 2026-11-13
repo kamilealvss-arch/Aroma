@@ -412,7 +412,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           3. SIDEBAR LATERAL DESKTOP (hidden md:flex)
          ======================================================== */}
       <aside
-        className="hidden md:flex sticky top-0 h-screen shrink-0 z-40 select-none"
+        className="hidden md:flex sticky top-0 h-screen shrink-0 z-40 select-none bg-[#820b28]"
         aria-label="Menu Lateral"
       >
       {/* Barra Principal com recortes curvos para o item ativo */}
