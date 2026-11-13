@@ -305,11 +305,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 alt="Aroma"
                 className="w-28 h-auto object-contain select-none hover:scale-105 transition-transform duration-300 brightness-0 invert"
               />
-              {currentView === 'client' && (
-                <span className="text-[9px] uppercase font-bold tracking-[0.18em] text-[#fcd34d] bg-white/10 px-2.5 py-0.5 rounded-full mt-1.5 border border-[#fcd34d]/30">
-                  Cardápio Digital
-                </span>
-              )}
             </div>
           )}
         </div>
