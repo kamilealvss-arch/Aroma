@@ -24,20 +24,8 @@ interface ComboBuilderModalProps {
   comboToEdit?: Product | null;
 }
 
-const DEFAULT_COMBO_IMAGES = [
-  {
-    label: 'Brunch Clássico & Café',
-    url: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    label: 'Café da Manhã Completo',
-    url: 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    label: 'Tarde com Fatias & Doces',
-    url: 'https://images.unsplash.com/photo-1517433670267-08bbd4be890f?w=600&auto=format&fit=crop&q=80',
-  },
-];
+const FALLBACK_COMBO_IMAGE =
+  'https://images.unsplash.com/photo-1550547660-d9450f859349?w=600&auto=format&fit=crop&q=80';
 
 export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
   isOpen,
@@ -70,15 +58,14 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
   const [name, setName] = useState(comboToEdit?.name || '');
   const [description, setDescription] = useState(comboToEdit?.description || '');
 
-  // Controle de imagem: upload do dispositivo, foto automática de um dos itens ou foto pré-definida
+  // Controle de imagem: upload do dispositivo ou foto automática de um dos itens
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [customUploadedImageUrl, setCustomUploadedImageUrl] = useState<string | null>(() => {
     if (!comboToEdit) return null;
-    const isPreset = DEFAULT_COMBO_IMAGES.some((d) => d.url === comboToEdit.imageUrl);
     const isFromItem = comboToEdit.comboItems?.some(
       (ci) => products.find((p) => p.id === ci.productId)?.imageUrl === comboToEdit.imageUrl
     );
-    if (!isPreset && !isFromItem && comboToEdit.imageUrl) {
+    if (!isFromItem && comboToEdit.imageUrl) {
       return comboToEdit.imageUrl;
     }
     return null;
@@ -90,12 +77,6 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
       (ci) => products.find((p) => p.id === ci.productId)?.imageUrl === comboToEdit.imageUrl
     );
     return matchingItem ? matchingItem.productId : null;
-  });
-
-  const [presetImageUrl, setPresetImageUrl] = useState<string | null>(() => {
-    if (!comboToEdit) return null;
-    const isPreset = DEFAULT_COMBO_IMAGES.some((d) => d.url === comboToEdit.imageUrl);
-    return isPreset ? comboToEdit.imageUrl : null;
   });
 
   const [discountPercent, setDiscountPercent] = useState<number>(() => {
@@ -126,22 +107,15 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
       });
       setItemQuantities(initialQtys);
 
-      const isPreset = DEFAULT_COMBO_IMAGES.some((d) => d.url === comboToEdit.imageUrl);
       const matchingItem = comboToEdit.comboItems?.find(
         (ci) => products.find((p) => p.id === ci.productId)?.imageUrl === comboToEdit.imageUrl
       );
 
-      if (isPreset) {
-        setPresetImageUrl(comboToEdit.imageUrl);
-        setCustomUploadedImageUrl(null);
-        setSelectedProductImageId(null);
-      } else if (matchingItem) {
+      if (matchingItem) {
         setSelectedProductImageId(matchingItem.productId);
         setCustomUploadedImageUrl(null);
-        setPresetImageUrl(null);
       } else {
         setCustomUploadedImageUrl(comboToEdit.imageUrl || null);
-        setPresetImageUrl(null);
         setSelectedProductImageId(null);
       }
     } else {
@@ -152,7 +126,6 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
       setDiscountPercent(15);
       setItemQuantities({});
       setCustomUploadedImageUrl(null);
-      setPresetImageUrl(null);
       setSelectedProductImageId(null);
       setError(null);
     }
@@ -219,21 +192,19 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
 
   // URL final efetiva da foto do combo:
   // 1. Imagem enviada pelo usuário (prioridade máxima)
-  // 2. Preset escolhido manualmente (se houver)
-  // 3. Imagem do produto selecionado ou do 1º produto do combo (automático)
-  // 4. Imagem padrão de fallback
+  // 2. Imagem do produto selecionado ou do 1º produto do combo (automático)
+  // 3. Imagem padrão de fallback
   const effectiveImageUrl = useMemo(() => {
     if (customUploadedImageUrl) return customUploadedImageUrl;
-    if (presetImageUrl) return presetImageUrl;
     if (effectiveProductForImage?.imageUrl) return effectiveProductForImage.imageUrl;
-    return DEFAULT_COMBO_IMAGES[0].url;
-  }, [customUploadedImageUrl, presetImageUrl, effectiveProductForImage]);
+    return FALLBACK_COMBO_IMAGE;
+  }, [customUploadedImageUrl, effectiveProductForImage]);
 
   // Imagem recortada sem fundo (se vier do produto que possui cutout)
   const effectiveCutoutImageUrl = useMemo(() => {
-    if (customUploadedImageUrl || presetImageUrl) return undefined;
+    if (customUploadedImageUrl) return undefined;
     return effectiveProductForImage?.cutoutImageUrl;
-  }, [customUploadedImageUrl, presetImageUrl, effectiveProductForImage]);
+  }, [customUploadedImageUrl, effectiveProductForImage]);
 
   // Upload de Imagem do Usuário
   const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,7 +228,6 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
     reader.onloadend = () => {
       const resultDataUrl = reader.result as string;
       setCustomUploadedImageUrl(resultDataUrl);
-      setPresetImageUrl(null);
       setSelectedProductImageId(null);
     };
     reader.readAsDataURL(file);
@@ -266,7 +236,6 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
 
   const handleClearCustomUpload = () => {
     setCustomUploadedImageUrl(null);
-    setPresetImageUrl(null);
     setSelectedProductImageId(null);
   };
 
@@ -325,7 +294,7 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
         price: Number(calculatedPrice.toFixed(2)),
         costPrice: Number(totalCostPrice.toFixed(2)),
         category: 'Combos & Brunch',
-        imageUrl: effectiveImageUrl.trim() || DEFAULT_COMBO_IMAGES[0].url,
+        imageUrl: effectiveImageUrl.trim() || FALLBACK_COMBO_IMAGE,
         cutoutImageUrl: effectiveCutoutImageUrl || undefined,
         stockQuantity: estimatedComboStock,
         minStockThreshold: 5,
@@ -745,7 +714,6 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
                         {selectedItemsList.map((item) => {
                           const isThisActive =
                             !customUploadedImageUrl &&
-                            !presetImageUrl &&
                             (selectedProductImageId === item.productId ||
                               (!selectedProductImageId &&
                                 selectedItemsList[0]?.productId === item.productId));
@@ -756,7 +724,6 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
                               type="button"
                               onClick={() => {
                                 setCustomUploadedImageUrl(null);
-                                setPresetImageUrl(null);
                                 setSelectedProductImageId(item.productId);
                               }}
                               className={`relative rounded-xl p-1.5 border-2 transition cursor-pointer text-left flex flex-col items-center bg-white ${
@@ -784,8 +751,7 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
 
                               {!selectedProductImageId &&
                                 selectedItemsList[0]?.productId === item.productId &&
-                                !customUploadedImageUrl &&
-                                !presetImageUrl && (
+                                !customUploadedImageUrl && (
                                   <span className="absolute bottom-1 bg-stone-900/75 text-white text-[8px] font-extrabold px-1 rounded-sm">
                                     Auto
                                   </span>
@@ -800,41 +766,6 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
                       </p>
                     )}
                   </div>
-
-                  {/* 3. Fotos Sugeridas (Presets) */}
-                  <details className="text-[11px] text-stone-500 pt-0.5 group">
-                    <summary className="font-semibold cursor-pointer text-stone-600 hover:text-stone-900 select-none text-[10px]">
-                      Ver outras sugestões de imagem (Brunch / Café)
-                    </summary>
-                    <div className="grid grid-cols-3 gap-2 mt-1.5">
-                      {DEFAULT_COMBO_IMAGES.map((img, idx) => {
-                        const isThisSelected = !customUploadedImageUrl && presetImageUrl === img.url;
-                        return (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => {
-                              setCustomUploadedImageUrl(null);
-                              setSelectedProductImageId(null);
-                              setPresetImageUrl(img.url);
-                            }}
-                            className={`relative rounded-xl overflow-hidden h-12 border-2 transition cursor-pointer ${
-                              isThisSelected
-                                ? 'border-[#820b28] ring-2 ring-[#820b28]/20'
-                                : 'border-stone-200 hover:border-stone-300'
-                            }`}
-                          >
-                            <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
-                            {isThisSelected && (
-                              <div className="absolute top-1 right-1 w-4 h-4 bg-[#820b28] rounded-full flex items-center justify-center text-white shadow-xs">
-                                <Check className="w-2.5 h-2.5 stroke-[3]" />
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </details>
                 </div>
               </div>
             </div>
