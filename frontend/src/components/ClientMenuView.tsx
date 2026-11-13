@@ -685,11 +685,6 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
               <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                 {/* Lado Esquerdo: Textos do Especial */}
                 <div className="space-y-4 max-w-xl text-center md:text-left">
-                  <div className="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-md px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-amber-200 border border-white/20 shadow-xs">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Especial da Semana</span>
-                  </div>
-
                   <h2
                     className="text-3xl sm:text-5xl font-normal tracking-tight text-white leading-tight"
                     style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
