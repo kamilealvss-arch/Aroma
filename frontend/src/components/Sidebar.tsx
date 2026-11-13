@@ -17,7 +17,6 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { SystemUser, StockAlert, Product } from '../../../shared/types/index.ts';
-import { getAllSubcategoriesForCategory } from './ProductModal.tsx';
 
 export type AdminTabType = 'dashboard' | 'kanban' | 'products' | 'stock' | 'reports' | 'audit';
 
@@ -313,40 +312,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* ========================================================
           2. BARRA INFERIOR MOBILE ESTILO NOTCH CURVADO (md:hidden)
          ======================================================== */}
-      {/* 2.1 Pílulas de Subcategorias no Mobile Flutuando acima da barra inferior */}
-      {currentView === 'client' && clientCategory && clientCategory !== 'HOME' && clientCategory !== 'ALL' && (
-        <div className="md:hidden fixed bottom-24 inset-x-3 z-30 flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1.5 px-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-stone-200/80 max-w-lg mx-auto animate-in slide-in-from-bottom-2">
-          <span className="text-[9.5px] font-bold uppercase tracking-wider text-[#820b28] shrink-0 mr-0.5">
-            Sub:
-          </span>
-          <button
-            type="button"
-            onClick={() => onClientSubcategoryChange?.('ALL')}
-            className={`h-6 px-2.5 rounded-full text-[10.5px] font-bold transition shrink-0 cursor-pointer ${
-              clientSubcategory === 'ALL'
-                ? 'bg-[#820b28] text-white shadow-2xs'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-            }`}
-          >
-            Todas
-          </button>
-          {getAllSubcategoriesForCategory(clientCategory, products).map((sub) => (
-            <button
-              key={sub}
-              type="button"
-              onClick={() => onClientSubcategoryChange?.(sub)}
-              className={`h-6 px-2.5 rounded-full text-[10.5px] font-medium transition shrink-0 cursor-pointer ${
-                clientSubcategory === sub
-                  ? 'bg-[#820b28] text-white shadow-2xs font-bold'
-                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-              }`}
-            >
-              {sub}
-            </button>
-          ))}
-        </div>
-      )}
-
       <nav
         className="md:hidden fixed bottom-3 inset-x-3 z-40 max-w-lg mx-auto select-none pointer-events-auto"
         aria-label="Navegação Inferior Mobile"
@@ -547,43 +512,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     )}
                   </button>
-
-                  {/* Subcategorias da Categoria Ativa na Sidebar Lateral */}
-                  {!isCollapsed && active && currentView === 'client' && item.id !== 'HOME' && item.id !== 'ALL' && (
-                    <div className="pl-14 pr-3 py-1 space-y-0.5 animate-in fade-in">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onClientSubcategoryChange?.('ALL');
-                        }}
-                        className={`w-full text-left px-2 py-1 rounded-lg text-[10.5px] font-bold transition cursor-pointer ${
-                          clientSubcategory === 'ALL'
-                            ? 'bg-white/25 text-white font-black'
-                            : 'text-white/70 hover:text-white hover:bg-white/10'
-                        }`}
-                      >
-                        • Todas
-                      </button>
-                      {getAllSubcategoriesForCategory(item.id, products).map((sub) => (
-                        <button
-                          key={sub}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onClientSubcategoryChange?.(sub);
-                          }}
-                          className={`w-full text-left px-2 py-1 rounded-lg text-[10px] font-medium transition truncate cursor-pointer ${
-                            clientSubcategory === sub
-                              ? 'bg-white text-[#820b28] font-bold shadow-2xs'
-                              : 'text-white/80 hover:text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {sub}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               );
             }
