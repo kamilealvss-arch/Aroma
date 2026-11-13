@@ -323,46 +323,77 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* ========================================================
           2. BARRA INFERIOR MOBILE ESTILO NOTCH CURVADO (md:hidden)
-             FIXA NA TELA, SEMPRE VISÍVEL E SEM CORTAR ITENS
+             FIXA NA TELA, TOTALMENTE VISÍVEL E SEM CORTAR O CÍRCULO ATIVO
          ======================================================== */}
       <nav
-        className="md:hidden fixed bottom-2 inset-x-2 z-50 max-w-lg mx-auto select-none pointer-events-auto"
+        className="md:hidden fixed bottom-2 inset-x-2 z-50 max-w-lg mx-auto select-none pointer-events-auto overflow-visible"
         aria-label="Navegação Inferior Mobile"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        <div className="relative bg-[#820b28] rounded-[24px] shadow-[0_8px_32px_rgba(130,11,40,0.5)] px-1.5 h-[62px] flex items-center overflow-x-auto scrollbar-none w-full">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = item.isActive;
+        {/* Container com pt-4 e overflow-visible para o círculo flutuante nunca ser cortado no topo */}
+        <div className="relative pt-4 overflow-visible">
+          <div className="relative bg-[#820b28] rounded-[24px] shadow-[0_10px_32px_rgba(130,11,40,0.5)] px-1 h-[60px] flex items-center justify-around w-full overflow-visible">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = item.isActive;
 
-            if (active) {
+              if (active) {
+                return (
+                  <button
+                    key={item.id}
+                    ref={activeMobileItemRef}
+                    type="button"
+                    onClick={item.onClick}
+                    className="relative flex-1 min-w-0 flex flex-col items-center justify-end h-full pb-1 cursor-pointer group focus:outline-none overflow-visible"
+                    title={item.label}
+                  >
+                    {/* Recorte Curvo Suave (U-Notch) idêntico à referência */}
+                    <svg
+                      viewBox="0 0 68 25"
+                      className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-[58px] h-[22px] pointer-events-none z-10 overflow-visible"
+                      preserveAspectRatio="none"
+                    >
+                      <path
+                        d="M 0,-1 L 68,-1 L 68,0 C 54,0 51,23 34,23 C 17,23 14,0 0,0 Z"
+                        className="fill-[#fafaf9]"
+                      />
+                    </svg>
+
+                    {/* Círculo Flutuante Elevado no Recorte com o Ícone Ativo (Sem corte) */}
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-[#820b28] border-[3px] border-[#fafaf9] text-white flex items-center justify-center shadow-lg z-20 transition-transform active:scale-90">
+                      <Icon className="w-5 h-5 stroke-[2.2]" />
+                      {item.badge !== undefined && (
+                        <span
+                          className={`absolute -top-1 -right-1 text-[8px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center ${
+                            item.badgeColor || 'bg-amber-400 text-stone-900'
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Rótulo do Item Ativo */}
+                    <span className="text-[8.5px] font-black uppercase text-white tracking-wider z-20 truncate max-w-full px-0.5 leading-tight text-center">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              }
+
               return (
                 <button
                   key={item.id}
-                  ref={activeMobileItemRef}
                   type="button"
                   onClick={item.onClick}
-                  className="relative shrink-0 flex-1 min-w-[56px] flex flex-col items-center justify-end h-full pb-1 cursor-pointer group focus:outline-none"
+                  className="flex-1 min-w-0 flex flex-col items-center justify-center h-full py-1 text-white/75 hover:text-white transition-colors cursor-pointer group active:scale-95 focus:outline-none"
                   title={item.label}
                 >
-                  {/* Recorte Curvo Suave (U-Notch) */}
-                  <svg
-                    viewBox="0 0 68 25"
-                    className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-[56px] h-[20px] pointer-events-none z-10"
-                    preserveAspectRatio="none"
-                  >
-                    <path
-                      d="M 0,-1 L 68,-1 L 68,0 C 54,0 51,23 34,23 C 17,23 14,0 0,0 Z"
-                      className="fill-[#fafaf9]"
-                    />
-                  </svg>
-
-                  {/* Círculo Flutuante Elevado no Recorte com o Ícone Ativo */}
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-[#820b28] border-[3px] border-[#fafaf9] text-white flex items-center justify-center shadow-lg z-20 transition-transform active:scale-90">
-                    <Icon className="w-5 h-5 stroke-[2.2]" />
+                  <div className="relative">
+                    <Icon className="w-5 h-5 stroke-[1.8] group-hover:scale-110 transition-transform" />
                     {item.badge !== undefined && (
                       <span
-                        className={`absolute -top-1 -right-1 text-[8px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center ${
+                        className={`absolute -top-1.5 -right-2 text-[8px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center ${
                           item.badgeColor || 'bg-amber-400 text-stone-900'
                         }`}
                       >
@@ -370,41 +401,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </span>
                     )}
                   </div>
-
-                  {/* Rótulo do Item Ativo */}
-                  <span className="text-[8.5px] font-black uppercase text-white tracking-wider z-20 truncate max-w-[52px] leading-tight text-center">
+                  <span className="text-[8px] font-semibold text-white/70 group-hover:text-white mt-1 truncate max-w-full px-0.5 leading-tight text-center">
                     {item.label}
                   </span>
                 </button>
               );
-            }
-
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={item.onClick}
-                className="shrink-0 flex-1 min-w-[52px] flex flex-col items-center justify-center h-full py-1 text-white/75 hover:text-white transition-colors cursor-pointer group active:scale-95 focus:outline-none"
-                title={item.label}
-              >
-                <div className="relative">
-                  <Icon className="w-5 h-5 stroke-[1.8] group-hover:scale-110 transition-transform" />
-                  {item.badge !== undefined && (
-                    <span
-                      className={`absolute -top-1.5 -right-2 text-[8px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center ${
-                        item.badgeColor || 'bg-amber-400 text-stone-900'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[8px] font-semibold text-white/70 group-hover:text-white mt-1 truncate max-w-[50px] leading-tight text-center">
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
+            })}
+          </div>
         </div>
       </nav>
 
