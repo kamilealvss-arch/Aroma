@@ -250,7 +250,7 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-stone-50 md:bg-white flex flex-col md:flex-row font-sans w-full max-w-full overflow-x-hidden">
       {/* Sidebar Lateral com Recorte Curvo, Categorias Dinâmicas e Troca de Perfil */}
       <Sidebar
         currentView={currentView}
@@ -272,7 +272,7 @@ export default function App() {
       />
 
       {/* Conteúdo Principal */}
-      <main className="flex-1 min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 md:pb-6">
+      <main className="flex-1 min-w-0 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 md:pb-6 overflow-x-hidden">
         {currentView === 'admin' ? (
           <div>
             {adminTab === 'dashboard' && (

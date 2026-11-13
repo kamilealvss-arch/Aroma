@@ -61,11 +61,22 @@
 }
 
 html {
-  zoom: 1.1;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media (min-width: 1024px) {
+  html {
+    zoom: 1.05;
+  }
 }
 
 body {
-  background-color: #ffffff;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  background-color: #fafaf9;
   color: #631a09;
 }
 
