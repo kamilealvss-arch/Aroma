@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   X,
   Package,
@@ -12,6 +12,9 @@ import {
   Tag,
   Search,
   Coffee,
+  Upload,
+  Trash2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Product, ComboItemConfig } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -70,9 +73,35 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
 
   const [name, setName] = useState(comboToEdit?.name || '');
   const [description, setDescription] = useState(comboToEdit?.description || '');
-  const [imageUrl, setImageUrl] = useState(
-    comboToEdit?.imageUrl || DEFAULT_COMBO_IMAGES[0].url
-  );
+
+  // Controle de imagem: upload do dispositivo, foto automática de um dos itens ou foto pré-definida
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [customUploadedImageUrl, setCustomUploadedImageUrl] = useState<string | null>(() => {
+    if (!comboToEdit) return null;
+    const isPreset = DEFAULT_COMBO_IMAGES.some((d) => d.url === comboToEdit.imageUrl);
+    const isFromItem = comboToEdit.comboItems?.some(
+      (ci) => products.find((p) => p.id === ci.productId)?.imageUrl === comboToEdit.imageUrl
+    );
+    if (!isPreset && !isFromItem && comboToEdit.imageUrl) {
+      return comboToEdit.imageUrl;
+    }
+    return null;
+  });
+
+  const [selectedProductImageId, setSelectedProductImageId] = useState<string | null>(() => {
+    if (!comboToEdit) return null;
+    const matchingItem = comboToEdit.comboItems?.find(
+      (ci) => products.find((p) => p.id === ci.productId)?.imageUrl === comboToEdit.imageUrl
+    );
+    return matchingItem ? matchingItem.productId : null;
+  });
+
+  const [presetImageUrl, setPresetImageUrl] = useState<string | null>(() => {
+    if (!comboToEdit) return null;
+    const isPreset = DEFAULT_COMBO_IMAGES.some((d) => d.url === comboToEdit.imageUrl);
+    return isPreset ? comboToEdit.imageUrl : null;
+  });
+
   const [discountPercent, setDiscountPercent] = useState<number>(() => {
     if (comboToEdit?.discountPercentage !== undefined) return comboToEdit.discountPercentage;
     return 15; // 15% OFF padrão
@@ -83,6 +112,55 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
   const [isManualPrice, setIsManualPrice] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sincroniza formulário ao abrir ou alterar comboToEdit
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (comboToEdit) {
+      setName(comboToEdit.name || '');
+      setDescription(comboToEdit.description || '');
+      setCustomPrice(comboToEdit.price ? comboToEdit.price.toFixed(2) : '');
+      setIsManualPrice(false);
+      setDiscountPercent(comboToEdit.discountPercentage ?? 15);
+
+      const initialQtys: { [productId: string]: number } = {};
+      comboToEdit.comboItems?.forEach((ci) => {
+        initialQtys[ci.productId] = ci.quantity;
+      });
+      setItemQuantities(initialQtys);
+
+      const isPreset = DEFAULT_COMBO_IMAGES.some((d) => d.url === comboToEdit.imageUrl);
+      const matchingItem = comboToEdit.comboItems?.find(
+        (ci) => products.find((p) => p.id === ci.productId)?.imageUrl === comboToEdit.imageUrl
+      );
+
+      if (isPreset) {
+        setPresetImageUrl(comboToEdit.imageUrl);
+        setCustomUploadedImageUrl(null);
+        setSelectedProductImageId(null);
+      } else if (matchingItem) {
+        setSelectedProductImageId(matchingItem.productId);
+        setCustomUploadedImageUrl(null);
+        setPresetImageUrl(null);
+      } else {
+        setCustomUploadedImageUrl(comboToEdit.imageUrl || null);
+        setPresetImageUrl(null);
+        setSelectedProductImageId(null);
+      }
+    } else {
+      setName('');
+      setDescription('');
+      setCustomPrice('');
+      setIsManualPrice(false);
+      setDiscountPercent(15);
+      setItemQuantities({});
+      setCustomUploadedImageUrl(null);
+      setPresetImageUrl(null);
+      setSelectedProductImageId(null);
+      setError(null);
+    }
+  }, [isOpen, comboToEdit, products]);
 
   // Lista dos itens selecionados com dados completos
   const selectedItemsList = useMemo(() => {
@@ -132,6 +210,69 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
     );
     return Math.max(0, Math.min(...limits));
   }, [selectedItemsList]);
+
+  // Produto do combo que fornecerá a foto (escolhido manualmente ou o primeiro da lista automaticamente)
+  const effectiveProductForImage = useMemo(() => {
+    if (selectedProductImageId) {
+      const found = selectedItemsList.find((i) => i.productId === selectedProductImageId);
+      if (found) return found.product;
+    }
+    // Caso padrão: seleciona automaticamente o primeiro produto que compõe o combo
+    return selectedItemsList[0]?.product;
+  }, [selectedItemsList, selectedProductImageId]);
+
+  // URL final efetiva da foto do combo:
+  // 1. Imagem enviada pelo usuário (prioridade máxima)
+  // 2. Preset escolhido manualmente (se houver)
+  // 3. Imagem do produto selecionado ou do 1º produto do combo (automático)
+  // 4. Imagem padrão de fallback
+  const effectiveImageUrl = useMemo(() => {
+    if (customUploadedImageUrl) return customUploadedImageUrl;
+    if (presetImageUrl) return presetImageUrl;
+    if (effectiveProductForImage?.imageUrl) return effectiveProductForImage.imageUrl;
+    return DEFAULT_COMBO_IMAGES[0].url;
+  }, [customUploadedImageUrl, presetImageUrl, effectiveProductForImage]);
+
+  // Imagem recortada sem fundo (se vier do produto que possui cutout)
+  const effectiveCutoutImageUrl = useMemo(() => {
+    if (customUploadedImageUrl || presetImageUrl) return undefined;
+    return effectiveProductForImage?.cutoutImageUrl;
+  }, [customUploadedImageUrl, presetImageUrl, effectiveProductForImage]);
+
+  // Upload de Imagem do Usuário
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Por favor, selecione um arquivo de imagem válido (JPG, PNG, WebP).');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('A imagem deve ter no máximo 5MB.');
+      e.target.value = '';
+      return;
+    }
+
+    setError(null);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const resultDataUrl = reader.result as string;
+      setCustomUploadedImageUrl(resultDataUrl);
+      setPresetImageUrl(null);
+      setSelectedProductImageId(null);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleClearCustomUpload = () => {
+    setCustomUploadedImageUrl(null);
+    setPresetImageUrl(null);
+    setSelectedProductImageId(null);
+  };
 
   // Manipulação de Quantidades
   const handleSetQuantity = (productId: string, delta: number) => {
@@ -214,7 +355,8 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
         price: Number(calculatedPrice.toFixed(2)),
         costPrice: Number(totalCostPrice.toFixed(2)),
         category: 'Combos & Brunch',
-        imageUrl: imageUrl.trim() || DEFAULT_COMBO_IMAGES[0].url,
+        imageUrl: effectiveImageUrl.trim() || DEFAULT_COMBO_IMAGES[0].url,
+        cutoutImageUrl: effectiveCutoutImageUrl || undefined,
         stockQuantity: estimatedComboStock,
         minStockThreshold: 5,
         status: 'ativo',
@@ -569,32 +711,189 @@ export const ComboBuilderModal: React.FC<ComboBuilderModalProps> = ({
                   />
                 </div>
 
-                {/* Escolha Rápida de Foto para o Combo */}
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-700 mb-1">
-                    Foto do Combo
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {DEFAULT_COMBO_IMAGES.map((img, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setImageUrl(img.url)}
-                        className={`relative rounded-xl overflow-hidden h-14 border-2 transition cursor-pointer ${
-                          imageUrl === img.url
-                            ? 'border-[#820b28] ring-2 ring-[#820b28]/20'
-                            : 'border-transparent hover:opacity-80'
-                        }`}
-                      >
-                        <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
-                        {imageUrl === img.url && (
-                          <div className="absolute top-1 right-1 w-4 h-4 bg-[#820b28] rounded-full flex items-center justify-center text-white">
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          </div>
-                        )}
-                      </button>
-                    ))}
+                {/* Foto do Combo */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-stone-700">
+                      Foto do Combo
+                    </label>
+                    <span className="text-[10px] text-stone-500 font-medium">
+                      {customUploadedImageUrl ? (
+                        <span className="text-[#820b28] font-bold">✨ Foto enviada</span>
+                      ) : effectiveProductForImage ? (
+                        <span className="text-emerald-700 font-semibold">
+                          ⚡ Automático: {effectiveProductForImage.name}
+                        </span>
+                      ) : (
+                        'Padrão'
+                      )}
+                    </span>
                   </div>
+
+                  {/* 1. Upload de Foto Personalizada */}
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageFileUpload}
+                      className="hidden"
+                    />
+
+                    {customUploadedImageUrl ? (
+                      <div className="flex items-center justify-between p-2 rounded-2xl border-2 border-[#820b28] bg-rose-50/40">
+                        <div className="flex items-center space-x-2.5">
+                          <img
+                            src={customUploadedImageUrl}
+                            alt="Foto do Combo Enviada"
+                            className="w-12 h-12 rounded-xl object-cover border border-stone-200 shadow-xs"
+                          />
+                          <div>
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-xs font-bold text-stone-900">Foto Enviada</span>
+                              <span className="bg-[#820b28] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                                Ativa
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-stone-500 block">
+                              Imagem personalizada carregada
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-1">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-2.5 py-1 text-[11px] font-bold text-stone-700 bg-white hover:bg-stone-100 rounded-lg border border-stone-200 transition cursor-pointer"
+                          >
+                            Trocar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleClearCustomUpload}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                            title="Remover foto personalizada e voltar para automática"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full flex items-center justify-center space-x-2 py-2 px-3 border border-dashed border-stone-300 hover:border-[#820b28] rounded-xl text-stone-700 hover:text-[#820b28] hover:bg-rose-50/30 transition cursor-pointer text-xs font-bold"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-stone-500" />
+                        <span>Enviar imagem do combo...</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 2. Fotos Automáticas dos Produtos que Compõem o Combo */}
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">
+                      {selectedItemsList.length > 0
+                        ? 'Ou use a foto de um dos itens do combo:'
+                        : 'Foto dos produtos do combo (Automático):'}
+                    </span>
+
+                    {selectedItemsList.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {selectedItemsList.map((item) => {
+                          const isThisActive =
+                            !customUploadedImageUrl &&
+                            !presetImageUrl &&
+                            (selectedProductImageId === item.productId ||
+                              (!selectedProductImageId &&
+                                selectedItemsList[0]?.productId === item.productId));
+
+                          return (
+                            <button
+                              key={item.productId}
+                              type="button"
+                              onClick={() => {
+                                setCustomUploadedImageUrl(null);
+                                setPresetImageUrl(null);
+                                setSelectedProductImageId(item.productId);
+                              }}
+                              className={`relative rounded-xl p-1.5 border-2 transition cursor-pointer text-left flex flex-col items-center bg-white ${
+                                isThisActive
+                                  ? 'border-[#820b28] ring-2 ring-[#820b28]/20 bg-rose-50/20'
+                                  : 'border-stone-200 hover:border-stone-300'
+                              }`}
+                            >
+                              <div className="w-full h-11 rounded-lg overflow-hidden bg-stone-100 flex items-center justify-center">
+                                <img
+                                  src={item.product?.imageUrl}
+                                  alt={item.product?.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <span className="text-[10px] font-semibold text-stone-800 line-clamp-1 w-full text-center mt-1">
+                                {item.product?.name}
+                              </span>
+
+                              {isThisActive && (
+                                <div className="absolute top-1 right-1 w-4 h-4 bg-[#820b28] rounded-full flex items-center justify-center text-white shadow-xs">
+                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                </div>
+                              )}
+
+                              {!selectedProductImageId &&
+                                selectedItemsList[0]?.productId === item.productId &&
+                                !customUploadedImageUrl &&
+                                !presetImageUrl && (
+                                  <span className="absolute bottom-1 bg-stone-900/75 text-white text-[8px] font-extrabold px-1 rounded-sm">
+                                    Auto
+                                  </span>
+                                )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-stone-400 italic bg-stone-50 p-2 rounded-xl border border-stone-200/60">
+                        Adicione produtos ao lado para usar a foto deles automaticamente no combo.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 3. Fotos Sugeridas (Presets) */}
+                  <details className="text-[11px] text-stone-500 pt-0.5 group">
+                    <summary className="font-semibold cursor-pointer text-stone-600 hover:text-stone-900 select-none text-[10px]">
+                      Ver outras sugestões de imagem (Brunch / Café)
+                    </summary>
+                    <div className="grid grid-cols-3 gap-2 mt-1.5">
+                      {DEFAULT_COMBO_IMAGES.map((img, idx) => {
+                        const isThisSelected = !customUploadedImageUrl && presetImageUrl === img.url;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setCustomUploadedImageUrl(null);
+                              setSelectedProductImageId(null);
+                              setPresetImageUrl(img.url);
+                            }}
+                            className={`relative rounded-xl overflow-hidden h-12 border-2 transition cursor-pointer ${
+                              isThisSelected
+                                ? 'border-[#820b28] ring-2 ring-[#820b28]/20'
+                                : 'border-stone-200 hover:border-stone-300'
+                            }`}
+                          >
+                            <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
+                            {isThisSelected && (
+                              <div className="absolute top-1 right-1 w-4 h-4 bg-[#820b28] rounded-full flex items-center justify-center text-white shadow-xs">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </details>
                 </div>
               </div>
             </div>
