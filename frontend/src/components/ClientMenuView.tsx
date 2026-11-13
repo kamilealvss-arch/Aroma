@@ -187,7 +187,7 @@ const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUpOrLeave}
         onMouseLeave={handleMouseUpOrLeave}
-        className="flex items-stretch space-x-6 overflow-x-auto scrollbar-none pt-18 pb-6 px-1 cursor-grab active:cursor-grabbing select-none scroll-smooth"
+        className="flex items-stretch space-x-6 overflow-x-auto scrollbar-none pt-20 pb-6 px-1 cursor-grab active:cursor-grabbing select-none scroll-smooth"
         style={{ scrollSnapType: 'x proximity' }}
       >
         {products.map((product) => (
@@ -497,8 +497,8 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     return (
       <div
         key={product.id}
-        className={`relative bg-white rounded-[34px] pt-18 sm:pt-20 pb-5 px-5 sm:px-6 border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group ${
-          isHorizontal ? 'h-full min-h-[360px]' : ''
+        className={`relative bg-white rounded-[34px] pt-24 sm:pt-28 pb-5 px-5 sm:px-6 border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group ${
+          isHorizontal ? 'h-full min-h-[390px]' : ''
         } ${isOutOfStock ? 'opacity-80' : ''}`}
       >
         {/* 1. Imagem Flutuante: Metade para fora do card */}
@@ -537,7 +537,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         </div>
 
         {/* 2. Informações do Produto */}
-        <div className="space-y-1.5 pt-2 flex-1">
+        <div className="space-y-1.5 pt-4 sm:pt-5 flex-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
               {product.category}
@@ -883,7 +883,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20 pt-16">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
               {topFavorites.map((product) => renderProductCard(product))}
             </div>
           </div>
@@ -971,7 +971,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 SUB-CENÁRIO B: CATEGORIA ESPECÍFICA (GRID TRADICIONAL COMPLETO)
                ======================================================== */
             filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20 pt-16">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
                 {filteredProducts.map((product) => renderProductCard(product))}
               </div>
             ) : (
