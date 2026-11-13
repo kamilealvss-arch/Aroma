@@ -35,6 +35,7 @@ export interface Product {
   price: number;
   costPrice: number;
   category: ProductCategory;
+  subcategory?: string;      // Subcategoria dentro da categoria principal (ex: 'Espressos & Puros', 'Folhados & Croissants')
   imageUrl: string;          // Imagem quadrada normal (catálogo de produtos / gestão)
   cutoutImageUrl?: string;   // Imagem recortada sem fundo (cardápio do cliente e modal de detalhes)
   stockQuantity: number;
@@ -80,6 +81,7 @@ export interface StockAlert {
   productId: string;
   productName: string;
   category: ProductCategory;
+  subcategory?: string;      // Subcategoria dentro da categoria principal (ex: 'Espressos & Puros', 'Folhados & Croissants')
   currentStock: number;
   minStockThreshold: number;
   isOutOfStock: boolean;
@@ -178,6 +180,7 @@ export interface ABCCurveItem {
   productId: string;
   productName: string;
   category: ProductCategory;
+  subcategory?: string;      // Subcategoria dentro da categoria principal (ex: 'Espressos & Puros', 'Folhados & Croissants')
   quantitySold: number;
   totalRevenue: number;
   percentageOfRevenue: number;

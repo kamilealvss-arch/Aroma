@@ -225,6 +225,7 @@ class DatabaseStore {
       price: Number(data.price),
       costPrice: Number(data.costPrice || data.price * 0.4),
       category: data.category,
+      subcategory: data.subcategory,
       imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=600',
       cutoutImageUrl: data.cutoutImageUrl,
       stockQuantity: Number(data.stockQuantity || 0),

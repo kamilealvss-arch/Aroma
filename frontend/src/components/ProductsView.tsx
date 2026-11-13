@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus,
   Search,
@@ -23,7 +23,12 @@ import {
 } from 'lucide-react';
 import { Product } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
-import { ProductModal, DEFAULT_CATEGORIES } from './ProductModal.tsx';
+import {
+  ProductModal,
+  DEFAULT_CATEGORIES,
+  DEFAULT_SUBCATEGORIES,
+  getStoredCustomSubcategories,
+} from './ProductModal.tsx';
 import { ComboBuilderModal } from './ComboBuilderModal.tsx';
 
 const CUSTOM_CATEGORIES_KEY = 'aroma_custom_product_categories_v1';
@@ -53,9 +58,15 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   // Filtros e ordenação
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'inativo' | 'ALERTA'>('ALL');
   const [sortBy, setSortBy] = useState<ProductSortOption>('NAME_ASC');
   const [viewMode, setViewMode] = useState<'GRID' | 'TABLE'>('GRID');
+
+  // Reseta subcategoria quando categoria muda
+  useEffect(() => {
+    setSelectedSubcategory('ALL');
+  }, [selectedCategory]);
 
   // Paginação
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -101,12 +112,25 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   // Resetar página ao alterar filtros
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, selectedCategory, selectedStatus, sortBy, itemsPerPage, viewMode]);
+  }, [search, selectedCategory, selectedSubcategory, selectedStatus, sortBy, itemsPerPage, viewMode]);
 
   // Métricas e contadores
   const categories = Array.from(
     new Set([...DEFAULT_CATEGORIES, ...products.map((p) => p.category), ...customCategories])
   );
+
+  // Subcategorias disponíveis para a categoria atualmente selecionada
+  const availableSubcategoriesForSelectedCat = useMemo(() => {
+    if (selectedCategory === 'ALL') return [];
+    const productsInCat = products.filter((p) => p.category === selectedCategory);
+    const fromProducts = productsInCat
+      .map((p) => p.subcategory)
+      .filter((s): s is string => Boolean(s));
+    const fromDefaults = DEFAULT_SUBCATEGORIES[selectedCategory] || [];
+    const fromCustom = getStoredCustomSubcategories()[selectedCategory] || [];
+    return Array.from(new Set([...fromDefaults, ...fromCustom, ...fromProducts]));
+  }, [selectedCategory, products]);
+
   const activeProducts = products.filter((p) => p.status === 'ativo');
   const activeCount = activeProducts.length;
   const inactiveProducts = products.filter((p) => p.status === 'inativo');
@@ -124,10 +148,14 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
     const matchesSearch =
       p.name.toLowerCase().includes(q) ||
       p.description.toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q);
+      p.category.toLowerCase().includes(q) ||
+      (p.subcategory && p.subcategory.toLowerCase().includes(q));
 
     const matchesCategory =
       selectedCategory === 'ALL' || p.category === selectedCategory;
+
+    const matchesSubcategory =
+      selectedSubcategory === 'ALL' || p.subcategory === selectedSubcategory;
 
     let matchesStatus = true;
     if (selectedStatus === 'inativo') {
@@ -140,7 +168,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
       matchesStatus = p.status === 'ativo';
     }
 
-    return matchesSearch && matchesCategory && matchesStatus;
+    return matchesSearch && matchesCategory && matchesSubcategory && matchesStatus;
   });
 
   // Ordenação
@@ -179,12 +207,14 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   const hasActiveFilters =
     search !== '' ||
     selectedCategory !== 'ALL' ||
+    selectedSubcategory !== 'ALL' ||
     selectedStatus !== 'ALL' ||
     sortBy !== 'NAME_ASC';
 
   const handleClearFilters = () => {
     setSearch('');
     setSelectedCategory('ALL');
+    setSelectedSubcategory('ALL');
     setSelectedStatus('ALL');
     setSortBy('NAME_ASC');
   };
@@ -385,6 +415,55 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* 2.5 Filtro Rápido de Subcategorias (visível quando uma categoria está selecionada) */}
+      {selectedCategory !== 'ALL' && availableSubcategoriesForSelectedCat.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1.5 px-3 bg-stone-100/70 rounded-2xl border border-stone-200/60 animate-in fade-in">
+          <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider shrink-0 mr-1">
+            Subcategorias:
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedSubcategory('ALL')}
+            className={`h-6.5 px-3 rounded-full text-xs font-semibold transition cursor-pointer shrink-0 ${
+              selectedSubcategory === 'ALL'
+                ? 'bg-[#850D2C] text-white shadow-2xs'
+                : 'bg-white text-stone-700 hover:bg-stone-50 border border-stone-200/60'
+            }`}
+          >
+            Todas
+          </button>
+          {availableSubcategoriesForSelectedCat.map((sub: string) => {
+            const count = relevantProducts.filter(
+              (p) => p.category === selectedCategory && p.subcategory === sub
+            ).length;
+            const isSubActive = selectedSubcategory === sub;
+            return (
+              <button
+                key={sub}
+                type="button"
+                onClick={() => setSelectedSubcategory(sub)}
+                className={`h-6.5 px-2.5 rounded-full text-xs font-medium transition cursor-pointer shrink-0 inline-flex items-center space-x-1.5 ${
+                  isSubActive
+                    ? 'bg-[#850D2C] text-white shadow-2xs'
+                    : 'bg-white text-stone-700 hover:bg-stone-50 border border-stone-200/60'
+                }`}
+              >
+                <span>{sub}</span>
+                {count > 0 && (
+                  <span
+                    className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                      isSubActive ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-500'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* 3. Barra de Filtros: Dimensões Padronizadas (h-8), Chips Compactos e Busca */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 pt-0.5">
@@ -685,6 +764,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-stone-100">
                     <span className="px-2.5 py-1 rounded-lg bg-[#EFECE6] text-[#35312F] text-[10px] font-semibold">
                       {product.category}
+                      {product.subcategory ? ` • ${product.subcategory}` : ''}
                     </span>
                     {product.hasSizes && product.sizes && product.sizes.length > 0 && (
                       <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-[#924529] border border-amber-200/60 text-[10px] font-semibold">
@@ -774,6 +854,11 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                         <span className="inline-block px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 text-[11px] font-medium">
                           {product.category}
                         </span>
+                        {product.subcategory && (
+                          <span className="block text-[10px] text-stone-400 font-medium mt-0.5 pl-1">
+                            {product.subcategory}
+                          </span>
+                        )}
                       </td>
 
                       <td className="py-2.5 px-4 align-middle font-bold text-[#850D2C] text-xs">

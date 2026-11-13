@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Coffee,
   ShoppingBag,
@@ -265,10 +265,29 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     previousStatusRef.current = liveOrder?.status;
   }, [liveOrder?.status]);
 
-  // Produtos filtrados pela categoria selecionada
+  // Subcategoria ativa para filtro no cardápio
+  const [selectedSubcategoryFilter, setSelectedSubcategoryFilter] = useState<string>('ALL');
+
+  useEffect(() => {
+    setSelectedSubcategoryFilter('ALL');
+  }, [activeCategory]);
+
+  // Lista de subcategorias existentes na categoria ativa
+  const subcategoriesInActiveCategory = useMemo(() => {
+    if (activeCategory === 'HOME' || activeCategory === 'ALL') return [];
+    const prods = activeProducts.filter((p) => p.category === activeCategory);
+    return Array.from(
+      new Set(prods.map((p) => p.subcategory).filter((s): s is string => Boolean(s)))
+    );
+  }, [activeCategory, activeProducts]);
+
+  // Produtos filtrados pela categoria e subcategoria selecionada
   const filteredProducts = activeProducts.filter((p) => {
     if (activeCategory === 'ALL') return true;
-    return p.category === activeCategory;
+    const matchesCat = p.category === activeCategory;
+    const matchesSub =
+      selectedSubcategoryFilter === 'ALL' || p.subcategory === selectedSubcategoryFilter;
+    return matchesCat && matchesSub;
   });
 
   // Especial da Semana (destaque do Cappuccino Italiano ou primeiro café gourmet)
@@ -540,7 +559,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
         <div className="space-y-1.5 pt-4 sm:pt-5 flex-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-              {product.category}
+              {product.subcategory ? `${product.category} • ${product.subcategory}` : product.category}
             </span>
             {product.stockQuantity > 0 && product.stockQuantity <= 5 && (
               <span className="text-[10px] font-semibold text-[#924529] bg-amber-50 px-2 py-0.5 rounded-full">
@@ -909,6 +928,12 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 <span className="text-[#850D2C] font-semibold">
                   {activeCategory === 'ALL' ? 'Todos os Itens' : activeCategory}
                 </span>
+                {selectedSubcategoryFilter !== 'ALL' && (
+                  <>
+                    <span>/</span>
+                    <span className="text-stone-600 font-semibold">{selectedSubcategoryFilter}</span>
+                  </>
+                )}
               </nav>
 
               {/* Título com Fonte Amarego */}
@@ -926,6 +951,52 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                       filteredProducts.length === 1 ? 'delícia disponível' : 'delícias disponíveis'
                     }.`}
               </p>
+
+              {/* Pílulas de Subcategorias da Categoria Selecionada */}
+              {activeCategory !== 'ALL' && subcategoriesInActiveCategory.length > 0 && (
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSubcategoryFilter('ALL')}
+                    className={`h-7 px-3.5 rounded-full text-xs font-semibold transition cursor-pointer shrink-0 ${
+                      selectedSubcategoryFilter === 'ALL'
+                        ? 'bg-[#820b28] text-white shadow-xs'
+                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {subcategoriesInActiveCategory.map((sub: string) => {
+                    const count = activeProducts.filter(
+                      (p) => p.category === activeCategory && p.subcategory === sub
+                    ).length;
+                    const isSubActive = selectedSubcategoryFilter === sub;
+                    return (
+                      <button
+                        key={sub}
+                        type="button"
+                        onClick={() => setSelectedSubcategoryFilter(sub)}
+                        className={`h-7 px-3.5 rounded-full text-xs font-medium transition cursor-pointer shrink-0 inline-flex items-center space-x-1.5 ${
+                          isSubActive
+                            ? 'bg-[#820b28] text-white shadow-xs'
+                            : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                        }`}
+                      >
+                        <span>{sub}</span>
+                        {count > 0 && (
+                          <span
+                            className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                              isSubActive ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-600'
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
