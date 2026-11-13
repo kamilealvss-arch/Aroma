@@ -306,52 +306,87 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </header>
 
       {/* ========================================================
-          2. BARRA INFERIOR MOBILE FIXA (md:hidden)
+          2. BARRA INFERIOR MOBILE ESTILO NOTCH CURVADO (md:hidden)
          ======================================================== */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#820b28] border-t border-white/15 shadow-[0_-4px_25px_rgba(0,0,0,0.3)] flex items-center overflow-x-auto scrollbar-none px-2 py-1.5 gap-1 select-none"
+        className="md:hidden fixed bottom-3 inset-x-3 z-40 max-w-lg mx-auto select-none pointer-events-auto"
         aria-label="Navegação Inferior Mobile"
       >
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = item.isActive;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={item.onClick}
-              className={`flex flex-col items-center justify-center min-w-[58px] flex-1 py-1 px-1 rounded-2xl transition-all shrink-0 cursor-pointer ${
-                active
-                  ? 'bg-white text-stone-900 shadow-md scale-102'
-                  : 'text-white/80 hover:text-white hover:bg-white/10 active:scale-95'
-              }`}
-            >
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 relative transition-transform ${
-                  active ? `${item.circleBg} shadow-xs` : 'bg-white/15'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {item.badge !== undefined && (
-                  <span
-                    className={`absolute -top-1 -right-1 text-[8px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center ${
-                      item.badgeColor || 'bg-amber-400 text-stone-900'
-                    }`}
+        <div className="relative bg-[#820b28] rounded-[28px] shadow-[0_12px_36px_rgba(130,11,40,0.4)] px-1.5 h-16 flex items-center justify-around overflow-visible">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = item.isActive;
+
+            if (active) {
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={item.onClick}
+                  className="relative flex-1 flex flex-col items-center justify-end h-full pb-1.5 cursor-pointer group focus:outline-none"
+                  title={item.label}
+                >
+                  {/* Recorte Curvo Suave (U-Notch) idêntico à referência */}
+                  <svg
+                    viewBox="0 0 68 25"
+                    className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-[68px] h-[25px] pointer-events-none z-10"
+                    preserveAspectRatio="none"
                   >
-                    {item.badge}
+                    <path
+                      d="M 0,-1 L 68,-1 L 68,0 C 54,0 51,23 34,23 C 17,23 14,0 0,0 Z"
+                      className="fill-white"
+                    />
+                  </svg>
+
+                  {/* Círculo Flutuante Elevado no Recorte com o Ícone Ativo */}
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-[#820b28] border-[3.5px] border-white text-white flex items-center justify-center shadow-lg z-20 transition-transform active:scale-90">
+                    <Icon className="w-5 h-5 stroke-[2.3]" />
+                    {item.badge !== undefined && (
+                      <span
+                        className={`absolute -top-1 -right-1 text-[8px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center ${
+                          item.badgeColor || 'bg-amber-400 text-stone-900'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Rótulo do Item Ativo */}
+                  <span className="text-[9px] font-black uppercase text-white tracking-wider z-20 truncate max-w-[50px] leading-tight text-center">
+                    {item.label}
                   </span>
-                )}
-              </div>
-              <span
-                className={`text-[9px] font-bold tracking-tight mt-0.5 truncate max-w-[56px] text-center ${
-                  active ? 'text-stone-950 font-black' : 'text-white/85'
-                }`}
+                </button>
+              );
+            }
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={item.onClick}
+                className="flex-1 flex flex-col items-center justify-center h-full py-1 text-white/75 hover:text-white transition-colors cursor-pointer group active:scale-95 focus:outline-none"
+                title={item.label}
               >
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
+                <div className="relative">
+                  <Icon className="w-5 h-5 stroke-[2] group-hover:scale-110 transition-transform" />
+                  {item.badge !== undefined && (
+                    <span
+                      className={`absolute -top-1.5 -right-2 text-[8px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center ${
+                        item.badgeColor || 'bg-amber-400 text-stone-900'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[8.5px] font-semibold text-white/70 group-hover:text-white mt-1 truncate max-w-[48px] leading-tight text-center">
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
       {/* ========================================================
