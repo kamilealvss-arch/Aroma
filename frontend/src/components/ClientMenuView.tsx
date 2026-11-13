@@ -151,7 +151,7 @@ const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
           >
             {category}
           </h2>
-          <span className="text-[11px] font-bold text-[#820b28] bg-[#820b28]/10 px-2.5 py-0.5 rounded-full border border-[#820b28]/20">
+          <span className="hidden sm:inline-block text-[11px] font-bold text-[#820b28] bg-[#820b28]/10 px-2.5 py-0.5 rounded-full border border-[#820b28]/20">
             {products.length} {products.length === 1 ? 'opção' : 'opções'}
           </span>
         </div>
