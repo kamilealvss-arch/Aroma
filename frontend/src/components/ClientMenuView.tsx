@@ -25,6 +25,7 @@ import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 import { OrderReceiptModal } from './OrderReceiptModal.tsx';
 import { ProductDetailModal, ConfiguredCartItem } from './ProductDetailModal.tsx';
 import { GourmetCutoutImage } from './GourmetCutoutImage.tsx';
+import { getAllSubcategoriesForCategory } from './ProductModal.tsx';
 
 export interface DetailedCartItem {
   cartKey: string;
@@ -60,6 +61,8 @@ interface ClientMenuViewProps {
   onOrderSuccess: () => void;
   selectedCategory?: string;
   onSelectCategory?: (category: string) => void;
+  selectedSubcategory?: string;
+  onSelectSubcategory?: (subcategory: string) => void;
   onBackToAdmin?: () => void;
 }
 
@@ -68,6 +71,7 @@ interface HorizontalCategoryRowProps {
   products: Product[];
   renderCard: (product: Product, isHorizontal?: boolean) => React.ReactNode;
   onSelectCategory: (category: string) => void;
+  onSelectSubcategory?: (category: string, subcategory: string) => void;
 }
 
 const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
@@ -75,10 +79,15 @@ const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
   products,
   renderCard,
   onSelectCategory,
+  onSelectSubcategory,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const rowSubcategories = useMemo(() => {
+    return getAllSubcategoriesForCategory(category, products);
+  }, [category, products]);
 
   // Arraste com o mouse
   const isDraggingRef = useRef(false);
@@ -180,6 +189,25 @@ const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
         </div>
       </div>
 
+      {/* Subcategorias da Categoria */}
+      {rowSubcategories.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-1">
+          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider shrink-0 mr-1">
+            Subcategorias:
+          </span>
+          {rowSubcategories.map((sub) => (
+            <button
+              key={sub}
+              type="button"
+              onClick={() => onSelectSubcategory ? onSelectSubcategory(category, sub) : onSelectCategory(category)}
+              className="text-[10.5px] font-semibold text-stone-600 bg-stone-100 hover:bg-[#820b28] hover:text-white px-2.5 py-0.5 rounded-full transition-colors cursor-pointer shrink-0 shadow-2xs"
+            >
+              {sub}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Fileira Horizontal Arrastável */}
       <div
         ref={scrollRef}
@@ -211,6 +239,8 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   onOrderSuccess,
   selectedCategory = 'HOME',
   onSelectCategory,
+  selectedSubcategory = 'ALL',
+  onSelectSubcategory,
   onBackToAdmin,
 }) => {
   // Apenas produtos ATIVOS são exibidos para o cliente (cumpre o Requisito 4 de Exclusão Lógica!)
@@ -225,6 +255,10 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     } else {
       setInternalCategory(cat);
     }
+    if (onSelectSubcategory) {
+      onSelectSubcategory('ALL');
+    }
+    setSelectedSubcategoryFilter('ALL');
   };
 
   const [cartItems, setCartItems] = useState<DetailedCartItem[]>([]);
@@ -268,6 +302,18 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   // Subcategoria ativa para filtro no cardápio
   const [selectedSubcategoryFilter, setSelectedSubcategoryFilter] = useState<string>('ALL');
 
+  const currentSubcategory =
+    selectedSubcategory !== undefined && onSelectSubcategory
+      ? selectedSubcategory
+      : selectedSubcategoryFilter;
+
+  const handleSubcategorySelect = (sub: string) => {
+    if (onSelectSubcategory) {
+      onSelectSubcategory(sub);
+    }
+    setSelectedSubcategoryFilter(sub);
+  };
+
   useEffect(() => {
     setSelectedSubcategoryFilter('ALL');
   }, [activeCategory]);
@@ -275,10 +321,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   // Lista de subcategorias existentes na categoria ativa
   const subcategoriesInActiveCategory = useMemo(() => {
     if (activeCategory === 'HOME' || activeCategory === 'ALL') return [];
-    const prods = activeProducts.filter((p) => p.category === activeCategory);
-    return Array.from(
-      new Set(prods.map((p) => p.subcategory).filter((s): s is string => Boolean(s)))
-    );
+    return getAllSubcategoriesForCategory(activeCategory, activeProducts);
   }, [activeCategory, activeProducts]);
 
   // Produtos filtrados pela categoria e subcategoria selecionada
@@ -286,7 +329,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     if (activeCategory === 'ALL') return true;
     const matchesCat = p.category === activeCategory;
     const matchesSub =
-      selectedSubcategoryFilter === 'ALL' || p.subcategory === selectedSubcategoryFilter;
+      currentSubcategory === 'ALL' || p.subcategory === currentSubcategory;
     return matchesCat && matchesSub;
   });
 
@@ -435,6 +478,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
       borderHover: 'hover:border-[#924529]',
       desc: 'Grãos 100% arábica da Mogiana, expressos encorpados e métodos filtrados.',
       count: activeProducts.filter((p) => p.category === 'Cafés Especiais').length,
+      subcategories: getAllSubcategoriesForCategory('Cafés Especiais', activeProducts),
     },
     {
       id: 'Salgados Artesanais',
@@ -444,6 +488,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
       borderHover: 'hover:border-[#7e8b60]',
       desc: 'Pães de queijo da Canastra, croissants franceses folhados e quiches.',
       count: activeProducts.filter((p) => p.category === 'Salgados Artesanais').length,
+      subcategories: getAllSubcategoriesForCategory('Salgados Artesanais', activeProducts),
     },
     {
       id: 'Doces & Bolos',
@@ -453,6 +498,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
       borderHover: 'hover:border-[#820b28]',
       desc: 'Tortas holandesas cremosas, bolos caseiros e brigadeiros belgas.',
       count: activeProducts.filter((p) => p.category === 'Doces & Bolos').length,
+      subcategories: getAllSubcategoriesForCategory('Doces & Bolos', activeProducts),
     },
     {
       id: 'Bebidas Geladas',
@@ -462,6 +508,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
       borderHover: 'hover:border-[#7e8b60]',
       desc: 'Iced caramel macchiato, cold brew artesanal e refrescos especiais.',
       count: activeProducts.filter((p) => p.category === 'Bebidas Geladas').length,
+      subcategories: getAllSubcategoriesForCategory('Bebidas Geladas', activeProducts),
     },
     {
       id: 'Combos & Brunch',
@@ -471,6 +518,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
       borderHover: 'hover:border-[#924529]',
       desc: 'Combos completos para café da manhã ou tarde com economia e sabor.',
       count: activeProducts.filter((p) => p.category === 'Combos & Brunch').length,
+      subcategories: getAllSubcategoriesForCategory('Combos & Brunch', activeProducts),
     },
     {
       id: 'ALL',
@@ -480,6 +528,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
       borderHover: 'hover:border-[#820b28]',
       desc: 'Explore todo o cardápio artesanal em uma única lista completa.',
       count: activeProducts.length,
+      subcategories: [],
     },
   ];
 
@@ -804,6 +853,25 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                         {cat.desc}
                       </p>
                     </div>
+
+                    {/* Subcategorias da Categoria no Card */}
+                    {cat.subcategories && cat.subcategories.length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-stone-100 flex flex-wrap gap-1.5">
+                        {cat.subcategories.map((sub: string) => (
+                          <span
+                            key={sub}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCategorySelect(cat.id);
+                              handleSubcategorySelect(sub);
+                            }}
+                            className="text-[10.5px] font-semibold text-stone-600 bg-stone-100/90 hover:bg-[#820b28] hover:text-white px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                          >
+                            {sub}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -928,10 +996,10 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 <span className="text-[#850D2C] font-semibold">
                   {activeCategory === 'ALL' ? 'Todos os Itens' : activeCategory}
                 </span>
-                {selectedSubcategoryFilter !== 'ALL' && (
+                {currentSubcategory !== 'ALL' && (
                   <>
                     <span>/</span>
-                    <span className="text-stone-600 font-semibold">{selectedSubcategoryFilter}</span>
+                    <span className="text-stone-600 font-semibold">{currentSubcategory}</span>
                   </>
                 )}
               </nav>
@@ -957,9 +1025,9 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-3">
                   <button
                     type="button"
-                    onClick={() => setSelectedSubcategoryFilter('ALL')}
+                    onClick={() => handleSubcategorySelect('ALL')}
                     className={`h-7 px-3.5 rounded-full text-xs font-semibold transition cursor-pointer shrink-0 ${
-                      selectedSubcategoryFilter === 'ALL'
+                      currentSubcategory === 'ALL'
                         ? 'bg-[#820b28] text-white shadow-xs'
                         : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                     }`}
@@ -970,12 +1038,12 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                     const count = activeProducts.filter(
                       (p) => p.category === activeCategory && p.subcategory === sub
                     ).length;
-                    const isSubActive = selectedSubcategoryFilter === sub;
+                    const isSubActive = currentSubcategory === sub;
                     return (
                       <button
                         key={sub}
                         type="button"
-                        onClick={() => setSelectedSubcategoryFilter(sub)}
+                        onClick={() => handleSubcategorySelect(sub)}
                         className={`h-7 px-3.5 rounded-full text-xs font-medium transition cursor-pointer shrink-0 inline-flex items-center space-x-1.5 ${
                           isSubActive
                             ? 'bg-[#820b28] text-white shadow-xs'
@@ -1016,6 +1084,10 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                     products={categoryProducts}
                     renderCard={renderProductCard}
                     onSelectCategory={handleCategorySelect}
+                    onSelectSubcategory={(cat, sub) => {
+                      handleCategorySelect(cat);
+                      handleSubcategorySelect(sub);
+                    }}
                   />
                 );
               })}
@@ -1033,18 +1105,89 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                       products={categoryProducts}
                       renderCard={renderProductCard}
                       onSelectCategory={handleCategorySelect}
+                      onSelectSubcategory={(cat, sub) => {
+                        handleCategorySelect(cat);
+                        handleSubcategorySelect(sub);
+                      }}
                     />
                   );
                 })}
             </div>
           ) : (
             /* ========================================================
-                SUB-CENÁRIO B: CATEGORIA ESPECÍFICA (GRID TRADICIONAL COMPLETO)
+                SUB-CENÁRIO B: CATEGORIA ESPECÍFICA (ORGANIZADO POR SUBCATEGORIA OU GRID)
                ======================================================== */
             filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
-                {filteredProducts.map((product) => renderProductCard(product))}
-              </div>
+              currentSubcategory === 'ALL' && subcategoriesInActiveCategory.length > 0 ? (
+                <div className="space-y-16">
+                  {subcategoriesInActiveCategory.map((sub: string) => {
+                    const subProducts = filteredProducts.filter((p) => p.subcategory === sub);
+                    if (subProducts.length === 0) return null;
+                    return (
+                      <div key={sub} className="space-y-4">
+                        <div className="flex items-center justify-between border-b border-stone-200/80 pb-3">
+                          <div className="flex items-center space-x-2.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-[#820b28]" />
+                            <h2
+                              className="text-xl sm:text-2xl font-normal text-[#35312F]"
+                              style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+                            >
+                              {sub}
+                            </h2>
+                            <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-full">
+                              {subProducts.length} {subProducts.length === 1 ? 'item' : 'itens'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSubcategorySelect(sub)}
+                            className="text-xs font-bold text-[#820b28] hover:underline cursor-pointer flex items-center space-x-1"
+                          >
+                            <span>Ver apenas {sub}</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
+                          {subProducts.map((product) => renderProductCard(product))}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Produtos da categoria sem subcategoria ou com subcategoria avulsa */}
+                  {(() => {
+                    const otherProducts = filteredProducts.filter(
+                      (p) => !p.subcategory || !subcategoriesInActiveCategory.includes(p.subcategory)
+                    );
+                    if (otherProducts.length === 0) return null;
+                    return (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between border-b border-stone-200/80 pb-3">
+                          <div className="flex items-center space-x-2.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-stone-400" />
+                            <h2
+                              className="text-xl sm:text-2xl font-normal text-[#35312F]"
+                              style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
+                            >
+                              Outras Opções da Categoria
+                            </h2>
+                            <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-full">
+                              {otherProducts.length} {otherProducts.length === 1 ? 'item' : 'itens'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
+                          {otherProducts.map((product) => renderProductCard(product))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-24 pt-20">
+                  {filteredProducts.map((product) => renderProductCard(product))}
+                </div>
+              )
             ) : (
               <div className="bg-white rounded-3xl p-12 text-center border border-stone-200/80 space-y-4">
                 <div className="w-16 h-16 rounded-full bg-amber-50 text-[#924529] mx-auto flex items-center justify-center">

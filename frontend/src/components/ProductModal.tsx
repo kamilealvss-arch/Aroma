@@ -106,6 +106,15 @@ export function saveStoredCustomSubcategory(category: string, newSubcategory: st
   } catch {}
 }
 
+export function getAllSubcategoriesForCategory(category: string, products: Product[] = []): string[] {
+  const defaults = DEFAULT_SUBCATEGORIES[category] || [];
+  const customs = getStoredCustomSubcategories()[category] || [];
+  const fromProds = products
+    .filter((p) => p.category === category && p.subcategory)
+    .map((p) => p.subcategory as string);
+  return Array.from(new Set([...defaults, ...customs, ...fromProds]));
+}
+
 export const PRESET_ADDON_SUGGESTIONS: Array<{ name: string; price: number }> = [
   { name: 'Chantilly Artesanal', price: 3.0 },
   { name: 'Calda de Caramelo Salgado', price: 2.5 },

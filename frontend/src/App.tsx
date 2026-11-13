@@ -23,6 +23,12 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'admin' | 'client'>('admin');
   const [adminTab, setAdminTab] = useState<'dashboard' | 'kanban' | 'products' | 'stock' | 'reports' | 'audit'>('dashboard');
   const [clientCategory, setClientCategory] = useState<string>('HOME');
+  const [clientSubcategory, setClientSubcategory] = useState<string>('ALL');
+
+  const handleClientCategoryChange = (cat: string) => {
+    setClientCategory(cat);
+    setClientSubcategory('ALL');
+  };
   const [orders, setOrders] = useState<Order[]>([]);
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -258,7 +264,9 @@ export default function App() {
         activeOrdersCount={activeOrdersCount}
         onResetDemo={handleResetDemo}
         clientCategory={clientCategory}
-        onClientCategoryChange={setClientCategory}
+        onClientCategoryChange={handleClientCategoryChange}
+        clientSubcategory={clientSubcategory}
+        onClientSubcategoryChange={setClientSubcategory}
         products={products}
         onBackToAdmin={handleBackToAdmin}
       />
@@ -321,7 +329,9 @@ export default function App() {
             onCreateOrder={handleCreateOrder}
             onOrderSuccess={refreshAllData}
             selectedCategory={clientCategory}
-            onSelectCategory={setClientCategory}
+            onSelectCategory={handleClientCategoryChange}
+            selectedSubcategory={clientSubcategory}
+            onSelectSubcategory={setClientSubcategory}
             onBackToAdmin={handleBackToAdmin}
           />
         )}
