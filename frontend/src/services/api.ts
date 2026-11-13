@@ -539,12 +539,53 @@ export const api = {
       unitPrice?: number;
     }>;
   }) => {
-    const created = await request<Order>('/api/orders', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    saveCreatedOrderLocal(created);
-    return created;
+    // Sincroniza previamente no backend produtos que foram criados localmente nesta sessão
+    try {
+      const localProducts = getCreatedProductsLocal();
+      const itemProductIds = new Set(data.items.map((it) => it.productId));
+      const relevantProducts = localProducts.filter((p) => itemProductIds.has(p.id));
+      for (const prod of relevantProducts) {
+        await request<Product>('/api/products', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...prod,
+            stockQuantity: Math.max(prod.stockQuantity || 0, 50),
+          }),
+        }).catch(() => {});
+      }
+    } catch {
+      // Ignora falhas silenciosas na pré-sincronização
+    }
+
+    try {
+      const created = await request<Order>('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      saveCreatedOrderLocal(created);
+      return created;
+    } catch (err: any) {
+      if (err?.message && err.message.includes('Produto não encontrado')) {
+        // Se ainda assim o backend relatar produto não encontrado, sincroniza todos os produtos locais e tenta de novo
+        const allLocal = getCreatedProductsLocal();
+        for (const prod of allLocal) {
+          await request<Product>('/api/products', {
+            method: 'POST',
+            body: JSON.stringify({
+              ...prod,
+              stockQuantity: Math.max(prod.stockQuantity || 0, 50),
+            }),
+          }).catch(() => {});
+        }
+        const retried = await request<Order>('/api/orders', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        });
+        saveCreatedOrderLocal(retried);
+        return retried;
+      }
+      throw err;
+    }
   },
   updateOrderStatus: async (id: string, status: Order['status']) => {
     const now = new Date().toISOString();
