@@ -142,14 +142,14 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   const relevantProducts = selectedStatus === 'inativo' ? inactiveProducts : activeProducts;
   const totalCount = relevantProducts.length;
 
-  // Filtragem
+  // Filtragem (com verificações seguras contra valores nulos/indefinidos)
   const filteredProducts = products.filter((p) => {
-    const q = search.toLowerCase();
-    const matchesSearch =
-      p.name.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q) ||
-      (p.subcategory && p.subcategory.toLowerCase().includes(q));
+    const q = (search || '').toLowerCase().trim();
+    const nameMatch = (p.name || '').toLowerCase().includes(q);
+    const descMatch = p.description ? p.description.toLowerCase().includes(q) : false;
+    const catMatch = (p.category || '').toLowerCase().includes(q);
+    const subcatMatch = p.subcategory ? p.subcategory.toLowerCase().includes(q) : false;
+    const matchesSearch = !q || nameMatch || descMatch || catMatch || subcatMatch;
 
     const matchesCategory =
       selectedCategory === 'ALL' || p.category === selectedCategory;
@@ -656,7 +656,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   isInactive ? 'opacity-75 grayscale-30 bg-stone-50/50' : ''
                 }`}
               >
-                {/* 1. Moldura Retangular de Imagem */}
+                {/* 1. Moldura Retangular de Imagem com Preço no Canto Superior Direito (Idêntico ao 10$) */}
                 <div className="relative h-60 w-full rounded-[22px] overflow-hidden bg-[#EBE7DF] flex flex-col justify-between shadow-inner">
                   {/* Categoria Badge no topo esquerdo da foto */}
                   <div className="p-3 z-10 flex items-center justify-between">
@@ -668,6 +668,15 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                         Inativo
                       </span>
                     )}
+                  </div>
+
+                  {/* Valor em Cima no Canto Superior Direito (Idêntico ao 10$ da Referência) */}
+                  <div className="absolute top-0 right-0 z-20 bg-white text-[#35312F] pl-4 pr-3.5 pt-1.5 pb-2 rounded-bl-[20px] flex items-center justify-center shadow-2xs">
+                    <span className="text-sm sm:text-base font-black tracking-tight">
+                      {product.hasSizes && product.sizes && product.sizes.length > 1
+                        ? `A partir de ${formatCurrencyBRL(Math.min(...product.sizes.map((s) => s.price)))}`
+                        : formatCurrencyBRL(product.price)}
+                    </span>
                   </div>
 
                   {/* Imagem Quadrada Normal para o Catálogo de Gestão */}
@@ -704,20 +713,13 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   </div>
                 </div>
 
-                {/* 2. Informações Inferiores (Nome, Descrição, Preço, Ações Editar/Desativar e Pílulas) */}
+                {/* 2. Informações Inferiores (Nome, Descrição, Ações Editar/Desativar e Pílulas) */}
                 <div className="pt-3 pb-1 flex-1 flex flex-col justify-between space-y-2.5">
                   <div>
-                    {/* Nome do Produto e Preço */}
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-extrabold text-[#35312F] text-base leading-tight">
-                        {product.name}
-                      </h3>
-                      <span className="text-sm sm:text-base font-black tracking-tight text-[#35312F] shrink-0">
-                        {product.hasSizes && product.sizes && product.sizes.length > 1
-                          ? `A partir de ${formatCurrencyBRL(Math.min(...product.sizes.map((s) => s.price)))}`
-                          : formatCurrencyBRL(product.price)}
-                      </span>
-                    </div>
+                    {/* Nome do Produto com largura total para evitar truncamentos desnecessários */}
+                    <h3 className="font-extrabold text-[#35312F] text-base leading-tight">
+                      {product.name}
+                    </h3>
 
                     <p className="text-[11px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
                       {product.description || 'Preparo artesanal com insumos selecionados.'}
