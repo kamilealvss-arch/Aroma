@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   Minus,
@@ -44,7 +44,7 @@ interface ProductDetailModalProps {
 }
 
 // Adicionais padrão de acordo com a categoria
-const COFFEE_ADDONS: ProductAddonOption[] = [
+export const COFFEE_ADDONS: ProductAddonOption[] = [
   { id: 'chantilly', name: 'Chantilly Artesanal', price: 3.0 },
   { id: 'caramelo', name: 'Calda de Caramelo Salgado', price: 2.5 },
   { id: 'shot_extra', name: 'Shot Extra de Espresso', price: 4.0 },
@@ -53,13 +53,44 @@ const COFFEE_ADDONS: ProductAddonOption[] = [
   { id: 'chocolate', name: 'Gotas de Chocolate Belga', price: 3.0 },
 ];
 
-const FOOD_ADDONS: ProductAddonOption[] = [
+export const FOOD_ADDONS: ProductAddonOption[] = [
   { id: 'aquecer', name: 'Aquecer no Forno / Tostado', price: 0.0 },
   { id: 'geleia', name: 'Geléia Artesanal de Frutas', price: 3.5 },
   { id: 'requeijao', name: 'Requeijão Cremoso Extra', price: 3.5 },
   { id: 'parmesao', name: 'Parmesão Ralado Maçaricado', price: 4.0 },
   { id: 'brigadeiro', name: 'Cobertura Extra de Brigadeiro', price: 4.0 },
 ];
+
+export const getProductAvailableAddons = (product: Product | null): ProductAddonOption[] => {
+  if (!product) return [];
+  if (product.hasAddons && product.addons && product.addons.length > 0) {
+    return product.addons.map((a) => ({
+      id: a.id || (a.name || '').toLowerCase().replace(/\s+/g, '_'),
+      name: a.name || 'Adicional',
+      price: Number(a.price) || 0,
+    }));
+  }
+
+  const category = product.category || '';
+  const name = product.name?.toLowerCase() || '';
+  const isBeverage =
+    category === 'Cafés Especiais' ||
+    category === 'Bebidas Geladas' ||
+    name.includes('café') ||
+    name.includes('cappuccino') ||
+    name.includes('latte') ||
+    name.includes('chá');
+
+  return isBeverage ? COFFEE_ADDONS : FOOD_ADDONS;
+};
+
+export const formatSizeDisplayName = (name: string): string => {
+  const lower = (name || '').trim().toLowerCase();
+  if (lower === 'small') return 'Pequeno';
+  if (lower === 'medium') return 'Médio';
+  if (lower === 'large') return 'Grande';
+  return name;
+};
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   isOpen,
@@ -79,6 +110,53 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [isAboutExpanded, setIsAboutExpanded] = useState<boolean>(false);
   const [isAddedSuccess, setIsAddedSuccess] = useState<boolean>(false);
 
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const [canExpand, setCanExpand] = useState<boolean>(false);
+
+  const isBeverage = useMemo(() => {
+    if (!product) return false;
+    const category = product.category || '';
+    const name = product.name?.toLowerCase() || '';
+    return (
+      category === 'Cafés Especiais' ||
+      category === 'Bebidas Geladas' ||
+      name.includes('café') ||
+      name.includes('cappuccino') ||
+      name.includes('latte') ||
+      name.includes('chá')
+    );
+  }, [product]);
+
+  const descriptionText =
+    product?.description?.trim() ||
+    'Feito com café espresso especial combinado com leite vaporizado cremoso, resultando em uma bebida aveludada e de sabor inconfundível.';
+
+  // Verifica se o texto da descrição realmente excede 2 linhas para exibir ou ocultar o botão "Ver mais"
+  useEffect(() => {
+    if (!isOpen || !product) return;
+
+    setIsAboutExpanded(false);
+
+    const checkOverflow = () => {
+      const el = descriptionRef.current;
+      if (!el) {
+        setCanExpand(descriptionText.length > 130);
+        return;
+      }
+      // Se scrollHeight for maior que clientHeight + 2px, indica que o texto foi cortado pelo line-clamp-2
+      const isClamped = el.scrollHeight > el.clientHeight + 2;
+      setCanExpand(isClamped);
+    };
+
+    const timer = setTimeout(checkOverflow, 60);
+    window.addEventListener('resize', checkOverflow);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkOverflow);
+    };
+  }, [isOpen, product, descriptionText]);
+
   // Determina tamanhos disponíveis
   const availableSizes = useMemo(() => {
     if (!product) return [];
@@ -90,32 +168,22 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       }));
     }
 
-    const category = product.category || '';
-    const name = product.name?.toLowerCase() || '';
-    const isBeverage =
-      category === 'Cafés Especiais' ||
-      category === 'Bebidas Geladas' ||
-      name.includes('café') ||
-      name.includes('cappuccino') ||
-      name.includes('latte') ||
-      name.includes('chá');
-
     const basePrice = Number(product.price) || 0;
 
     if (isBeverage) {
       return [
         {
-          name: 'Small',
+          name: 'Pequeno',
           price: Number((basePrice * 0.85).toFixed(2)),
           volumeLabel: '160 ml',
         },
         {
-          name: 'Medium',
+          name: 'Médio',
           price: basePrice,
           volumeLabel: '250 ml',
         },
         {
-          name: 'Large',
+          name: 'Grande',
           price: Number((basePrice * 1.35).toFixed(2)),
           volumeLabel: '350 ml',
         },
@@ -134,32 +202,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         volumeLabel: '2 un.',
       },
     ];
-  }, [product]);
+  }, [product, isBeverage]);
 
   // Determina adicionais disponíveis (definido no topo para respeitar as regras dos Hooks do React)
   const availableAddons: ProductAddonOption[] = useMemo(() => {
-    if (!product) return [];
-
-    // Se o produto possuir adicionais específicos cadastrados pelo administrador
-    if (product.hasAddons && product.addons && product.addons.length > 0) {
-      return product.addons.map((a) => ({
-        id: a.id || (a.name || '').toLowerCase().replace(/\s+/g, '_'),
-        name: a.name || 'Adicional',
-        price: Number(a.price) || 0,
-      }));
-    }
-
-    // Caso contrário, oferece os adicionais pré-configurados inteligentes para a categoria
-    const category = product.category || '';
-    const name = product.name?.toLowerCase() || '';
-    const isBeverage =
-      category === 'Cafés Especiais' ||
-      category === 'Bebidas Geladas' ||
-      name.includes('café') ||
-      name.includes('latte') ||
-      name.includes('cappuccino');
-
-    return isBeverage ? COFFEE_ADDONS : FOOD_ADDONS;
+    return getProductAvailableAddons(product);
   }, [product]);
 
   // Redefine estados quando o produto mudar
@@ -167,13 +214,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     if (product && availableSizes.length > 0) {
       const defaultSize =
         availableSizes.find(
-          (s) => (s.name || '').toLowerCase().includes('small') || (s.name || '').toLowerCase().includes('p (')
+          (s) =>
+            (s.name || '').toLowerCase().includes('pequeno') ||
+            (s.name || '').toLowerCase().includes('small') ||
+            (s.name || '').toLowerCase().includes('p (')
         ) || availableSizes[0];
       setSelectedSizeName(defaultSize ? defaultSize.name : availableSizes[0].name);
       setSelectedAddons([]);
       setQuantity(1);
       setNotes('');
-      setIsAboutExpanded(false);
       setIsAddedSuccess(false);
     }
   }, [product, availableSizes]);
@@ -352,9 +401,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
             </div>
 
-            {/* ===================== SELEÇÃO DE TAMANHO (COFFEE SIZE) ===================== */}
+            {/* ===================== SELEÇÃO DE TAMANHO ===================== */}
             <div className="space-y-2.5">
-              <span className="text-sm font-bold text-[#231b15] block">Coffee size</span>
+              <span className="text-sm font-bold text-[#231b15] block">
+                {isBeverage ? 'Tamanho do café' : 'Tamanho'}
+              </span>
               <div className="grid grid-cols-3 gap-3">
                 {availableSizes.map((sz) => {
                   const isSelected = sz.name === selectedSizeName;
@@ -369,7 +420,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           : 'bg-[#f4f3ef] text-stone-600 hover:bg-stone-200/80'
                       }`}
                     >
-                      <span className="capitalize">{sz.name}</span>
+                      <span className="capitalize">{formatSizeDisplayName(sz.name)}</span>
                       <span
                         className={`text-[11px] mt-0.5 ${
                           isSelected ? 'text-rose-100 font-medium' : 'text-stone-400'
@@ -446,27 +497,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
             {/* ===================== SOBRE (ABOUT) ===================== */}
             <div className="space-y-1.5 pt-1">
-              <span className="text-sm font-bold text-[#231b15] block">About</span>
+              <span className="text-sm font-bold text-[#231b15] block">Sobre</span>
               <p
+                ref={descriptionRef}
                 className={`text-xs sm:text-sm text-stone-500 leading-relaxed transition-all ${
                   isAboutExpanded ? '' : 'line-clamp-2'
                 }`}
               >
-                {product.description ||
-                  'Cappuccino is combined with several ounces of steamed milk to create a rich, creamy beverage that has a more distinct espresso taste and velvet texture.'}
+                {descriptionText}
               </p>
-              <button
-                type="button"
-                onClick={() => setIsAboutExpanded((prev) => !prev)}
-                className="text-xs font-bold text-[#850D2C] hover:text-[#6e0a24] transition inline-flex items-center space-x-1 cursor-pointer"
-              >
-                <span>{isAboutExpanded ? 'Ver menos' : 'Read more'}</span>
-                {isAboutExpanded ? (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
-              </button>
+              {canExpand && (
+                <button
+                  type="button"
+                  onClick={() => setIsAboutExpanded((prev) => !prev)}
+                  className="text-xs font-bold text-[#850D2C] hover:text-[#6e0a24] transition inline-flex items-center space-x-1 cursor-pointer"
+                >
+                  <span>{isAboutExpanded ? 'Ver menos' : 'Ver mais'}</span>
+                  {isAboutExpanded ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
             </div>
 
             {/* ===================== VOLUME & QUANTIDADE ===================== */}
@@ -547,7 +600,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </>
               ) : (
                 <>
-                  <span>Buy now</span>
+                  <span>Comprar agora</span>
                   <span className="opacity-60">•</span>
                   <span>{formatCurrencyBRL(totalPrice)}</span>
                 </>
