@@ -349,7 +349,29 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         </div>
 
         {/* Botões Principais no Cabeçalho */}
-        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-center shrink-0">
+          <div className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => bannerFileInputRef.current?.click()}
+              className="inline-flex items-center space-x-2 h-8.5 px-3.5 rounded-full text-xs font-semibold text-[#924529] bg-amber-50 hover:bg-[#924529] hover:text-white border border-amber-200/90 shadow-xs transition cursor-pointer"
+              title="Alterar a imagem de fundo do banner Especial da Semana no cardápio"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>{bannerBgUrl ? 'Trocar fundo do banner' : 'Fundo do banner'}</span>
+            </button>
+            {bannerBgUrl && (
+              <button
+                type="button"
+                onClick={handleClearBannerBg}
+                className="inline-flex items-center justify-center h-8.5 w-8.5 rounded-full text-xs font-semibold text-[#850D2C] bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-xs transition cursor-pointer"
+                title="Remover imagem de fundo do banner e restaurar o degradê original"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={handleOpenCreateCombo}

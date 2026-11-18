@@ -961,36 +961,6 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                 />
               )}
 
-              {/* Input invisível e botão discreto para alterar o fundo do banner */}
-              <input
-                ref={bannerFileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleBannerBgFileChange}
-                className="hidden"
-              />
-              <div className="absolute top-3.5 right-4 z-20 flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => bannerFileInputRef.current?.click()}
-                  className="px-2.5 py-1 rounded-full bg-black/35 hover:bg-black/55 backdrop-blur-xs text-white/90 hover:text-white text-[10px] font-semibold inline-flex items-center space-x-1 transition cursor-pointer border border-white/15"
-                  title="Escolher imagem de fundo para o banner"
-                >
-                  <ImageIcon className="w-3 h-3" />
-                  <span>{bannerBgUrl ? 'Trocar Fundo' : 'Fundo do Banner'}</span>
-                </button>
-                {bannerBgUrl && (
-                  <button
-                    type="button"
-                    onClick={handleClearBannerBg}
-                    className="p-1 rounded-full bg-black/35 hover:bg-rose-600/80 backdrop-blur-xs text-white/90 hover:text-white transition cursor-pointer border border-white/15"
-                    title="Remover imagem de fundo e voltar ao degradê original"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-
               <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                 {/* Lado Esquerdo: Textos do Especial */}
                 <div className="space-y-4 max-w-xl text-center md:text-left">
