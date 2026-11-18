@@ -360,6 +360,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !isEditorOpen) onClose();
@@ -368,6 +369,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
     return () => {
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, isEditorOpen, onClose]);
