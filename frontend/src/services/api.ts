@@ -451,6 +451,20 @@ export const api = {
   // Produtos
   getProducts: async (includeInactive: boolean = false) => {
     const serverProducts = await request<Product[]>(`/api/products?includeInactive=true`);
+    // Sincroniza automaticamente para o servidor/banco qualquer produto criado localmente que ainda não esteja no servidor
+    try {
+      const serverIds = new Set(serverProducts.map((p) => p.id));
+      const localCreated = getCreatedProductsLocal();
+      const missingOnServer = localCreated.filter((lp) => !serverIds.has(lp.id));
+      for (const missingProd of missingOnServer) {
+        await request<Product>('/api/products', {
+          method: 'POST',
+          body: JSON.stringify(missingProd),
+        }).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
     return applyProductOverrides(serverProducts, includeInactive);
   },
   createProduct: async (data: Partial<Product>) => {
