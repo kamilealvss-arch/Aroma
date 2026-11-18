@@ -31,7 +31,17 @@ function getCreatedProductsLocal(): Product[] {
 
 function saveCreatedProductLocal(product: Product): void {
   try {
-    const current = getCreatedProductsLocal().filter((p) => p.id !== product.id);
+    let current = getCreatedProductsLocal().filter((p) => p.id !== product.id);
+    if (product.isWeeklySpecial) {
+      current = current.map((p) => ({ ...p, isWeeklySpecial: false }));
+      const overrides = getProductOverridesLocal();
+      for (const k of Object.keys(overrides)) {
+        overrides[k] = { ...(overrides[k] || {}), isWeeklySpecial: false };
+      }
+      overrides['prod_cappuccino'] = { ...(overrides['prod_cappuccino'] || {}), isWeeklySpecial: false };
+      overrides[product.id] = { ...(overrides[product.id] || {}), isWeeklySpecial: true };
+      localStorage.setItem(STORAGE_KEYS.PRODUCT_OVERRIDES, JSON.stringify(overrides));
+    }
     current.unshift(product);
     localStorage.setItem(STORAGE_KEYS.CREATED_PRODUCTS, JSON.stringify(current));
   } catch {
@@ -51,15 +61,25 @@ function getProductOverridesLocal(): Record<string, Partial<Product>> {
 function saveProductOverrideLocal(id: string, updates: Partial<Product>): void {
   try {
     const current = getProductOverridesLocal();
+    if (updates.isWeeklySpecial === true) {
+      for (const k of Object.keys(current)) {
+        if (k !== id) {
+          current[k] = { ...(current[k] || {}), isWeeklySpecial: false };
+        }
+      }
+      if (id !== 'prod_cappuccino') {
+        current['prod_cappuccino'] = { ...(current['prod_cappuccino'] || {}), isWeeklySpecial: false };
+      }
+    }
     current[id] = { ...(current[id] || {}), ...updates };
     localStorage.setItem(STORAGE_KEYS.PRODUCT_OVERRIDES, JSON.stringify(current));
 
-    const created = getCreatedProductsLocal();
-    const idx = created.findIndex((p) => p.id === id);
-    if (idx !== -1) {
-      created[idx] = { ...created[idx], ...updates };
-      localStorage.setItem(STORAGE_KEYS.CREATED_PRODUCTS, JSON.stringify(created));
-    }
+    const created = getCreatedProductsLocal().map((p) => {
+      if (p.id === id) return { ...p, ...updates };
+      if (updates.isWeeklySpecial === true) return { ...p, isWeeklySpecial: false };
+      return p;
+    });
+    localStorage.setItem(STORAGE_KEYS.CREATED_PRODUCTS, JSON.stringify(created));
   } catch {
     // ignore
   }
@@ -539,12 +559,53 @@ export const api = {
       unitPrice?: number;
     }>;
   }) => {
-    const created = await request<Order>('/api/orders', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    saveCreatedOrderLocal(created);
-    return created;
+    // Sincroniza previamente no backend produtos que foram criados localmente nesta sessão
+    try {
+      const localProducts = getCreatedProductsLocal();
+      const itemProductIds = new Set(data.items.map((it) => it.productId));
+      const relevantProducts = localProducts.filter((p) => itemProductIds.has(p.id));
+      for (const prod of relevantProducts) {
+        await request<Product>('/api/products', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...prod,
+            stockQuantity: Math.max(prod.stockQuantity || 0, 50),
+          }),
+        }).catch(() => {});
+      }
+    } catch {
+      // Ignora falhas silenciosas na pré-sincronização
+    }
+
+    try {
+      const created = await request<Order>('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      saveCreatedOrderLocal(created);
+      return created;
+    } catch (err: any) {
+      if (err?.message && err.message.includes('Produto não encontrado')) {
+        // Se ainda assim o backend relatar produto não encontrado, sincroniza todos os produtos locais e tenta de novo
+        const allLocal = getCreatedProductsLocal();
+        for (const prod of allLocal) {
+          await request<Product>('/api/products', {
+            method: 'POST',
+            body: JSON.stringify({
+              ...prod,
+              stockQuantity: Math.max(prod.stockQuantity || 0, 50),
+            }),
+          }).catch(() => {});
+        }
+        const retried = await request<Order>('/api/orders', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        });
+        saveCreatedOrderLocal(retried);
+        return retried;
+      }
+      throw err;
+    }
   },
   updateOrderStatus: async (id: string, status: Order['status']) => {
     const now = new Date().toISOString();

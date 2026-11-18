@@ -103,7 +103,11 @@ export default function App() {
   const handleUpdateProduct = async (id: string, updates: Partial<Product>) => {
     try {
       await api.updateProduct(id, updates);
-      showToast('Produto atualizado com sucesso! (Registrado na auditoria)');
+      if (updates.isWeeklySpecial) {
+        showToast('Novo Especial da Semana definido no cardápio!');
+      } else {
+        showToast('Produto atualizado com sucesso! (Registrado na auditoria)');
+      }
       await refreshAllData();
     } catch (err: any) {
       showToast(err.message, 'error');

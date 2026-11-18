@@ -30,7 +30,16 @@ export interface ImageTransformOptions {
   exportFormat: ExportImageFormat;
 }
 
-const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+const ALLOWED_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/avif',
+  'image/gif',
+  'image/bmp',
+  'image/svg+xml',
+];
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 /**
@@ -39,12 +48,12 @@ const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 export function validateImageFile(file: File): { valid: boolean; error?: string } {
   const mime = (file.type || '').toLowerCase();
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
-  const validExt = ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
+  const validExt = ['png', 'jpg', 'jpeg', 'jfif', 'webp', 'avif', 'gif', 'bmp', 'svg'].includes(ext);
 
-  if (!ALLOWED_MIME_TYPES.includes(mime) && !validExt) {
+  if (!mime.startsWith('image/') && !ALLOWED_MIME_TYPES.includes(mime) && !validExt) {
     return {
       valid: false,
-      error: 'Formato de arquivo não suportado. Envie uma imagem em PNG, JPG ou WebP.',
+      error: 'Formato de arquivo não suportado. Envie uma imagem (JPG, PNG, WebP, etc.).',
     };
   }
 

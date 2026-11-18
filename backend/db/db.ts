@@ -214,10 +214,20 @@ class DatabaseStore {
     return this.products.find((p) => p.id === id);
   }
 
-  public createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'status'> & { status?: Product['status'] }): Product {
+  public createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'status'> & { id?: string; status?: Product['status'] }): Product {
     const currentUser = this.getCurrentUser();
-    const id = generateUniqueId('prod');
+    const id = (data as any).id || generateUniqueId('prod');
+    const existing = this.getProductById(id);
+    if (existing) {
+      return existing;
+    }
     const now = new Date().toISOString();
+
+    if (data.isWeeklySpecial) {
+      this.products.forEach((p) => {
+        p.isWeeklySpecial = false;
+      });
+    }
 
     const newProduct: Product = {
       id,
@@ -229,7 +239,7 @@ class DatabaseStore {
       subcategory: data.subcategory,
       imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=600',
       cutoutImageUrl: data.cutoutImageUrl,
-      stockQuantity: Number(data.stockQuantity || 0),
+      stockQuantity: Number(data.stockQuantity !== undefined ? data.stockQuantity : 50),
       minStockThreshold: Number(data.minStockThreshold || 5),
       status: data.status || 'ativo',
       hasSizes: data.hasSizes,
@@ -240,6 +250,7 @@ class DatabaseStore {
       comboItems: data.comboItems,
       originalComboPrice: data.originalComboPrice ? Number(data.originalComboPrice) : undefined,
       discountPercentage: data.discountPercentage ? Number(data.discountPercentage) : undefined,
+      isWeeklySpecial: Boolean(data.isWeeklySpecial),
       createdAt: now,
       updatedAt: now,
     };
@@ -304,6 +315,14 @@ class DatabaseStore {
   public updateProduct(id: string, updates: Partial<Product>): Product {
     const product = this.getProductById(id);
     if (!product) throw new Error('Produto não encontrado');
+
+    if (updates.isWeeklySpecial === true) {
+      this.products.forEach((p) => {
+        if (p.id !== id) {
+          p.isWeeklySpecial = false;
+        }
+      });
+    }
 
     const currentUser = this.getCurrentUser();
     const { updatedProduct, auditLogs } = updateProductWithAudit(
