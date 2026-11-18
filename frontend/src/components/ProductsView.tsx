@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -21,6 +21,7 @@ import {
   Check,
   ArrowUpRight,
   Star,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Product } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -29,6 +30,9 @@ import {
   DEFAULT_CATEGORIES,
   DEFAULT_SUBCATEGORIES,
   getStoredCustomSubcategories,
+  getStoredWeeklySpecialBannerBg,
+  saveStoredWeeklySpecialBannerBg,
+  compressBannerImageFile,
 } from './ProductModal.tsx';
 import { ComboBuilderModal } from './ComboBuilderModal.tsx';
 
@@ -131,6 +135,34 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
       active[0];
     return fallback?.id;
   }, [products]);
+
+  // Imagem de fundo personalizada para o banner "Especial da Semana"
+  const [bannerBgUrl, setBannerBgUrl] = useState<string>(() => getStoredWeeklySpecialBannerBg());
+  const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const handleSync = () => setBannerBgUrl(getStoredWeeklySpecialBannerBg());
+    window.addEventListener('aroma-banner-bg-updated', handleSync);
+    return () => window.removeEventListener('aroma-banner-bg-updated', handleSync);
+  }, []);
+
+  const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressBannerImageFile(file);
+      saveStoredWeeklySpecialBannerBg(compressed);
+      setBannerBgUrl(compressed);
+    } catch {
+      // ignore
+    }
+    e.target.value = '';
+  };
+
+  const handleClearBannerBg = () => {
+    saveStoredWeeklySpecialBannerBg('');
+    setBannerBgUrl('');
+  };
 
   // Subcategorias disponíveis para a categoria atualmente selecionada
   const availableSubcategoriesForSelectedCat = useMemo(() => {
@@ -768,13 +800,35 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                             <span>Editar</span>
                           </button>
                           {product.id === currentWeeklySpecialId ? (
-                            <span
-                              className="h-6.5 px-3 rounded-full text-[11px] font-bold bg-amber-100 text-[#820b28] border border-amber-300 inline-flex items-center space-x-1 shadow-2xs"
-                              title="Este item está ativo como Especial da Semana no cardápio"
-                            >
-                              <Star className="w-2.5 h-2.5 fill-[#820b28] text-[#820b28]" />
-                              <span>Especial da Semana</span>
-                            </span>
+                            <>
+                              <span
+                                className="h-6.5 px-3 rounded-full text-[11px] font-bold bg-amber-100 text-[#820b28] border border-amber-300 inline-flex items-center space-x-1 shadow-2xs"
+                                title="Este item está ativo como Especial da Semana no cardápio"
+                              >
+                                <Star className="w-2.5 h-2.5 fill-[#820b28] text-[#820b28]" />
+                                <span>Especial da Semana</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => bannerFileInputRef.current?.click()}
+                                className="h-6.5 px-3 rounded-full text-[11px] font-medium bg-[#F5F3EF] hover:bg-[#820b28] text-[#35312F] hover:text-white border border-stone-200/70 hover:border-[#820b28] inline-flex items-center space-x-1 transition cursor-pointer"
+                                title="Enviar imagem de fundo para o banner do Especial da Semana"
+                              >
+                                <ImageIcon className="w-2.5 h-2.5" />
+                                <span>{bannerBgUrl ? 'Trocar Fundo' : 'Fundo do Banner'}</span>
+                              </button>
+                              {bannerBgUrl && (
+                                <button
+                                  type="button"
+                                  onClick={handleClearBannerBg}
+                                  className="h-6.5 px-2.5 rounded-full text-[11px] font-medium bg-rose-50 hover:bg-rose-100 text-[#820b28] border border-rose-200 inline-flex items-center space-x-1 transition cursor-pointer"
+                                  title="Remover imagem de fundo e voltar ao degradê padrão"
+                                >
+                                  <X className="w-2.5 h-2.5" />
+                                  <span>Remover Fundo</span>
+                                </button>
+                              )}
+                            </>
                           ) : (
                             <button
                               type="button"
@@ -1097,6 +1151,15 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Input invisível para upload de imagem de fundo do banner Especial da Semana */}
+      <input
+        ref={bannerFileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleBannerFileChange}
+        className="hidden"
+      />
 
       {/* Modal de Criação / Edição de Produto Normal */}
       <ProductModal

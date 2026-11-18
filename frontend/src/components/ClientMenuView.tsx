@@ -27,6 +27,7 @@ import {
   Edit3,
   User,
   MapPin,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Product, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -38,7 +39,12 @@ import {
   ProductAddonOption,
 } from './ProductDetailModal.tsx';
 import { GourmetCutoutImage } from './GourmetCutoutImage.tsx';
-import { getAllSubcategoriesForCategory } from './ProductModal.tsx';
+import {
+  getAllSubcategoriesForCategory,
+  getStoredWeeklySpecialBannerBg,
+  saveStoredWeeklySpecialBannerBg,
+  compressBannerImageFile,
+} from './ProductModal.tsx';
 
 export interface DetailedCartItem {
   cartKey: string;
@@ -395,6 +401,34 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     activeProducts.find((p) => p.id === 'prod_cappuccino') ||
     activeProducts.find((p) => p.category === 'Cafés Especiais') ||
     activeProducts[0];
+
+  // Imagem de fundo personalizada do banner Especial da Semana
+  const [bannerBgUrl, setBannerBgUrl] = useState<string>(() => getStoredWeeklySpecialBannerBg());
+  const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const handleSync = () => setBannerBgUrl(getStoredWeeklySpecialBannerBg());
+    window.addEventListener('aroma-banner-bg-updated', handleSync);
+    return () => window.removeEventListener('aroma-banner-bg-updated', handleSync);
+  }, []);
+
+  const handleBannerBgFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressBannerImageFile(file);
+      saveStoredWeeklySpecialBannerBg(compressed);
+      setBannerBgUrl(compressed);
+    } catch {
+      // ignore
+    }
+    e.target.value = '';
+  };
+
+  const handleClearBannerBg = () => {
+    saveStoredWeeklySpecialBannerBg('');
+    setBannerBgUrl('');
+  };
 
   // Combos & Brunch disponíveis
   const comboProducts = activeProducts.filter((p) => p.category === 'Combos & Brunch');
@@ -898,12 +932,64 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
           {/* 1. SEÇÃO "ESPECIAL DA SEMANA" (HERO HIGHLIGHT) */}
           {specialProduct && (
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#820b28] via-[#924529] to-[#5a1202] rounded-[36px] p-7 sm:p-10 text-white shadow-xl border border-white/10">
-              {/* Círculo decorativo de iluminação suave */}
-              <div
-                className="pointer-events-none absolute -right-16 -top-16 w-80 h-80 bg-white/10 rounded-full blur-2xl"
-                aria-hidden="true"
+            <div
+              className={`relative overflow-hidden rounded-[36px] p-7 sm:p-10 text-white shadow-xl border border-white/10 ${
+                bannerBgUrl
+                  ? 'bg-stone-900 bg-cover bg-center'
+                  : 'bg-gradient-to-br from-[#820b28] via-[#924529] to-[#5a1202]'
+              }`}
+              style={
+                bannerBgUrl
+                  ? {
+                      backgroundImage: `url(${bannerBgUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }
+                  : undefined
+              }
+            >
+              {/* Overlay escuro suave quando há imagem de fundo personalizada para garantir leitura perfeita */}
+              {bannerBgUrl ? (
+                <div
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/75 via-black/50 to-black/30"
+                  aria-hidden="true"
+                />
+              ) : (
+                <div
+                  className="pointer-events-none absolute -right-16 -top-16 w-80 h-80 bg-white/10 rounded-full blur-2xl"
+                  aria-hidden="true"
+                />
+              )}
+
+              {/* Input invisível e botão discreto para alterar o fundo do banner */}
+              <input
+                ref={bannerFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleBannerBgFileChange}
+                className="hidden"
               />
+              <div className="absolute top-3.5 right-4 z-20 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => bannerFileInputRef.current?.click()}
+                  className="px-2.5 py-1 rounded-full bg-black/35 hover:bg-black/55 backdrop-blur-xs text-white/90 hover:text-white text-[10px] font-semibold inline-flex items-center space-x-1 transition cursor-pointer border border-white/15"
+                  title="Escolher imagem de fundo para o banner"
+                >
+                  <ImageIcon className="w-3 h-3" />
+                  <span>{bannerBgUrl ? 'Trocar Fundo' : 'Fundo do Banner'}</span>
+                </button>
+                {bannerBgUrl && (
+                  <button
+                    type="button"
+                    onClick={handleClearBannerBg}
+                    className="p-1 rounded-full bg-black/35 hover:bg-rose-600/80 backdrop-blur-xs text-white/90 hover:text-white transition cursor-pointer border border-white/15"
+                    title="Remover imagem de fundo e voltar ao degradê original"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
 
               <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                 {/* Lado Esquerdo: Textos do Especial */}
@@ -936,18 +1022,18 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                   </div>
                 </div>
 
-                {/* Lado Direito: Prato Flutuante com Recorte Gourmet */}
+                {/* Lado Direito: Prato Flutuante com Recorte Gourmet (sem zoom no hover) */}
                 <div
                   onClick={() => handleOpenProductDetail(specialProduct)}
-                  className="relative shrink-0 w-52 h-52 sm:w-64 sm:h-64 cursor-pointer group flex items-center justify-center"
+                  className="relative shrink-0 w-52 h-52 sm:w-64 sm:h-64 cursor-pointer flex items-center justify-center"
                   title={`Personalizar ${specialProduct.name}`}
                 >
-                  <div className="absolute inset-0 bg-white/10 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-white/10 rounded-full blur-xl" />
                   <div className="relative w-full h-full flex items-center justify-center">
                     <GourmetCutoutImage
                       src={specialProduct.cutoutImageUrl || specialProduct.imageUrl}
                       alt={specialProduct.name}
-                      className="w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.45)] group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.45)]"
                     />
                   </div>
                 </div>

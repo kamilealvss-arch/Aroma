@@ -115,6 +115,63 @@ export function getAllSubcategoriesForCategory(category: string, products: Produ
   return Array.from(new Set([...defaults, ...customs, ...fromProds]));
 }
 
+export const WEEKLY_SPECIAL_BANNER_BG_KEY = 'aroma_weekly_special_banner_bg_v1';
+
+export function getStoredWeeklySpecialBannerBg(): string {
+  try {
+    return localStorage.getItem(WEEKLY_SPECIAL_BANNER_BG_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function saveStoredWeeklySpecialBannerBg(dataUrl: string): void {
+  try {
+    if (dataUrl) {
+      localStorage.setItem(WEEKLY_SPECIAL_BANNER_BG_KEY, dataUrl);
+    } else {
+      localStorage.removeItem(WEEKLY_SPECIAL_BANNER_BG_KEY);
+    }
+    window.dispatchEvent(new Event('aroma-banner-bg-updated'));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function compressBannerImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1400;
+        const maxH = 800;
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (w > maxW || h > maxH) {
+          const ratio = Math.min(maxW / w, maxH / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(reader.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => resolve(reader.result as string);
+      img.src = reader.result as string;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
 export const PRESET_ADDON_SUGGESTIONS: Array<{ name: string; price: number }> = [
   { name: 'Chantilly Artesanal', price: 3.0 },
   { name: 'Calda de Caramelo Salgado', price: 2.5 },
