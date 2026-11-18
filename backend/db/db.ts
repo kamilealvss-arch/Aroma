@@ -223,6 +223,12 @@ class DatabaseStore {
     }
     const now = new Date().toISOString();
 
+    if (data.isWeeklySpecial) {
+      this.products.forEach((p) => {
+        p.isWeeklySpecial = false;
+      });
+    }
+
     const newProduct: Product = {
       id,
       name: data.name,
@@ -244,6 +250,7 @@ class DatabaseStore {
       comboItems: data.comboItems,
       originalComboPrice: data.originalComboPrice ? Number(data.originalComboPrice) : undefined,
       discountPercentage: data.discountPercentage ? Number(data.discountPercentage) : undefined,
+      isWeeklySpecial: Boolean(data.isWeeklySpecial),
       createdAt: now,
       updatedAt: now,
     };
@@ -308,6 +315,14 @@ class DatabaseStore {
   public updateProduct(id: string, updates: Partial<Product>): Product {
     const product = this.getProductById(id);
     if (!product) throw new Error('Produto não encontrado');
+
+    if (updates.isWeeklySpecial === true) {
+      this.products.forEach((p) => {
+        if (p.id !== id) {
+          p.isWeeklySpecial = false;
+        }
+      });
+    }
 
     const currentUser = this.getCurrentUser();
     const { updatedProduct, auditLogs } = updateProductWithAudit(

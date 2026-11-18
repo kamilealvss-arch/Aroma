@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -20,6 +20,8 @@ import {
   ChevronRight,
   Check,
   ArrowUpRight,
+  Star,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Product } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -28,6 +30,9 @@ import {
   DEFAULT_CATEGORIES,
   DEFAULT_SUBCATEGORIES,
   getStoredCustomSubcategories,
+  getStoredWeeklySpecialBannerBg,
+  saveStoredWeeklySpecialBannerBg,
+  compressBannerImageFile,
 } from './ProductModal.tsx';
 import { ComboBuilderModal } from './ComboBuilderModal.tsx';
 
@@ -118,6 +123,46 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   const categories = Array.from(
     new Set([...DEFAULT_CATEGORIES, ...products.map((p) => p.category), ...customCategories])
   );
+
+  // Produto atualmente ativo como "Especial da Semana" no topo do cardápio
+  const currentWeeklySpecialId = useMemo(() => {
+    const active = products.filter((p) => p.status === 'ativo');
+    const explicit = active.find((p) => p.isWeeklySpecial);
+    if (explicit) return explicit.id;
+    const fallback =
+      active.find((p) => p.id === 'prod_cappuccino') ||
+      active.find((p) => p.category === 'Cafés Especiais') ||
+      active[0];
+    return fallback?.id;
+  }, [products]);
+
+  // Imagem de fundo personalizada para o banner "Especial da Semana"
+  const [bannerBgUrl, setBannerBgUrl] = useState<string>(() => getStoredWeeklySpecialBannerBg());
+  const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const handleSync = () => setBannerBgUrl(getStoredWeeklySpecialBannerBg());
+    window.addEventListener('aroma-banner-bg-updated', handleSync);
+    return () => window.removeEventListener('aroma-banner-bg-updated', handleSync);
+  }, []);
+
+  const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressBannerImageFile(file);
+      saveStoredWeeklySpecialBannerBg(compressed);
+      setBannerBgUrl(compressed);
+    } catch {
+      // ignore
+    }
+    e.target.value = '';
+  };
+
+  const handleClearBannerBg = () => {
+    saveStoredWeeklySpecialBannerBg('');
+    setBannerBgUrl('');
+  };
 
   // Subcategorias disponíveis para a categoria atualmente selecionada
   const availableSubcategoriesForSelectedCat = useMemo(() => {
@@ -304,7 +349,29 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         </div>
 
         {/* Botões Principais no Cabeçalho */}
-        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-center shrink-0">
+          <div className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => bannerFileInputRef.current?.click()}
+              className="inline-flex items-center space-x-2 h-8.5 px-3.5 rounded-full text-xs font-semibold text-[#924529] bg-amber-50 hover:bg-[#924529] hover:text-white border border-amber-200/90 shadow-xs transition cursor-pointer"
+              title="Alterar a imagem de fundo do banner Especial da Semana no cardápio"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>{bannerBgUrl ? 'Trocar fundo do banner' : 'Fundo do banner'}</span>
+            </button>
+            {bannerBgUrl && (
+              <button
+                type="button"
+                onClick={handleClearBannerBg}
+                className="inline-flex items-center justify-center h-8.5 w-8.5 rounded-full text-xs font-semibold text-[#850D2C] bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-xs transition cursor-pointer"
+                title="Remover imagem de fundo do banner e restaurar o degradê original"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={handleOpenCreateCombo}
@@ -659,10 +726,16 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 {/* 1. Moldura Retangular de Imagem com Preço no Canto Superior Direito (Idêntico ao 10$) */}
                 <div className="relative h-60 w-full rounded-[22px] overflow-hidden bg-[#EBE7DF] flex flex-col justify-between shadow-inner">
                   {/* Categoria Badge no topo esquerdo da foto */}
-                  <div className="p-3 z-10 flex items-center justify-between">
+                  <div className="p-3 z-10 flex items-center justify-between gap-1.5 flex-wrap pr-24">
                     <span className="bg-white/95 backdrop-blur-xs text-[#35312F] text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-2xs border border-stone-200/60">
                       {product.category}
                     </span>
+                    {!isInactive && product.id === currentWeeklySpecialId && (
+                      <span className="bg-[#820b28] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm inline-flex items-center space-x-1">
+                        <Star className="w-2.5 h-2.5 fill-amber-300 text-amber-300" />
+                        <span>Especial da Semana</span>
+                      </span>
+                    )}
                     {isInactive && (
                       <span className="bg-stone-800 text-stone-200 text-[10px] font-semibold px-2 py-0.5 rounded-full">
                         Inativo
@@ -725,8 +798,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                       {product.description || 'Preparo artesanal com insumos selecionados.'}
                     </p>
 
-                    {/* Ações "Editar" e "Desativar" com design suave e harmonioso */}
-                    <div className="flex items-center gap-2 pt-2">
+                    {/* Ações "Editar", "Especial da Semana" e "Desativar" com design suave e harmonioso */}
+                    <div className="flex flex-wrap items-center gap-2 pt-2">
                       {isInactive ? (
                         <button
                           type="button"
@@ -748,6 +821,47 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                             <Edit2 className="w-2.5 h-2.5 text-stone-400" />
                             <span>Editar</span>
                           </button>
+                          {product.id === currentWeeklySpecialId ? (
+                            <>
+                              <span
+                                className="h-6.5 px-3 rounded-full text-[11px] font-bold bg-amber-100 text-[#820b28] border border-amber-300 inline-flex items-center space-x-1 shadow-2xs"
+                                title="Este item está ativo como Especial da Semana no cardápio"
+                              >
+                                <Star className="w-2.5 h-2.5 fill-[#820b28] text-[#820b28]" />
+                                <span>Especial da Semana</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => bannerFileInputRef.current?.click()}
+                                className="h-6.5 px-3 rounded-full text-[11px] font-medium bg-[#F5F3EF] hover:bg-[#820b28] text-[#35312F] hover:text-white border border-stone-200/70 hover:border-[#820b28] inline-flex items-center space-x-1 transition cursor-pointer"
+                                title="Enviar imagem de fundo para o banner do Especial da Semana"
+                              >
+                                <ImageIcon className="w-2.5 h-2.5" />
+                                <span>{bannerBgUrl ? 'Trocar Fundo' : 'Fundo do Banner'}</span>
+                              </button>
+                              {bannerBgUrl && (
+                                <button
+                                  type="button"
+                                  onClick={handleClearBannerBg}
+                                  className="h-6.5 px-2.5 rounded-full text-[11px] font-medium bg-rose-50 hover:bg-rose-100 text-[#820b28] border border-rose-200 inline-flex items-center space-x-1 transition cursor-pointer"
+                                  title="Remover imagem de fundo e voltar ao degradê padrão"
+                                >
+                                  <X className="w-2.5 h-2.5" />
+                                  <span>Remover Fundo</span>
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => onUpdateProduct(product.id, { isWeeklySpecial: true })}
+                              className="h-6.5 px-3 rounded-full text-[11px] font-medium bg-amber-50 hover:bg-[#820b28] text-[#924529] hover:text-white border border-amber-200/80 hover:border-[#820b28] inline-flex items-center space-x-1 transition cursor-pointer"
+                              title="Definir este item como Especial da Semana no topo do cardápio"
+                            >
+                              <Star className="w-2.5 h-2.5" />
+                              <span>Especial da Semana</span>
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setProductToDelete(product)}
@@ -926,6 +1040,25 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                           </button>
                         ) : (
                           <div className="inline-flex items-center space-x-1.5">
+                            {product.id === currentWeeklySpecialId ? (
+                              <span
+                                className="h-7 px-2.5 bg-amber-100 text-[#820b28] rounded-lg text-xs font-bold border border-amber-300 inline-flex items-center space-x-1 shadow-2xs"
+                                title="Ativo como Especial da Semana"
+                              >
+                                <Star className="w-3 h-3 fill-[#820b28] text-[#820b28]" />
+                                <span>Especial</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onUpdateProduct(product.id, { isWeeklySpecial: true })}
+                                className="h-7 px-2.5 bg-amber-50 hover:bg-[#820b28] text-[#924529] hover:text-white rounded-lg text-xs font-medium border border-amber-200 hover:border-[#820b28] transition inline-flex items-center space-x-1 shadow-2xs cursor-pointer"
+                                title="Definir como Especial da Semana"
+                              >
+                                <Star className="w-3 h-3" />
+                                <span>Especial</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(product)}
@@ -1040,6 +1173,15 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Input invisível para upload de imagem de fundo do banner Especial da Semana */}
+      <input
+        ref={bannerFileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleBannerFileChange}
+        className="hidden"
+      />
 
       {/* Modal de Criação / Edição de Produto Normal */}
       <ProductModal

@@ -27,6 +27,7 @@ import {
   Edit3,
   User,
   MapPin,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Product, Order, PaymentMethod } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -38,7 +39,12 @@ import {
   ProductAddonOption,
 } from './ProductDetailModal.tsx';
 import { GourmetCutoutImage } from './GourmetCutoutImage.tsx';
-import { getAllSubcategoriesForCategory } from './ProductModal.tsx';
+import {
+  getAllSubcategoriesForCategory,
+  getStoredWeeklySpecialBannerBg,
+  saveStoredWeeklySpecialBannerBg,
+  compressBannerImageFile,
+} from './ProductModal.tsx';
 
 export interface DetailedCartItem {
   cartKey: string;
@@ -389,11 +395,40 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     return matchesCat && matchesSub;
   });
 
-  // Especial da Semana (destaque do Cappuccino Italiano ou primeiro café gourmet)
+  // Especial da Semana (produto destacado pelo admin ou Cappuccino Italiano por padrão)
   const specialProduct =
+    activeProducts.find((p) => p.isWeeklySpecial) ||
     activeProducts.find((p) => p.id === 'prod_cappuccino') ||
     activeProducts.find((p) => p.category === 'Cafés Especiais') ||
     activeProducts[0];
+
+  // Imagem de fundo personalizada do banner Especial da Semana
+  const [bannerBgUrl, setBannerBgUrl] = useState<string>(() => getStoredWeeklySpecialBannerBg());
+  const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const handleSync = () => setBannerBgUrl(getStoredWeeklySpecialBannerBg());
+    window.addEventListener('aroma-banner-bg-updated', handleSync);
+    return () => window.removeEventListener('aroma-banner-bg-updated', handleSync);
+  }, []);
+
+  const handleBannerBgFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressBannerImageFile(file);
+      saveStoredWeeklySpecialBannerBg(compressed);
+      setBannerBgUrl(compressed);
+    } catch {
+      // ignore
+    }
+    e.target.value = '';
+  };
+
+  const handleClearBannerBg = () => {
+    saveStoredWeeklySpecialBannerBg('');
+    setBannerBgUrl('');
+  };
 
   // Combos & Brunch disponíveis
   const comboProducts = activeProducts.filter((p) => p.category === 'Combos & Brunch');
@@ -897,12 +932,34 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
           {/* 1. SEÇÃO "ESPECIAL DA SEMANA" (HERO HIGHLIGHT) */}
           {specialProduct && (
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#820b28] via-[#924529] to-[#5a1202] rounded-[36px] p-7 sm:p-10 text-white shadow-xl border border-white/10">
-              {/* Círculo decorativo de iluminação suave */}
-              <div
-                className="pointer-events-none absolute -right-16 -top-16 w-80 h-80 bg-white/10 rounded-full blur-2xl"
-                aria-hidden="true"
-              />
+            <div
+              className={`relative overflow-hidden rounded-[36px] p-7 sm:p-10 text-white shadow-xl border border-white/10 ${
+                bannerBgUrl
+                  ? 'bg-stone-900 bg-cover bg-center'
+                  : 'bg-gradient-to-br from-[#820b28] via-[#924529] to-[#5a1202]'
+              }`}
+              style={
+                bannerBgUrl
+                  ? {
+                      backgroundImage: `url(${bannerBgUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }
+                  : undefined
+              }
+            >
+              {/* Overlay escuro suave quando há imagem de fundo personalizada para garantir leitura perfeita */}
+              {bannerBgUrl ? (
+                <div
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/75 via-black/50 to-black/30"
+                  aria-hidden="true"
+                />
+              ) : (
+                <div
+                  className="pointer-events-none absolute -right-16 -top-16 w-80 h-80 bg-white/10 rounded-full blur-2xl"
+                  aria-hidden="true"
+                />
+              )}
 
               <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                 {/* Lado Esquerdo: Textos do Especial */}
@@ -935,18 +992,18 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                   </div>
                 </div>
 
-                {/* Lado Direito: Prato Flutuante com Recorte Gourmet */}
+                {/* Lado Direito: Prato Flutuante com Recorte Gourmet (sem zoom no hover) */}
                 <div
                   onClick={() => handleOpenProductDetail(specialProduct)}
-                  className="relative shrink-0 w-52 h-52 sm:w-64 sm:h-64 cursor-pointer group flex items-center justify-center"
+                  className="relative shrink-0 w-52 h-52 sm:w-64 sm:h-64 cursor-pointer flex items-center justify-center"
                   title={`Personalizar ${specialProduct.name}`}
                 >
-                  <div className="absolute inset-0 bg-white/10 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-white/10 rounded-full blur-xl" />
                   <div className="relative w-full h-full flex items-center justify-center">
                     <GourmetCutoutImage
                       src={specialProduct.cutoutImageUrl || specialProduct.imageUrl}
                       alt={specialProduct.name}
-                      className="w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.45)] group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.45)]"
                     />
                   </div>
                 </div>
@@ -1177,10 +1234,10 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
               </div>
 
               {/* ========================================================
-                  BARRA DE FILTRO DE SUBCATEGORIAS (ONDE O USUÁRIO CIRCULOU)
+                  BARRA DE FILTRO DE SUBCATEGORIAS (Desktop - no mobile fica fixo na navbar superior)
                  ======================================================== */}
               {activeCategory !== 'ALL' && subcategoriesInActiveCategory.length > 0 && (
-                <div className="pt-4 border-t border-stone-100 space-y-2.5">
+                <div className="hidden md:block pt-4 border-t border-stone-100 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2 text-xs font-bold text-stone-600">
                       <SlidersHorizontal className="w-3.5 h-3.5 text-[#820b28]" />
