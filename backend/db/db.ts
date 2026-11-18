@@ -26,9 +26,34 @@ class DatabaseStore {
   private currentUserId: string = 'usr_admin';
   private nextOrderNumber: number = 2000;
   private isPostgresConnected: boolean = false;
+  private hasAttemptedInit: boolean = false;
+  private lastSyncTime: number = 0;
+  private pendingOps: Promise<void>[] = [];
 
   constructor() {
     this.resetToDefaults();
+  }
+
+  public async ensureSynced(isReadRequest: boolean = false): Promise<void> {
+    const now = Date.now();
+    if (!this.hasAttemptedInit) {
+      this.hasAttemptedInit = true;
+      await this.initFromPostgres();
+      this.lastSyncTime = Date.now();
+      return;
+    }
+    if (this.isPostgresConnected && isReadRequest && now - this.lastSyncTime > 2000) {
+      await this.flushPendingOps();
+      await this.initFromPostgres();
+      this.lastSyncTime = Date.now();
+    }
+  }
+
+  public async flushPendingOps(): Promise<void> {
+    if (this.pendingOps.length === 0) return;
+    const ops = [...this.pendingOps];
+    this.pendingOps = [];
+    await Promise.allSettled(ops);
   }
 
   public async initFromPostgres(): Promise<boolean> {
@@ -171,9 +196,10 @@ class DatabaseStore {
 
   private asyncPersist(operation: () => Promise<void>): void {
     if (!this.isPostgresConnected) return;
-    operation().catch((err) => {
+    const p = operation().catch((err) => {
       console.warn('⚠️  Erro assíncrono ao persistir no PostgreSQL:', err?.message || err);
     });
+    this.pendingOps.push(p);
   }
 
   public resetToDefaults(): void {
