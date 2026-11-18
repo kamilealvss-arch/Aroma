@@ -389,8 +389,9 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     return matchesCat && matchesSub;
   });
 
-  // Especial da Semana (destaque do Cappuccino Italiano ou primeiro café gourmet)
+  // Especial da Semana (produto destacado pelo admin ou Cappuccino Italiano por padrão)
   const specialProduct =
+    activeProducts.find((p) => p.isWeeklySpecial) ||
     activeProducts.find((p) => p.id === 'prod_cappuccino') ||
     activeProducts.find((p) => p.category === 'Cafés Especiais') ||
     activeProducts[0];

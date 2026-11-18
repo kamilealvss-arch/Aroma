@@ -49,6 +49,7 @@ export interface Product {
   comboItems?: ComboItemConfig[];
   originalComboPrice?: number;
   discountPercentage?: number;
+  isWeeklySpecial?: boolean; // Define se o produto é o destaque "Especial da Semana" no topo do cardápio
   createdAt: string;
   updatedAt: string;
 }

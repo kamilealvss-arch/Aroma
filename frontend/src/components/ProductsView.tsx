@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Check,
   ArrowUpRight,
+  Star,
 } from 'lucide-react';
 import { Product } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
@@ -118,6 +119,18 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   const categories = Array.from(
     new Set([...DEFAULT_CATEGORIES, ...products.map((p) => p.category), ...customCategories])
   );
+
+  // Produto atualmente ativo como "Especial da Semana" no topo do cardápio
+  const currentWeeklySpecialId = useMemo(() => {
+    const active = products.filter((p) => p.status === 'ativo');
+    const explicit = active.find((p) => p.isWeeklySpecial);
+    if (explicit) return explicit.id;
+    const fallback =
+      active.find((p) => p.id === 'prod_cappuccino') ||
+      active.find((p) => p.category === 'Cafés Especiais') ||
+      active[0];
+    return fallback?.id;
+  }, [products]);
 
   // Subcategorias disponíveis para a categoria atualmente selecionada
   const availableSubcategoriesForSelectedCat = useMemo(() => {
@@ -659,10 +672,16 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 {/* 1. Moldura Retangular de Imagem com Preço no Canto Superior Direito (Idêntico ao 10$) */}
                 <div className="relative h-60 w-full rounded-[22px] overflow-hidden bg-[#EBE7DF] flex flex-col justify-between shadow-inner">
                   {/* Categoria Badge no topo esquerdo da foto */}
-                  <div className="p-3 z-10 flex items-center justify-between">
+                  <div className="p-3 z-10 flex items-center justify-between gap-1.5 flex-wrap pr-24">
                     <span className="bg-white/95 backdrop-blur-xs text-[#35312F] text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-2xs border border-stone-200/60">
                       {product.category}
                     </span>
+                    {!isInactive && product.id === currentWeeklySpecialId && (
+                      <span className="bg-[#820b28] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm inline-flex items-center space-x-1">
+                        <Star className="w-2.5 h-2.5 fill-amber-300 text-amber-300" />
+                        <span>Especial da Semana</span>
+                      </span>
+                    )}
                     {isInactive && (
                       <span className="bg-stone-800 text-stone-200 text-[10px] font-semibold px-2 py-0.5 rounded-full">
                         Inativo
@@ -725,8 +744,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                       {product.description || 'Preparo artesanal com insumos selecionados.'}
                     </p>
 
-                    {/* Ações "Editar" e "Desativar" com design suave e harmonioso */}
-                    <div className="flex items-center gap-2 pt-2">
+                    {/* Ações "Editar", "Especial da Semana" e "Desativar" com design suave e harmonioso */}
+                    <div className="flex flex-wrap items-center gap-2 pt-2">
                       {isInactive ? (
                         <button
                           type="button"
@@ -748,6 +767,25 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                             <Edit2 className="w-2.5 h-2.5 text-stone-400" />
                             <span>Editar</span>
                           </button>
+                          {product.id === currentWeeklySpecialId ? (
+                            <span
+                              className="h-6.5 px-3 rounded-full text-[11px] font-bold bg-amber-100 text-[#820b28] border border-amber-300 inline-flex items-center space-x-1 shadow-2xs"
+                              title="Este item está ativo como Especial da Semana no cardápio"
+                            >
+                              <Star className="w-2.5 h-2.5 fill-[#820b28] text-[#820b28]" />
+                              <span>Especial da Semana</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => onUpdateProduct(product.id, { isWeeklySpecial: true })}
+                              className="h-6.5 px-3 rounded-full text-[11px] font-medium bg-amber-50 hover:bg-[#820b28] text-[#924529] hover:text-white border border-amber-200/80 hover:border-[#820b28] inline-flex items-center space-x-1 transition cursor-pointer"
+                              title="Definir este item como Especial da Semana no topo do cardápio"
+                            >
+                              <Star className="w-2.5 h-2.5" />
+                              <span>Especial da Semana</span>
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setProductToDelete(product)}
@@ -926,6 +964,25 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                           </button>
                         ) : (
                           <div className="inline-flex items-center space-x-1.5">
+                            {product.id === currentWeeklySpecialId ? (
+                              <span
+                                className="h-7 px-2.5 bg-amber-100 text-[#820b28] rounded-lg text-xs font-bold border border-amber-300 inline-flex items-center space-x-1 shadow-2xs"
+                                title="Ativo como Especial da Semana"
+                              >
+                                <Star className="w-3 h-3 fill-[#820b28] text-[#820b28]" />
+                                <span>Especial</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onUpdateProduct(product.id, { isWeeklySpecial: true })}
+                                className="h-7 px-2.5 bg-amber-50 hover:bg-[#820b28] text-[#924529] hover:text-white rounded-lg text-xs font-medium border border-amber-200 hover:border-[#820b28] transition inline-flex items-center space-x-1 shadow-2xs cursor-pointer"
+                                title="Definir como Especial da Semana"
+                              >
+                                <Star className="w-3 h-3" />
+                                <span>Especial</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(product)}
