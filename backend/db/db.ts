@@ -15,7 +15,7 @@ import {
   createAuditLog,
   generateUniqueId,
 } from '../../shared/logic/cafeRules.ts';
-import { prisma, testDatabaseConnection } from './prisma.ts';
+import { prisma, testDatabaseConnection, lastConnectionError } from './prisma.ts';
 
 class DatabaseStore {
   private products: Product[] = [];
@@ -52,13 +52,14 @@ class DatabaseStore {
       hasDirectUrl: Boolean(process.env.DIRECT_URL),
       productsInMemory: this.products.length,
       productsInPostgres: postgresProductCount,
-      lastDbError: this.lastDbError,
+      lastDbError: this.lastDbError || lastConnectionError,
     };
   }
 
   public async ensureSynced(isReadRequest: boolean = false): Promise<void> {
+    if (!process.env.DATABASE_URL) return;
     const now = Date.now();
-    if (!this.hasAttemptedInit) {
+    if (!this.hasAttemptedInit || (!this.isPostgresConnected && now - this.lastSyncTime > 2000)) {
       this.hasAttemptedInit = true;
       await this.initFromPostgres();
       this.lastSyncTime = Date.now();
@@ -251,9 +252,10 @@ class DatabaseStore {
   }
 
   private asyncPersist(operation: () => Promise<void>): void {
-    if (!this.isPostgresConnected) return;
+    if (!this.isPostgresConnected && !process.env.DATABASE_URL) return;
     const p = operation()
       .then(() => {
+        this.isPostgresConnected = true;
         this.lastDbError = null;
       })
       .catch((err) => {
