@@ -215,6 +215,16 @@ export function createExpressApp() {
     res.json(logs);
   });
 
+  // Diagnóstico de conexão e sincronização com o banco de dados PostgreSQL / Supabase
+  router.get('/health-db', async (req, res) => {
+    try {
+      const status = await db.getHealthStatus();
+      res.json(status);
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || String(err) });
+    }
+  });
+
   // Reset para dados de demonstração
   router.post('/reset-demo', (req, res) => {
     db.resetToDefaults();

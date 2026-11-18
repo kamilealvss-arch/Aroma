@@ -27,11 +27,33 @@ class DatabaseStore {
   private nextOrderNumber: number = 2000;
   private isPostgresConnected: boolean = false;
   private hasAttemptedInit: boolean = false;
+  private schemaChecked: boolean = false;
   private lastSyncTime: number = 0;
   private pendingOps: Promise<void>[] = [];
+  public lastDbError: string | null = null;
 
   constructor() {
     this.resetToDefaults();
+  }
+
+  public async getHealthStatus() {
+    await this.ensureSynced(true);
+    let postgresProductCount: number | null = null;
+    if (this.isPostgresConnected) {
+      try {
+        postgresProductCount = await prisma.product.count();
+      } catch (err: any) {
+        this.lastDbError = err?.message || String(err);
+      }
+    }
+    return {
+      postgresConnected: this.isPostgresConnected,
+      hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+      hasDirectUrl: Boolean(process.env.DIRECT_URL),
+      productsInMemory: this.products.length,
+      productsInPostgres: postgresProductCount,
+      lastDbError: this.lastDbError,
+    };
   }
 
   public async ensureSynced(isReadRequest: boolean = false): Promise<void> {
@@ -63,6 +85,18 @@ class DatabaseStore {
         console.log('💡 PostgreSQL: Modo local ativo (armazenamento em memória).');
         console.log('   Para conectar e persistir no PostgreSQL, execute: docker compose up -d\n');
         return false;
+      }
+
+      // Garante que a coluna subcategory exista na tabela Product do Supabase
+      if (!this.schemaChecked) {
+        this.schemaChecked = true;
+        try {
+          await prisma.$executeRawUnsafe(
+            `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "subcategory" TEXT;`
+          );
+        } catch (migErr: any) {
+          console.warn('⚠️  Aviso ao verificar coluna subcategory:', migErr?.message || migErr);
+        }
       }
 
       console.log('🐘 PostgreSQL: Conectado com sucesso via Prisma!');
@@ -187,8 +221,10 @@ class DatabaseStore {
         }));
       }
 
+      this.lastDbError = null;
       return true;
-    } catch (err) {
+    } catch (err: any) {
+      this.lastDbError = err?.message || String(err);
       console.warn('⚠️  Aviso: Não foi possível conectar ao PostgreSQL:', err);
       return false;
     }
@@ -196,9 +232,14 @@ class DatabaseStore {
 
   private asyncPersist(operation: () => Promise<void>): void {
     if (!this.isPostgresConnected) return;
-    const p = operation().catch((err) => {
-      console.warn('⚠️  Erro assíncrono ao persistir no PostgreSQL:', err?.message || err);
-    });
+    const p = operation()
+      .then(() => {
+        this.lastDbError = null;
+      })
+      .catch((err) => {
+        this.lastDbError = err?.message || String(err);
+        console.warn('⚠️  Erro assíncrono ao persistir no PostgreSQL:', err?.message || err);
+      });
     this.pendingOps.push(p);
   }
 
@@ -304,6 +345,7 @@ class DatabaseStore {
           price: newProduct.price,
           costPrice: newProduct.costPrice,
           category: newProduct.category,
+          subcategory: newProduct.subcategory || null,
           imageUrl: newProduct.imageUrl,
           cutoutImageUrl: newProduct.cutoutImageUrl,
           stockQuantity: newProduct.stockQuantity,
@@ -315,7 +357,7 @@ class DatabaseStore {
             create: newProduct.sizes.map((s) => ({ name: s.name, price: s.price, costPrice: s.costPrice })),
           } : undefined,
           addons: newProduct.addons && newProduct.addons.length > 0 ? {
-            create: newProduct.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
+            create: newProduct.addons.map((a) => ({ name: a.name, price: a.price })),
           } : undefined,
         },
       });
@@ -374,6 +416,7 @@ class DatabaseStore {
           price: updatedProduct.price,
           costPrice: updatedProduct.costPrice,
           category: updatedProduct.category,
+          subcategory: updatedProduct.subcategory || null,
           imageUrl: updatedProduct.imageUrl,
           cutoutImageUrl: updatedProduct.cutoutImageUrl,
           stockQuantity: updatedProduct.stockQuantity,
