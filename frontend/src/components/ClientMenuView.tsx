@@ -1177,10 +1177,10 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
               </div>
 
               {/* ========================================================
-                  BARRA DE FILTRO DE SUBCATEGORIAS (ONDE O USUÁRIO CIRCULOU)
+                  BARRA DE FILTRO DE SUBCATEGORIAS (Desktop - no mobile fica fixo na navbar superior)
                  ======================================================== */}
               {activeCategory !== 'ALL' && subcategoriesInActiveCategory.length > 0 && (
-                <div className="pt-4 border-t border-stone-100 space-y-2.5">
+                <div className="hidden md:block pt-4 border-t border-stone-100 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2 text-xs font-bold text-stone-600">
                       <SlidersHorizontal className="w-3.5 h-3.5 text-[#820b28]" />

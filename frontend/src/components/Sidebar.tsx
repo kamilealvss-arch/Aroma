@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Home,
   ChefHat,
@@ -17,6 +17,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { SystemUser, StockAlert, Product } from '../../../shared/types/index.ts';
+import { getAllSubcategoriesForCategory } from './ProductModal.tsx';
 
 export type AdminTabType = 'dashboard' | 'kanban' | 'products' | 'stock' | 'reports' | 'audit';
 
@@ -259,6 +260,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = currentView === 'client' ? clientNavItems : adminNavItems;
 
   const activeMobileItemRef = useRef<HTMLButtonElement | null>(null);
+  const activeSubcategoryRef = useRef<HTMLButtonElement | null>(null);
+
+  // Subcategorias disponíveis para a categoria ativa no cardápio do cliente
+  const activeSubcategories = useMemo(() => {
+    if (
+      currentView !== 'client' ||
+      !clientCategory ||
+      clientCategory === 'HOME' ||
+      clientCategory === 'ALL'
+    ) {
+      return [];
+    }
+    return getAllSubcategoriesForCategory(clientCategory, activeProducts);
+  }, [currentView, clientCategory, activeProducts]);
 
   useEffect(() => {
     if (activeMobileItemRef.current) {
@@ -270,55 +285,131 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [clientCategory, currentView, adminTab]);
 
+  useEffect(() => {
+    if (activeSubcategoryRef.current) {
+      activeSubcategoryRef.current.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }
+  }, [clientSubcategory]);
+
   return (
     <>
       {/* ========================================================
           1. CABEÇALHO MOBILE SUPERIOR (md:hidden)
+             INCLUI NAVBAR DE SUBCATEGORIAS QUANDO HOUVER
          ======================================================== */}
-      <header className="md:hidden sticky top-0 z-30 bg-[#820b28] text-white px-4 py-2.5 flex items-center justify-between shadow-md select-none">
-        <div className="flex items-center space-x-2">
-          <img src="/logo.png" alt="Aroma" className="w-8 h-8 object-contain brightness-0 invert" />
-          <span
-            className="text-lg text-white font-normal tracking-tight"
-            style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
-          >
-            Aroma
-          </span>
-          {currentView === 'client' && (
-            <span className="text-[10px] bg-white/20 text-white font-bold px-2 py-0.5 rounded-full ml-1">
-              Cardápio
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center space-x-2">
-          {currentView === 'client' ? (
-            <button
-              type="button"
-              onClick={onBackToAdmin || (() => onViewChange('admin'))}
-              className="px-3 py-1 bg-white/15 hover:bg-white/25 active:scale-95 text-white rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer"
-              title="Voltar ao Painel Administrativo"
+      <header className="md:hidden sticky top-0 z-30 bg-[#820b28] text-white shadow-md select-none">
+        <div className="px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <img src="/logo.png" alt="Aroma" className="w-8 h-8 object-contain brightness-0 invert" />
+            <span
+              className="text-lg text-white font-normal tracking-tight"
+              style={{ fontFamily: "'Amarego', 'Abril Fatface', Georgia, serif" }}
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Admin</span>
-            </button>
-          ) : (
-            <div className="flex items-center space-x-2">
-              <div className="text-right">
-                <span className="text-[11px] font-bold block leading-none">{currentUser?.name || 'Admin'}</span>
-                <span className="text-[9px] text-white/70 block leading-tight">{currentUser?.role || ''}</span>
-              </div>
+              Aroma
+            </span>
+            {currentView === 'client' && (
+              <span className="text-[10px] bg-white/20 text-white font-bold px-2 py-0.5 rounded-full ml-1">
+                Cardápio
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {currentView === 'client' ? (
               <button
                 type="button"
-                onClick={onResetDemo}
-                className="p-1.5 bg-white/15 hover:bg-white/25 active:scale-95 rounded-full text-white transition cursor-pointer"
-                title="Reset / Logout"
+                onClick={onBackToAdmin || (() => onViewChange('admin'))}
+                className="px-3 py-1 bg-white/15 hover:bg-white/25 active:scale-95 text-white rounded-full text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer"
+                title="Voltar ao Painel Administrativo"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Admin</span>
               </button>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center space-x-2">
+                <div className="text-right">
+                  <span className="text-[11px] font-bold block leading-none">{currentUser?.name || 'Admin'}</span>
+                  <span className="text-[9px] text-white/70 block leading-tight">{currentUser?.role || ''}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onResetDemo}
+                  className="p-1.5 bg-white/15 hover:bg-white/25 active:scale-95 rounded-full text-white transition cursor-pointer"
+                  title="Reset / Logout"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* ========================================================
+            NAVBAR MOBILE DE SUBCATEGORIAS (Apenas quando no Cardápio e houver subcategorias)
+           ======================================================== */}
+        {currentView === 'client' && activeSubcategories.length > 0 && (
+          <div className="bg-white text-stone-800 border-t border-b border-stone-200/90 shadow-xs px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+            {/* Botão "Todos" */}
+            <button
+              type="button"
+              ref={clientSubcategory === 'ALL' ? activeSubcategoryRef : null}
+              onClick={() => onClientSubcategoryChange?.('ALL')}
+              className={`h-8 px-3.5 rounded-full text-xs font-bold transition-all duration-150 shrink-0 flex items-center space-x-1.5 cursor-pointer shadow-2xs ${
+                clientSubcategory === 'ALL'
+                  ? 'bg-[#820b28] text-white shadow-sm ring-2 ring-[#820b28]/25 scale-[1.02]'
+                  : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+              }`}
+            >
+              <span>Todos</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  clientSubcategory === 'ALL'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-stone-200 text-stone-600'
+                }`}
+              >
+                {activeProducts.filter((p) => p.category === clientCategory).length}
+              </span>
+            </button>
+
+            {/* Subcategorias da Categoria Ativa */}
+            {activeSubcategories.map((sub) => {
+              const count = activeProducts.filter(
+                (p) => p.category === clientCategory && p.subcategory === sub
+              ).length;
+              const isSubActive = clientSubcategory === sub;
+
+              return (
+                <button
+                  key={sub}
+                  ref={isSubActive ? activeSubcategoryRef : null}
+                  type="button"
+                  onClick={() => onClientSubcategoryChange?.(sub)}
+                  className={`h-8 px-3.5 rounded-full text-xs font-bold transition-all duration-150 shrink-0 flex items-center space-x-1.5 cursor-pointer shadow-2xs ${
+                    isSubActive
+                      ? 'bg-[#820b28] text-white shadow-sm ring-2 ring-[#820b28]/25 scale-[1.02]'
+                      : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+                  }`}
+                >
+                  <span className="whitespace-nowrap">{sub}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      isSubActive
+                        ? 'bg-white/20 text-white'
+                        : 'bg-stone-200 text-stone-600'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </header>
 
       {/* ========================================================
