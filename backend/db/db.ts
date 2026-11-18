@@ -119,27 +119,47 @@ class DatabaseStore {
         orderBy: { createdAt: 'desc' },
       });
 
+      const subRows = await prisma
+        .$queryRawUnsafe<Array<{ id: string; subcategory: string | null }>>(
+          `SELECT "id", "subcategory" FROM "Product"`
+        )
+        .catch(() => []);
+      const subMap = new Map(subRows.map((r) => [r.id, r.subcategory || undefined]));
+
       if (dbProducts.length > 0) {
-        this.products = dbProducts.map((p) => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          price: p.price,
-          costPrice: p.costPrice,
-          category: p.category as any,
-          subcategory: (p as any).subcategory || undefined,
-          imageUrl: p.imageUrl,
-          cutoutImageUrl: p.cutoutImageUrl || undefined,
-          stockQuantity: p.stockQuantity,
-          minStockThreshold: p.minStockThreshold,
-          status: p.status as any,
-          hasSizes: p.hasSizes,
-          hasAddons: p.hasAddons,
-          sizes: p.sizes.map((s) => ({ name: s.name, price: s.price, costPrice: s.costPrice || undefined })),
-          addons: p.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
-          createdAt: p.createdAt.toISOString(),
-          updatedAt: p.updatedAt.toISOString(),
-        }));
+        const mappedFromDb: Product[] = dbProducts.map((p) => {
+          const existingInMem = this.products.find((ep) => ep.id === p.id);
+          return {
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            price: p.price,
+            costPrice: p.costPrice,
+            category: p.category as any,
+            subcategory: subMap.get(p.id) || existingInMem?.subcategory || undefined,
+            imageUrl: p.imageUrl,
+            cutoutImageUrl: p.cutoutImageUrl || existingInMem?.cutoutImageUrl || undefined,
+            stockQuantity: p.stockQuantity,
+            minStockThreshold: p.minStockThreshold,
+            status: p.status as any,
+            hasSizes: p.hasSizes,
+            hasAddons: p.hasAddons,
+            sizes: p.sizes.map((s) => ({ name: s.name, price: s.price, costPrice: s.costPrice || undefined })),
+            addons: p.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
+            isCombo: existingInMem?.isCombo,
+            comboItems: existingInMem?.comboItems,
+            originalComboPrice: existingInMem?.originalComboPrice,
+            discountPercentage: existingInMem?.discountPercentage,
+            isWeeklySpecial: existingInMem?.isWeeklySpecial,
+            createdAt: p.createdAt.toISOString(),
+            updatedAt: p.updatedAt.toISOString(),
+          };
+        });
+        const dbIds = new Set(mappedFromDb.map((p) => p.id));
+        const customInMem = this.products.filter(
+          (p) => !dbIds.has(p.id) && !initialProducts.some((ip) => ip.id === p.id)
+        );
+        this.products = [...customInMem, ...mappedFromDb];
       }
 
       // Carrega insumos
@@ -345,7 +365,6 @@ class DatabaseStore {
           price: newProduct.price,
           costPrice: newProduct.costPrice,
           category: newProduct.category,
-          subcategory: newProduct.subcategory || null,
           imageUrl: newProduct.imageUrl,
           cutoutImageUrl: newProduct.cutoutImageUrl,
           stockQuantity: newProduct.stockQuantity,
@@ -361,6 +380,9 @@ class DatabaseStore {
           } : undefined,
         },
       });
+      if (newProduct.subcategory !== undefined) {
+        await prisma.$executeRaw`UPDATE "Product" SET "subcategory" = ${newProduct.subcategory || null} WHERE "id" = ${newProduct.id}`.catch(() => {});
+      }
       await prisma.auditLog.create({
         data: {
           id: log.id,
@@ -416,7 +438,6 @@ class DatabaseStore {
           price: updatedProduct.price,
           costPrice: updatedProduct.costPrice,
           category: updatedProduct.category,
-          subcategory: updatedProduct.subcategory || null,
           imageUrl: updatedProduct.imageUrl,
           cutoutImageUrl: updatedProduct.cutoutImageUrl,
           stockQuantity: updatedProduct.stockQuantity,
@@ -426,6 +447,9 @@ class DatabaseStore {
           hasAddons: Boolean(updatedProduct.hasAddons),
         },
       });
+      if (updatedProduct.subcategory !== undefined) {
+        await prisma.$executeRaw`UPDATE "Product" SET "subcategory" = ${updatedProduct.subcategory || null} WHERE "id" = ${updatedProduct.id}`.catch(() => {});
+      }
       for (const log of auditLogs) {
         await prisma.auditLog.create({
           data: {

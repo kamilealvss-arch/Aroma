@@ -47,6 +47,7 @@ interface ProductsViewProps {
 }
 
 type ProductSortOption =
+  | 'NEWEST'
   | 'NAME_ASC'
   | 'PRICE_DESC'
   | 'PRICE_ASC'
@@ -65,7 +66,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'inativo' | 'ALERTA'>('ALL');
-  const [sortBy, setSortBy] = useState<ProductSortOption>('NAME_ASC');
+  const [sortBy, setSortBy] = useState<ProductSortOption>('NEWEST');
   const [viewMode, setViewMode] = useState<'GRID' | 'TABLE'>('GRID');
 
   // Reseta subcategoria quando categoria muda
@@ -222,6 +223,9 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
     if (selectedStatus === 'ALL' && a.status !== b.status) {
       return a.status === 'ativo' ? -1 : 1;
     }
+    if (sortBy === 'NEWEST') {
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    }
     if (sortBy === 'NAME_ASC') {
       return a.name.localeCompare(b.name, 'pt-BR');
     }
@@ -254,14 +258,14 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
     selectedCategory !== 'ALL' ||
     selectedSubcategory !== 'ALL' ||
     selectedStatus !== 'ALL' ||
-    sortBy !== 'NAME_ASC';
+    sortBy !== 'NEWEST';
 
   const handleClearFilters = () => {
     setSearch('');
     setSelectedCategory('ALL');
     setSelectedSubcategory('ALL');
     setSelectedStatus('ALL');
-    setSortBy('NAME_ASC');
+    setSortBy('NEWEST');
   };
 
   const handleOpenCreate = () => {
@@ -293,6 +297,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
       await onUpdateProduct(comboToEdit.id, comboData);
     } else {
       await onCreateProduct(comboData);
+      setCurrentPage(1);
+      setSortBy('NEWEST');
     }
   };
 
@@ -301,6 +307,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
       await onUpdateProduct(editingProduct.id, data);
     } else {
       await onCreateProduct(data);
+      setCurrentPage(1);
+      setSortBy('NEWEST');
     }
   };
 
@@ -612,6 +620,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               className="h-8 rounded-full border border-stone-200 pl-7 pr-7 text-xs bg-stone-50 text-[#35312F] font-medium focus:ring-1 focus:ring-[#850D2C] focus:outline-none transition appearance-none cursor-pointer"
               title="Critério de ordenação dos produtos"
             >
+              <option value="NEWEST">Mais recentes 1º</option>
               <option value="NAME_ASC">Nome (A - Z)</option>
               <option value="PRICE_DESC">Maior preço 1º</option>
               <option value="PRICE_ASC">Menor preço 1º</option>

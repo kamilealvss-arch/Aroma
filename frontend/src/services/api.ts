@@ -20,16 +20,30 @@ const STORAGE_KEYS = {
   PRODUCT_OVERRIDES: 'aroma_product_overrides_v1',
 };
 
+let sessionCreatedProducts: Product[] = [];
+
 function getCreatedProductsLocal(): Product[] {
+  let fromStorage: Product[] = [];
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.CREATED_PRODUCTS);
-    return raw ? JSON.parse(raw) : [];
+    fromStorage = raw ? JSON.parse(raw) : [];
   } catch {
-    return [];
+    fromStorage = [];
   }
+  const map = new Map<string, Product>();
+  for (const p of sessionCreatedProducts) {
+    map.set(p.id, p);
+  }
+  for (const p of fromStorage) {
+    if (!map.has(p.id)) {
+      map.set(p.id, p);
+    }
+  }
+  return Array.from(map.values());
 }
 
 function saveCreatedProductLocal(product: Product): void {
+  sessionCreatedProducts = [product, ...sessionCreatedProducts.filter((p) => p.id !== product.id)];
   try {
     let current = getCreatedProductsLocal().filter((p) => p.id !== product.id);
     if (product.isWeeklySpecial) {
@@ -43,9 +57,14 @@ function saveCreatedProductLocal(product: Product): void {
       localStorage.setItem(STORAGE_KEYS.PRODUCT_OVERRIDES, JSON.stringify(overrides));
     }
     current.unshift(product);
-    localStorage.setItem(STORAGE_KEYS.CREATED_PRODUCTS, JSON.stringify(current));
+    try {
+      localStorage.setItem(STORAGE_KEYS.CREATED_PRODUCTS, JSON.stringify(current));
+    } catch {
+      // Se exceder cota de 5MB do localStorage, salva apenas os últimos produtos
+      localStorage.setItem(STORAGE_KEYS.CREATED_PRODUCTS, JSON.stringify(current.slice(0, 3)));
+    }
   } catch {
-    // ignore
+    // Mantido em sessionCreatedProducts
   }
 }
 
