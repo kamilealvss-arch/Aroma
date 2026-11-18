@@ -26,9 +26,56 @@ class DatabaseStore {
   private currentUserId: string = 'usr_admin';
   private nextOrderNumber: number = 2000;
   private isPostgresConnected: boolean = false;
+  private hasAttemptedInit: boolean = false;
+  private schemaChecked: boolean = false;
+  private lastSyncTime: number = 0;
+  private pendingOps: Promise<void>[] = [];
+  public lastDbError: string | null = null;
 
   constructor() {
     this.resetToDefaults();
+  }
+
+  public async getHealthStatus() {
+    await this.ensureSynced(true);
+    let postgresProductCount: number | null = null;
+    if (this.isPostgresConnected) {
+      try {
+        postgresProductCount = await prisma.product.count();
+      } catch (err: any) {
+        this.lastDbError = err?.message || String(err);
+      }
+    }
+    return {
+      postgresConnected: this.isPostgresConnected,
+      hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+      hasDirectUrl: Boolean(process.env.DIRECT_URL),
+      productsInMemory: this.products.length,
+      productsInPostgres: postgresProductCount,
+      lastDbError: this.lastDbError,
+    };
+  }
+
+  public async ensureSynced(isReadRequest: boolean = false): Promise<void> {
+    const now = Date.now();
+    if (!this.hasAttemptedInit) {
+      this.hasAttemptedInit = true;
+      await this.initFromPostgres();
+      this.lastSyncTime = Date.now();
+      return;
+    }
+    if (this.isPostgresConnected && isReadRequest && now - this.lastSyncTime > 2000) {
+      await this.flushPendingOps();
+      await this.initFromPostgres();
+      this.lastSyncTime = Date.now();
+    }
+  }
+
+  public async flushPendingOps(): Promise<void> {
+    if (this.pendingOps.length === 0) return;
+    const ops = [...this.pendingOps];
+    this.pendingOps = [];
+    await Promise.allSettled(ops);
   }
 
   public async initFromPostgres(): Promise<boolean> {
@@ -38,6 +85,18 @@ class DatabaseStore {
         console.log('💡 PostgreSQL: Modo local ativo (armazenamento em memória).');
         console.log('   Para conectar e persistir no PostgreSQL, execute: docker compose up -d\n');
         return false;
+      }
+
+      // Garante que a coluna subcategory exista na tabela Product do Supabase
+      if (!this.schemaChecked) {
+        this.schemaChecked = true;
+        try {
+          await prisma.$executeRawUnsafe(
+            `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "subcategory" TEXT;`
+          );
+        } catch (migErr: any) {
+          console.warn('⚠️  Aviso ao verificar coluna subcategory:', migErr?.message || migErr);
+        }
       }
 
       console.log('🐘 PostgreSQL: Conectado com sucesso via Prisma!');
@@ -60,27 +119,47 @@ class DatabaseStore {
         orderBy: { createdAt: 'desc' },
       });
 
+      const subRows = await prisma
+        .$queryRawUnsafe<Array<{ id: string; subcategory: string | null }>>(
+          `SELECT "id", "subcategory" FROM "Product"`
+        )
+        .catch(() => []);
+      const subMap = new Map(subRows.map((r) => [r.id, r.subcategory || undefined]));
+
       if (dbProducts.length > 0) {
-        this.products = dbProducts.map((p) => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          price: p.price,
-          costPrice: p.costPrice,
-          category: p.category as any,
-          subcategory: (p as any).subcategory || undefined,
-          imageUrl: p.imageUrl,
-          cutoutImageUrl: p.cutoutImageUrl || undefined,
-          stockQuantity: p.stockQuantity,
-          minStockThreshold: p.minStockThreshold,
-          status: p.status as any,
-          hasSizes: p.hasSizes,
-          hasAddons: p.hasAddons,
-          sizes: p.sizes.map((s) => ({ name: s.name, price: s.price, costPrice: s.costPrice || undefined })),
-          addons: p.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
-          createdAt: p.createdAt.toISOString(),
-          updatedAt: p.updatedAt.toISOString(),
-        }));
+        const mappedFromDb: Product[] = dbProducts.map((p) => {
+          const existingInMem = this.products.find((ep) => ep.id === p.id);
+          return {
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            price: p.price,
+            costPrice: p.costPrice,
+            category: p.category as any,
+            subcategory: subMap.get(p.id) || existingInMem?.subcategory || undefined,
+            imageUrl: p.imageUrl,
+            cutoutImageUrl: p.cutoutImageUrl || existingInMem?.cutoutImageUrl || undefined,
+            stockQuantity: p.stockQuantity,
+            minStockThreshold: p.minStockThreshold,
+            status: p.status as any,
+            hasSizes: p.hasSizes,
+            hasAddons: p.hasAddons,
+            sizes: p.sizes.map((s) => ({ name: s.name, price: s.price, costPrice: s.costPrice || undefined })),
+            addons: p.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
+            isCombo: existingInMem?.isCombo,
+            comboItems: existingInMem?.comboItems,
+            originalComboPrice: existingInMem?.originalComboPrice,
+            discountPercentage: existingInMem?.discountPercentage,
+            isWeeklySpecial: existingInMem?.isWeeklySpecial,
+            createdAt: p.createdAt.toISOString(),
+            updatedAt: p.updatedAt.toISOString(),
+          };
+        });
+        const dbIds = new Set(mappedFromDb.map((p) => p.id));
+        const customInMem = this.products.filter(
+          (p) => !dbIds.has(p.id) && !initialProducts.some((ip) => ip.id === p.id)
+        );
+        this.products = [...customInMem, ...mappedFromDb];
       }
 
       // Carrega insumos
@@ -162,8 +241,10 @@ class DatabaseStore {
         }));
       }
 
+      this.lastDbError = null;
       return true;
-    } catch (err) {
+    } catch (err: any) {
+      this.lastDbError = err?.message || String(err);
       console.warn('⚠️  Aviso: Não foi possível conectar ao PostgreSQL:', err);
       return false;
     }
@@ -171,9 +252,15 @@ class DatabaseStore {
 
   private asyncPersist(operation: () => Promise<void>): void {
     if (!this.isPostgresConnected) return;
-    operation().catch((err) => {
-      console.warn('⚠️  Erro assíncrono ao persistir no PostgreSQL:', err?.message || err);
-    });
+    const p = operation()
+      .then(() => {
+        this.lastDbError = null;
+      })
+      .catch((err) => {
+        this.lastDbError = err?.message || String(err);
+        console.warn('⚠️  Erro assíncrono ao persistir no PostgreSQL:', err?.message || err);
+      });
+    this.pendingOps.push(p);
   }
 
   public resetToDefaults(): void {
@@ -289,10 +376,13 @@ class DatabaseStore {
             create: newProduct.sizes.map((s) => ({ name: s.name, price: s.price, costPrice: s.costPrice })),
           } : undefined,
           addons: newProduct.addons && newProduct.addons.length > 0 ? {
-            create: newProduct.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
+            create: newProduct.addons.map((a) => ({ name: a.name, price: a.price })),
           } : undefined,
         },
       });
+      if (newProduct.subcategory !== undefined) {
+        await prisma.$executeRaw`UPDATE "Product" SET "subcategory" = ${newProduct.subcategory || null} WHERE "id" = ${newProduct.id}`.catch(() => {});
+      }
       await prisma.auditLog.create({
         data: {
           id: log.id,
@@ -357,6 +447,9 @@ class DatabaseStore {
           hasAddons: Boolean(updatedProduct.hasAddons),
         },
       });
+      if (updatedProduct.subcategory !== undefined) {
+        await prisma.$executeRaw`UPDATE "Product" SET "subcategory" = ${updatedProduct.subcategory || null} WHERE "id" = ${updatedProduct.id}`.catch(() => {});
+      }
       for (const log of auditLogs) {
         await prisma.auditLog.create({
           data: {

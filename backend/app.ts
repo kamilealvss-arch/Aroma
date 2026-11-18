@@ -15,6 +15,16 @@ export function createExpressApp() {
 
   const router = express.Router();
 
+  // Garante inicialização e sincronização com o PostgreSQL/Supabase mesmo em Serverless (Vercel)
+  router.use(async (req, res, next) => {
+    try {
+      await db.ensureSynced(req.method === 'GET');
+    } catch {
+      // Continua normalmente com fallback em memória caso não haja DATABASE_URL
+    }
+    next();
+  });
+
   // ==================== ROTAS DE USUÁRIOS E PERFIL ====================
   router.get('/users', (req, res) => {
     res.json(db.getUsers());
@@ -41,18 +51,20 @@ export function createExpressApp() {
     res.json(db.getProducts(includeInactive));
   });
 
-  router.post('/products', (req, res) => {
+  router.post('/products', async (req, res) => {
     try {
       const product = db.createProduct(req.body);
+      await db.flushPendingOps();
       res.status(201).json(product);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
     }
   });
 
-  router.put('/products/:id', (req, res) => {
+  router.put('/products/:id', async (req, res) => {
     try {
       const product = db.updateProduct(req.params.id, req.body);
+      await db.flushPendingOps();
       res.json(product);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -60,9 +72,10 @@ export function createExpressApp() {
   });
 
   // ⭐ REQUISITO 4 (PONTO DE OURO): Exclusão Lógica
-  router.delete('/products/:id', (req, res) => {
+  router.delete('/products/:id', async (req, res) => {
     try {
       const product = db.softDeleteProduct(req.params.id);
+      await db.flushPendingOps();
       res.json({
         message: 'Produto desativado com sucesso (exclusão lógica). O histórico de vendas foi mantido.',
         product,
@@ -72,9 +85,10 @@ export function createExpressApp() {
     }
   });
 
-  router.post('/products/:id/restore', (req, res) => {
+  router.post('/products/:id/restore', async (req, res) => {
     try {
       const product = db.restoreProduct(req.params.id);
+      await db.flushPendingOps();
       res.json({
         message: 'Produto reativado com sucesso no cardápio.',
         product,
@@ -86,10 +100,11 @@ export function createExpressApp() {
 
   // ==================== ROTAS DE ESTOQUE ====================
   // 2. Controle de Estoque Inteligente (Requisito 19 - RF04)
-  router.post('/products/:id/stock', (req, res) => {
+  router.post('/products/:id/stock', async (req, res) => {
     const { newStock, reason } = req.body;
     try {
       const product = db.adjustStock(req.params.id, Number(newStock), reason);
+      await db.flushPendingOps();
       res.json(product);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -105,19 +120,21 @@ export function createExpressApp() {
     res.json(db.getIngredients());
   });
 
-  router.post('/ingredients', (req, res) => {
+  router.post('/ingredients', async (req, res) => {
     try {
       const ingredient = db.createIngredient(req.body);
+      await db.flushPendingOps();
       res.status(201).json(ingredient);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
     }
   });
 
-  router.post('/ingredients/:id/stock', (req, res) => {
+  router.post('/ingredients/:id/stock', async (req, res) => {
     const { newStock, reason } = req.body;
     try {
       const ingredient = db.adjustIngredientStock(req.params.id, Number(newStock), reason);
+      await db.flushPendingOps();
       res.json(ingredient);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -130,18 +147,20 @@ export function createExpressApp() {
   });
 
   // REQUISITO 5 & RF04: Criação do pedido com baixa automática no estoque
-  router.post('/orders', (req, res) => {
+  router.post('/orders', async (req, res) => {
     try {
       const order = db.createOrder(req.body);
+      await db.flushPendingOps();
       res.status(201).json(order);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
     }
   });
 
-  router.patch('/orders/:id/status', (req, res) => {
+  router.patch('/orders/:id/status', async (req, res) => {
     try {
       const order = db.updateOrderStatus(req.params.id, req.body.status);
+      await db.flushPendingOps();
       res.json(order);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -194,6 +213,16 @@ export function createExpressApp() {
     const { type, search } = req.query as { type?: string; search?: string };
     const logs = db.getAuditLogs(type, search);
     res.json(logs);
+  });
+
+  // Diagnóstico de conexão e sincronização com o banco de dados PostgreSQL / Supabase
+  router.get('/health-db', async (req, res) => {
+    try {
+      const status = await db.getHealthStatus();
+      res.json(status);
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || String(err) });
+    }
   });
 
   // Reset para dados de demonstração
