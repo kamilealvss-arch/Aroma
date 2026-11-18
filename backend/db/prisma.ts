@@ -9,7 +9,7 @@ declare global {
 function getNormalizedDatabaseUrl(): string | undefined {
   const rawUrl = process.env.DATABASE_URL;
   if (!rawUrl) return undefined;
-  if (rawUrl.includes('pooler.supabase.com') && !rawUrl.includes('pgbouncer=true')) {
+  if (rawUrl.includes(':6543') && !rawUrl.includes('pgbouncer=true')) {
     const separator = rawUrl.includes('?') ? '&' : '?';
     return `${rawUrl}${separator}pgbouncer=true`;
   }
