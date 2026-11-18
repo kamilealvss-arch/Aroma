@@ -554,7 +554,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // 2. Upload direto da Foto Recortada sem Fundo para o Cardápio (PNG/WebP transparente)
+  // 2. Upload direto da Foto para o Cardápio (aceita qualquer formato: PNG, JPG, WebP, etc.)
   const handleCutoutFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -570,18 +570,30 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     const reader = new FileReader();
     reader.onloadend = async () => {
       const resultDataUrl = reader.result as string;
-      try {
-        const trimmed = await autoTrimAndCenterProduct(resultDataUrl, 0.02);
-        setCutoutImageUrl(trimmed);
-        setWorkingImageUrl(trimmed);
-      } catch {
+      setOriginalImageUrl(resultDataUrl);
+
+      const isAlreadyTransparent = await hasImageTransparency(resultDataUrl);
+      if (isAlreadyTransparent) {
+        try {
+          const trimmed = await autoTrimAndCenterProduct(resultDataUrl, 0.02);
+          setCutoutImageUrl(trimmed);
+          setWorkingImageUrl(trimmed);
+        } catch {
+          setCutoutImageUrl(resultDataUrl);
+          setWorkingImageUrl(resultDataUrl);
+        }
+        setHasRemovedBg(true);
+        setImageActionNotice(
+          'Foto sem fundo carregada e centralizada com sucesso!'
+        );
+      } else {
         setCutoutImageUrl(resultDataUrl);
         setWorkingImageUrl(resultDataUrl);
+        setHasRemovedBg(true);
+        setImageActionNotice(
+          'Imagem carregada! Clique em "Recortar c/ IA" para remover o fundo ou em "Ajustar".'
+        );
       }
-      setHasRemovedBg(true);
-      setImageActionNotice(
-        'Foto recortada do cardápio carregada com sucesso! Ela será exibida no cardápio flutuando sobre o prato.'
-      );
     };
     reader.onerror = () => {
       setError('Falha ao ler o arquivo de imagem enviado.');
@@ -1829,7 +1841,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                       <span>Enviar foto normal</span>
                       <input
                         type="file"
-                        accept="image/png,image/jpeg,image/webp"
+                        accept="image/*"
                         onChange={handleFileUpload}
                         className="hidden"
                       />
@@ -1895,13 +1907,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
                 <div className="space-y-2 pt-1 border-t border-stone-200/60">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {/* Botão de Enviar Foto Recortada Diretamente */}
+                    {/* Botão de Enviar Foto Diretamente (qualquer formato: PNG, JPG, WebP, etc.) */}
                     <label className="cursor-pointer h-8 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition shadow-2xs">
                       <Upload className="w-3 h-3 text-amber-700" />
-                      <span>Enviar PNG sem fundo</span>
+                      <span>Enviar imagem</span>
                       <input
                         type="file"
-                        accept="image/png,image/webp"
+                        accept="image/*"
                         onChange={handleCutoutFileUpload}
                         className="hidden"
                       />
