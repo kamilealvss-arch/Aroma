@@ -396,6 +396,67 @@ function applyOrderOverrides(serverOrders: Order[]): Order[] {
   return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+function compressDataUrlIfLarge(
+  dataUrl: string | undefined,
+  preserveAlpha: boolean = false
+): Promise<string | undefined> {
+  if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+    return Promise.resolve(dataUrl);
+  }
+  // Se já for pequena (< 350KB), não precisa recomprimir
+  if (dataUrl.length < 350 * 1024) {
+    return Promise.resolve(dataUrl);
+  }
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 720;
+        let w = img.naturalWidth || img.width || 600;
+        let h = img.naturalHeight || img.height || 600;
+        if (w > maxDim || h > maxDim) {
+          const ratio = Math.min(maxDim / w, maxDim / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        // WebP preserva 100% da transparência (alpha) com 10x menos tamanho que PNG
+        const mime = preserveAlpha ? 'image/webp' : 'image/jpeg';
+        let compressed = canvas.toDataURL(mime, 0.82);
+        if (preserveAlpha && !compressed.startsWith('data:image/webp')) {
+          compressed = canvas.toDataURL('image/png');
+        }
+        resolve(compressed);
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    } catch {
+      resolve(dataUrl);
+    }
+  });
+}
+
+async function compressProductPayload(data: Partial<Product>): Promise<Partial<Product>> {
+  const copy = { ...data };
+  if (copy.imageUrl && copy.imageUrl.startsWith('data:image/')) {
+    const isTransparent = copy.imageUrl.startsWith('data:image/png') || copy.imageUrl.startsWith('data:image/webp');
+    copy.imageUrl = await compressDataUrlIfLarge(copy.imageUrl, isTransparent);
+  }
+  if (copy.cutoutImageUrl && copy.cutoutImageUrl.startsWith('data:image/')) {
+    copy.cutoutImageUrl = await compressDataUrlIfLarge(copy.cutoutImageUrl, true);
+  }
+  return copy;
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     headers: {
@@ -457,9 +518,10 @@ export const api = {
       const localCreated = getCreatedProductsLocal();
       const missingOnServer = localCreated.filter((lp) => !serverIds.has(lp.id));
       for (const missingProd of missingOnServer) {
+        const compressedProd = await compressProductPayload(missingProd);
         await request<Product>('/api/products', {
           method: 'POST',
-          body: JSON.stringify(missingProd),
+          body: JSON.stringify(compressedProd),
         }).catch(() => {});
       }
     } catch {
@@ -468,23 +530,25 @@ export const api = {
     return applyProductOverrides(serverProducts, includeInactive);
   },
   createProduct: async (data: Partial<Product>) => {
+    const compressedData = await compressProductPayload(data);
     const created = await request<Product>('/api/products', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(compressedData),
     });
     saveCreatedProductLocal(created);
     return created;
   },
   updateProduct: async (id: string, updates: Partial<Product>) => {
+    const compressedUpdates = await compressProductPayload(updates);
     try {
       const updated = await request<Product>(`/api/products/${id}`, {
         method: 'PUT',
-        body: JSON.stringify(updates),
+        body: JSON.stringify(compressedUpdates),
       });
       saveProductOverrideLocal(id, updated);
       return updated;
     } catch (err) {
-      saveProductOverrideLocal(id, { ...updates, updatedAt: new Date().toISOString() });
+      saveProductOverrideLocal(id, { ...compressedUpdates, updatedAt: new Date().toISOString() });
       const all = applyProductOverrides([], true);
       const found = all.find((p) => p.id === id);
       if (found) return found;
@@ -598,12 +662,13 @@ export const api = {
       const itemProductIds = new Set(data.items.map((it) => it.productId));
       const relevantProducts = localProducts.filter((p) => itemProductIds.has(p.id));
       for (const prod of relevantProducts) {
+        const compressedProd = await compressProductPayload({
+          ...prod,
+          stockQuantity: Math.max(prod.stockQuantity || 0, 50),
+        });
         await request<Product>('/api/products', {
           method: 'POST',
-          body: JSON.stringify({
-            ...prod,
-            stockQuantity: Math.max(prod.stockQuantity || 0, 50),
-          }),
+          body: JSON.stringify(compressedProd),
         }).catch(() => {});
       }
     } catch {
@@ -622,12 +687,13 @@ export const api = {
         // Se ainda assim o backend relatar produto não encontrado, sincroniza todos os produtos locais e tenta de novo
         const allLocal = getCreatedProductsLocal();
         for (const prod of allLocal) {
+          const compressedProd = await compressProductPayload({
+            ...prod,
+            stockQuantity: Math.max(prod.stockQuantity || 0, 50),
+          });
           await request<Product>('/api/products', {
             method: 'POST',
-            body: JSON.stringify({
-              ...prod,
-              stockQuantity: Math.max(prod.stockQuantity || 0, 50),
-            }),
+            body: JSON.stringify(compressedProd),
           }).catch(() => {});
         }
         const retried = await request<Order>('/api/orders', {
