@@ -14,8 +14,8 @@ async function startServer() {
   const FRONTEND_DIR = path.resolve(ROOT_DIR, 'frontend');
   const DIST_DIR = path.resolve(ROOT_DIR, 'dist');
 
-  // Inicializa conexão e sincronização com PostgreSQL
-  await db.initFromPostgres();
+  // Inicializa conexão com PostgreSQL (se configurado)
+  await db.ensurePostgresConnection();
 
   // Integração com Vite SPA
   if (process.env.NODE_ENV === 'production') {

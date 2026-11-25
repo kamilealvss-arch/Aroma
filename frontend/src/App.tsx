@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from './services/api.ts';
 import {
   Product,
@@ -48,52 +48,141 @@ export default function App() {
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
 
+  const productsRef = useRef<Product[]>([]);
+  const isSyncingRef = useRef<boolean>(false);
+  const lastSyncAtRef = useRef<number>(0);
+
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Carrega todos os dados necessários
-  const refreshAllData = async () => {
+  // Carga inicial completa (executada 1x ao abrir ou ao resetar dados)
+  const loadInitialData = useCallback(async (forceProducts: boolean = false) => {
     try {
-      const [prods, ings, usr, userList, dashData, allOrders] = await Promise.all([
-        api.getProducts(true), // Traz todos inclusive inativos para gestão do admin
+      const [prods, ings, userList, liveData] = await Promise.all([
+        api.getProducts(true, forceProducts),
         api.getIngredients(),
-        api.getCurrentUser(),
         api.getUsers(),
-        api.getDashboardData(),
-        api.getOrders(),
+        api.getLiveSync(),
       ]);
+      const usr = await api.getCurrentUser(userList);
 
+      productsRef.current = prods;
       setProducts(prods);
       setIngredients(ings);
-      setCurrentUser(usr);
       setUsers(userList);
-      setMetrics(dashData.metrics);
-      setLast7Days(dashData.last7Days);
-      setAlerts(dashData.alerts);
-      setRecentOrders(dashData.recentOrders);
-      setOrders(allOrders);
+      setCurrentUser(usr);
+      setMetrics(liveData.dashboard.metrics);
+      setLast7Days(liveData.dashboard.last7Days);
+      setAlerts(liveData.dashboard.alerts);
+      setRecentOrders(liveData.dashboard.recentOrders);
+      setOrders(liveData.orders);
+      lastSyncAtRef.current = Date.now();
     } catch (err) {
-      console.error('Erro ao sincronizar dados:', err);
+      console.error('Erro ao carregar dados iniciais:', err);
     }
-  };
+  }, []);
+
+  // Sincronização leve em tempo real (apenas pedidos, dashboard e metadados sem imagens)
+  const syncLiveData = useCallback(async () => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    try {
+      const liveData = await api.getLiveSync();
+      lastSyncAtRef.current = Date.now();
+
+      setMetrics(liveData.dashboard.metrics);
+      setLast7Days(liveData.dashboard.last7Days);
+      setAlerts(liveData.dashboard.alerts);
+      setRecentOrders(liveData.dashboard.recentOrders);
+      setOrders(liveData.orders);
+
+      const knownIds = new Set(productsRef.current.map((p) => p.id));
+      const hasNewProduct = liveData.productsMeta.some((meta) => !knownIds.has(meta.id));
+
+      if (hasNewProduct) {
+        const freshProducts = await api.getProducts(true, true);
+        productsRef.current = freshProducts;
+        setProducts(freshProducts);
+      } else {
+        setProducts((prev) => {
+          const prevMap = new Map(prev.map((p) => [p.id, p]));
+          const merged: Product[] = liveData.productsMeta.map((meta) => {
+            const existing = prevMap.get(meta.id);
+            return {
+              ...meta,
+              imageUrl: existing?.imageUrl || '',
+              cutoutImageUrl: existing?.cutoutImageUrl,
+            };
+          });
+          productsRef.current = merged;
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.error('Erro ao sincronizar dados em tempo real:', err);
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, []);
+
+  const refreshProductsAndLive = useCallback(async () => {
+    const freshProducts = await api.getProducts(true, true);
+    const prevMap = new Map(productsRef.current.map((p) => [p.id, p]));
+    const safeProducts = freshProducts.map((p) => {
+      const existing = prevMap.get(p.id);
+      if (!existing) return p;
+      return {
+        ...p,
+        imageUrl: p.imageUrl || existing.imageUrl,
+        cutoutImageUrl: p.cutoutImageUrl ?? existing.cutoutImageUrl,
+      };
+    });
+    productsRef.current = safeProducts;
+    setProducts(safeProducts);
+    await syncLiveData();
+  }, [syncLiveData]);
 
   useEffect(() => {
-    refreshAllData();
-    // Sincronização contínua em tempo real (Barista Kanban <-> Celular do Cliente)
+    loadInitialData(false);
+  }, [loadInitialData]);
+
+  const hasActiveOrder = orders.some(
+    (o) => o.status === 'recebido' || o.status === 'preparando' || o.status === 'pronto'
+  );
+
+  // Polling adaptativo que pausa automaticamente quando a aba está oculta
+  useEffect(() => {
+    const isActiveMode =
+      (currentView === 'admin' && adminTab === 'kanban') ||
+      (currentView === 'client' && hasActiveOrder);
+    const intervalMs = isActiveMode ? 12_000 : 30_000;
+
     const interval = setInterval(() => {
-      refreshAllData();
-    }, 3500);
-    return () => clearInterval(interval);
-  }, []);
+      if (document.hidden) return;
+      syncLiveData();
+    }, intervalMs);
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden && Date.now() - lastSyncAtRef.current >= 10_000) {
+        syncLiveData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [currentView, adminTab, hasActiveOrder, syncLiveData]);
 
   // CRUD & Ações de Produtos
   const handleCreateProduct = async (data: Partial<Product>) => {
     try {
       await api.createProduct(data);
       showToast('Produto cadastrado com sucesso no cardápio!');
-      await refreshAllData();
+      await refreshProductsAndLive();
     } catch (err: any) {
       showToast(err.message, 'error');
       throw err;
@@ -108,7 +197,7 @@ export default function App() {
       } else {
         showToast('Produto atualizado com sucesso! (Registrado na auditoria)');
       }
-      await refreshAllData();
+      await refreshProductsAndLive();
     } catch (err: any) {
       showToast(err.message, 'error');
       throw err;
@@ -120,7 +209,7 @@ export default function App() {
     try {
       await api.softDeleteProduct(id);
       showToast('Exclusão lógica realizada: Produto inativado sem apagar histórico!', 'info');
-      await refreshAllData();
+      await refreshProductsAndLive();
     } catch (err: any) {
       showToast(err.message, 'error');
       throw err;
@@ -131,7 +220,7 @@ export default function App() {
     try {
       await api.restoreProduct(id);
       showToast('Produto reativado no cardápio do cliente!');
-      await refreshAllData();
+      await refreshProductsAndLive();
     } catch (err: any) {
       showToast(err.message, 'error');
       throw err;
@@ -143,7 +232,7 @@ export default function App() {
     try {
       await api.adjustStock(id, newStock, reason);
       showToast(`Estoque atualizado para ${newStock} unidades!`);
-      await refreshAllData();
+      await refreshProductsAndLive();
     } catch (err: any) {
       showToast(err.message, 'error');
       throw err;
@@ -154,7 +243,8 @@ export default function App() {
     try {
       const ing = await api.adjustIngredientStock(id, newStock, reason);
       showToast(`Estoque de "${ing.name}" atualizado para ${newStock} ${ing.unit}!`);
-      await refreshAllData();
+      const freshIngredients = await api.getIngredients();
+      setIngredients(freshIngredients);
     } catch (err: any) {
       showToast(err.message, 'error');
       throw err;
@@ -165,7 +255,8 @@ export default function App() {
     try {
       const ing = await api.createIngredient(data);
       showToast(`Insumo "${ing.name}" cadastrado com sucesso!`);
-      await refreshAllData();
+      const freshIngredients = await api.getIngredients();
+      setIngredients(freshIngredients);
       return ing;
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -194,7 +285,7 @@ export default function App() {
     try {
       const order = await api.createOrder(orderData);
       showToast(`Pedido #${order.orderNumber} realizado com sucesso! Baixa de estoque efetuada.`);
-      await refreshAllData();
+      await syncLiveData();
       return order;
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -210,10 +301,10 @@ export default function App() {
       );
       await api.updateOrderStatus(orderId, newStatus);
       showToast(`Status do pedido atualizado para "${newStatus}"!`);
-      await refreshAllData();
+      await syncLiveData();
     } catch (err: any) {
       showToast(err.message, 'error');
-      await refreshAllData();
+      await syncLiveData();
     }
   };
 
@@ -229,7 +320,6 @@ export default function App() {
       setCurrentUser(user);
       setCurrentView('admin');
       showToast(`Perfil alterado para ${user.name} (${user.role}). Ações serão auditadas em seu nome!`, 'info');
-      await refreshAllData();
     } catch (err: any) {
       showToast(err.message, 'error');
     }
@@ -244,7 +334,7 @@ export default function App() {
   const handleResetDemo = async () => {
     if (confirm('Deseja restaurar os dados de demonstração originais?')) {
       await api.resetDemo();
-      await refreshAllData();
+      await loadInitialData(true);
       showToast('Dados restaurados com sucesso para os padrões iniciais!', 'info');
     }
   };
@@ -295,7 +385,7 @@ export default function App() {
               <KanbanView
                 orders={orders}
                 onUpdateOrderStatus={handleUpdateOrderStatus}
-                onRefresh={refreshAllData}
+                onRefresh={syncLiveData}
               />
             )}
 
@@ -317,7 +407,11 @@ export default function App() {
                 onAdjustStock={handleAdjustStock}
                 onAdjustIngredientStock={handleAdjustIngredientStock}
                 onCreateIngredient={handleCreateIngredient}
-                onRefresh={refreshAllData}
+                onRefresh={async () => {
+                  const freshIngredients = await api.getIngredients();
+                  setIngredients(freshIngredients);
+                  await syncLiveData();
+                }}
               />
             )}
 
@@ -331,7 +425,7 @@ export default function App() {
             products={products}
             orders={orders}
             onCreateOrder={handleCreateOrder}
-            onOrderSuccess={refreshAllData}
+            onOrderSuccess={syncLiveData}
             selectedCategory={clientCategory}
             onSelectCategory={handleClientCategoryChange}
             selectedSubcategory={clientSubcategory}

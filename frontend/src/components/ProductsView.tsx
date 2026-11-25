@@ -723,7 +723,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 : 0;
             const isTransparentCutout =
               product.imageUrl.startsWith('data:image/png') ||
-              product.imageUrl.startsWith('data:image/webp');
+              product.imageUrl.startsWith('data:image/webp') ||
+              /\.(png|webp)(\?.*)?$/i.test(product.imageUrl);
 
             return (
               <div
