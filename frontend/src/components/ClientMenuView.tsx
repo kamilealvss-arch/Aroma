@@ -737,7 +737,9 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     const isTransparentCutout =
       Boolean(product.cutoutImageUrl) ||
       (typeof cardImage === 'string' &&
-        (cardImage.startsWith('data:image/png') || cardImage.startsWith('data:image/webp')));
+        (cardImage.startsWith('data:image/png') ||
+          cardImage.startsWith('data:image/webp') ||
+          /\.(png|webp)(\?.*)?$/i.test(cardImage)));
 
     const hasSizes = !!(product.hasSizes && product.sizes && product.sizes.length > 0);
     const currentSizeName =

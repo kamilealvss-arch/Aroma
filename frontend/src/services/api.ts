@@ -11,6 +11,11 @@ import {
   Ingredient,
 } from '../../../shared/types/index.ts';
 
+export type ProductMetadata = Omit<Product, 'imageUrl' | 'cutoutImageUrl'>;
+
+let lastProductsEtag: string | null = null;
+let lastServerProducts: Product[] | null = null;
+
 const STORAGE_KEYS = {
   ORDER_STATUS: 'aroma_order_status_overrides_v1',
   CREATED_ORDERS: 'aroma_created_orders_v1',
@@ -121,7 +126,14 @@ function applyProductOverrides(serverProducts: Product[], includeInactive: boole
   const result: Product[] = [];
   for (const prod of mergedMap.values()) {
     const ov = overrides[prod.id];
-    const finalProd = ov ? { ...prod, ...ov } : prod;
+    const finalProd = ov
+      ? {
+          ...prod,
+          ...ov,
+          imageUrl: ov.imageUrl ? ov.imageUrl : prod.imageUrl,
+          cutoutImageUrl: ov.cutoutImageUrl ? ov.cutoutImageUrl : prod.cutoutImageUrl,
+        }
+      : prod;
     if (includeInactive || finalProd.status === 'ativo') {
       result.push(finalProd);
     }
@@ -177,6 +189,8 @@ function saveCreatedOrderLocal(order: Order): void {
 }
 
 function clearLocalOverrides(): void {
+  lastProductsEtag = null;
+  lastServerProducts = null;
   try {
     localStorage.removeItem(STORAGE_KEYS.ORDER_STATUS);
     localStorage.removeItem(STORAGE_KEYS.CREATED_ORDERS);
@@ -403,15 +417,15 @@ function compressDataUrlIfLarge(
   if (!dataUrl || !dataUrl.startsWith('data:image/')) {
     return Promise.resolve(dataUrl);
   }
-  // Se já for pequena (< 350KB), não precisa recomprimir
-  if (dataUrl.length < 350 * 1024) {
+  // Se já for pequena (< 60KB), não precisa recomprimir
+  if (dataUrl.length < 60 * 1024) {
     return Promise.resolve(dataUrl);
   }
   return new Promise((resolve) => {
     try {
       const img = new Image();
       img.onload = () => {
-        const maxDim = 720;
+        const maxDim = 600;
         let w = img.naturalWidth || img.width || 600;
         let h = img.naturalHeight || img.height || 600;
         if (w > maxDim || h > maxDim) {
@@ -431,7 +445,7 @@ function compressDataUrlIfLarge(
         ctx.drawImage(img, 0, 0, w, h);
         // WebP preserva 100% da transparência (alpha) com 10x menos tamanho que PNG
         const mime = preserveAlpha ? 'image/webp' : 'image/jpeg';
-        let compressed = canvas.toDataURL(mime, 0.82);
+        let compressed = canvas.toDataURL(mime, 0.78);
         if (preserveAlpha && !compressed.startsWith('data:image/webp')) {
           compressed = canvas.toDataURL('image/png');
         }
@@ -483,12 +497,12 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 export const api = {
   // Usuários
   getUsers: () => request<SystemUser[]>('/api/users'),
-  getCurrentUser: async () => {
+  getCurrentUser: async (knownUsers?: SystemUser[]) => {
     const user = await request<SystemUser>('/api/currentUser');
     try {
       const savedId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
       if (savedId && savedId !== user.id) {
-        const users = await request<SystemUser[]>('/api/users');
+        const users = knownUsers && knownUsers.length > 0 ? knownUsers : await request<SystemUser[]>('/api/users');
         const found = users.find((u) => u.id === savedId);
         if (found) return found;
       }
@@ -509,27 +523,46 @@ export const api = {
     });
   },
 
-  // Produtos
-  getProducts: async (includeInactive: boolean = false) => {
-    const serverProducts = await request<Product[]>(`/api/products?includeInactive=true`);
-    // Sincroniza automaticamente para o servidor/banco qualquer produto criado localmente que ainda não esteja no servidor
-    try {
-      const serverIds = new Set(serverProducts.map((p) => p.id));
-      const localCreated = getCreatedProductsLocal();
-      const missingOnServer = localCreated.filter((lp) => !serverIds.has(lp.id));
-      for (const missingProd of missingOnServer) {
-        const compressedProd = await compressProductPayload(missingProd);
-        await request<Product>('/api/products', {
-          method: 'POST',
-          body: JSON.stringify(compressedProd),
-        }).catch(() => {});
-      }
-    } catch {
-      // ignore
+  // Produtos (com cache ETag/304 para evitar transferência repetida de imagens)
+  getProducts: async (includeInactive: boolean = false, forceRefresh: boolean = false) => {
+    const headers: Record<string, string> = {};
+    if (!forceRefresh && lastProductsEtag && lastServerProducts) {
+      headers['If-None-Match'] = lastProductsEtag;
     }
+
+    const res = await fetch('/api/products?includeInactive=true', {
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+    });
+
+    if (res.status === 304 && lastServerProducts) {
+      return applyProductOverrides(lastServerProducts, includeInactive);
+    }
+
+    if (!res.ok) {
+      let errMsg = `Erro na requisição (${res.status})`;
+      try {
+        const data = await res.json();
+        if (data.error) errMsg = data.error;
+      } catch {
+        // Ignora erro de parse
+      }
+      throw new Error(errMsg);
+    }
+
+    const serverProducts = (await res.json()) as Product[];
+    const etag = res.headers.get('etag');
+    if (etag) {
+      lastProductsEtag = etag;
+    }
+    lastServerProducts = serverProducts;
+
     return applyProductOverrides(serverProducts, includeInactive);
   },
   createProduct: async (data: Partial<Product>) => {
+    lastProductsEtag = null;
     const compressedData = await compressProductPayload(data);
     const created = await request<Product>('/api/products', {
       method: 'POST',
@@ -539,13 +572,17 @@ export const api = {
     return created;
   },
   updateProduct: async (id: string, updates: Partial<Product>) => {
+    lastProductsEtag = null;
     const compressedUpdates = await compressProductPayload(updates);
     try {
       const updated = await request<Product>(`/api/products/${id}`, {
         method: 'PUT',
         body: JSON.stringify(compressedUpdates),
       });
-      saveProductOverrideLocal(id, updated);
+      const sanitizedUpdate: Partial<Product> = { ...updated };
+      if (!sanitizedUpdate.imageUrl) delete sanitizedUpdate.imageUrl;
+      if (!sanitizedUpdate.cutoutImageUrl) delete sanitizedUpdate.cutoutImageUrl;
+      saveProductOverrideLocal(id, sanitizedUpdate);
       return updated;
     } catch (err) {
       saveProductOverrideLocal(id, { ...compressedUpdates, updatedAt: new Date().toISOString() });
@@ -557,12 +594,14 @@ export const api = {
   },
   // ⭐ Exclusão Lógica
   softDeleteProduct: async (id: string) => {
+    lastProductsEtag = null;
     saveProductOverrideLocal(id, { status: 'inativo', updatedAt: new Date().toISOString() });
     return request<{ message: string; product: Product }>(`/api/products/${id}`, {
       method: 'DELETE',
     });
   },
   restoreProduct: async (id: string) => {
+    lastProductsEtag = null;
     saveProductOverrideLocal(id, { status: 'ativo', updatedAt: new Date().toISOString() });
     return request<{ message: string; product: Product }>(`/api/products/${id}/restore`, {
       method: 'POST',
@@ -571,6 +610,7 @@ export const api = {
 
   // Estoque
   adjustStock: async (id: string, newStock: number, reason?: string) => {
+    lastProductsEtag = null;
     const updated = await request<Product>(`/api/products/${id}/stock`, {
       method: 'POST',
       body: JSON.stringify({ newStock, reason }),
@@ -731,6 +771,29 @@ export const api = {
       if (fallback) return fallback;
       throw new Error('Pedido não encontrado');
     }
+  },
+
+  // Sincronização leve em tempo real (sem imagens)
+  getLiveSync: async () => {
+    const data = await request<{
+      orders: Order[];
+      dashboard: {
+        metrics: DailyDashboardMetrics;
+        last7Days: DaySalesSummary[];
+        alerts: StockAlert[];
+        recentOrders: Order[];
+      };
+      productsMeta: ProductMetadata[];
+    }>('/api/sync/live');
+
+    return {
+      orders: applyOrderOverrides(data.orders),
+      dashboard: {
+        ...data.dashboard,
+        recentOrders: applyOrderOverrides(data.dashboard.recentOrders),
+      },
+      productsMeta: data.productsMeta,
+    };
   },
 
   // Dashboard

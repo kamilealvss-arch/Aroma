@@ -16,6 +16,17 @@ import {
   generateUniqueId,
 } from '../../shared/logic/cafeRules.ts';
 import { prisma, testDatabaseConnection, lastConnectionError } from './prisma.ts';
+import { isSupabaseStorageConfigured } from '../services/storage.ts';
+
+const CONNECTION_RETRY_COOLDOWN_MS = 30_000;
+const USERS_TTL_MS = 300_000;
+const INGREDIENTS_TTL_MS = 60_000;
+const ORDERS_TTL_MS = 8_000;
+const AUDIT_LOGS_TTL_MS = 15_000;
+const PRODUCTS_META_TTL_MS = 20_000;
+const PRODUCTS_FULL_TTL_MS = 60_000;
+
+export type ProductMetadata = Omit<Product, 'imageUrl' | 'cutoutImageUrl'>;
 
 class DatabaseStore {
   private products: Product[] = [];
@@ -26,9 +37,25 @@ class DatabaseStore {
   private currentUserId: string = 'usr_admin';
   private nextOrderNumber: number = 2000;
   private isPostgresConnected: boolean = false;
-  private hasAttemptedInit: boolean = false;
-  private schemaChecked: boolean = false;
-  private lastSyncTime: number = 0;
+  private lastConnectionFailAt: number = 0;
+  private connectionCheckPromise: Promise<boolean> | null = null;
+
+  private lastUsersSync: number = 0;
+  private lastIngredientsSync: number = 0;
+  private lastOrdersSync: number = 0;
+  private lastAuditLogsSync: number = 0;
+  private lastProductsMetaSync: number = 0;
+  private lastProductsFullSync: number = 0;
+  private productsFullLoaded: boolean = false;
+  private dbProductsVersionKey: string = '';
+
+  private usersSyncPromise: Promise<void> | null = null;
+  private ingredientsSyncPromise: Promise<void> | null = null;
+  private ordersSyncPromise: Promise<void> | null = null;
+  private auditLogsSyncPromise: Promise<void> | null = null;
+  private productsMetaSyncPromise: Promise<void> | null = null;
+  private productsFullSyncPromise: Promise<void> | null = null;
+
   private pendingOps: Promise<void>[] = [];
   public lastDbError: string | null = null;
 
@@ -36,10 +63,53 @@ class DatabaseStore {
     this.resetToDefaults();
   }
 
-  public async getHealthStatus() {
-    await this.ensureSynced(true);
-    let postgresProductCount: number | null = null;
+  public async ensurePostgresConnection(): Promise<boolean> {
+    if (!process.env.DATABASE_URL) {
+      this.isPostgresConnected = false;
+      return false;
+    }
+
     if (this.isPostgresConnected) {
+      return true;
+    }
+
+    if (
+      this.lastConnectionFailAt > 0 &&
+      Date.now() - this.lastConnectionFailAt < CONNECTION_RETRY_COOLDOWN_MS
+    ) {
+      return false;
+    }
+
+    if (this.connectionCheckPromise) {
+      return this.connectionCheckPromise;
+    }
+
+    this.connectionCheckPromise = (async () => {
+      try {
+        const connected = await testDatabaseConnection();
+        this.isPostgresConnected = connected;
+        if (connected) {
+          this.lastDbError = null;
+          this.lastConnectionFailAt = 0;
+          console.log('🐘 PostgreSQL: Conectado com sucesso via Prisma!');
+        } else {
+          this.lastConnectionFailAt = Date.now();
+          this.lastDbError = lastConnectionError;
+          console.log('💡 PostgreSQL: Modo local ativo (armazenamento em memória).');
+        }
+        return connected;
+      } finally {
+        this.connectionCheckPromise = null;
+      }
+    })();
+
+    return this.connectionCheckPromise;
+  }
+
+  public async getHealthStatus() {
+    const connected = await this.ensurePostgresConnection();
+    let postgresProductCount: number | null = null;
+    if (connected) {
       try {
         postgresProductCount = await prisma.product.count();
       } catch (err: any) {
@@ -50,26 +120,11 @@ class DatabaseStore {
       postgresConnected: this.isPostgresConnected,
       hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
       hasDirectUrl: Boolean(process.env.DIRECT_URL),
+      storageConfigured: isSupabaseStorageConfigured(),
       productsInMemory: this.products.length,
       productsInPostgres: postgresProductCount,
       lastDbError: this.lastDbError || lastConnectionError,
     };
-  }
-
-  public async ensureSynced(isReadRequest: boolean = false): Promise<void> {
-    if (!process.env.DATABASE_URL) return;
-    const now = Date.now();
-    if (!this.hasAttemptedInit || (!this.isPostgresConnected && now - this.lastSyncTime > 2000)) {
-      this.hasAttemptedInit = true;
-      await this.initFromPostgres();
-      this.lastSyncTime = Date.now();
-      return;
-    }
-    if (this.isPostgresConnected && isReadRequest && now - this.lastSyncTime > 2000) {
-      await this.flushPendingOps();
-      await this.initFromPostgres();
-      this.lastSyncTime = Date.now();
-    }
   }
 
   public async flushPendingOps(): Promise<void> {
@@ -80,175 +135,408 @@ class DatabaseStore {
   }
 
   public async initFromPostgres(): Promise<boolean> {
-    try {
-      this.isPostgresConnected = await testDatabaseConnection();
-      if (!this.isPostgresConnected) {
-        console.log('💡 PostgreSQL: Modo local ativo (armazenamento em memória).');
-        console.log('   Para conectar e persistir no PostgreSQL, execute: docker compose up -d\n');
-        return false;
-      }
+    const connected = await this.ensurePostgresConnection();
+    if (!connected) return false;
+    await Promise.all([
+      this.syncUsers(true),
+      this.syncProductsMetadata(true),
+      this.syncOrders(true),
+    ]);
+    return true;
+  }
 
-      // Garante que a coluna subcategory exista na tabela Product do Supabase
-      if (!this.schemaChecked) {
-        this.schemaChecked = true;
-        try {
-          await prisma.$executeRawUnsafe(
-            `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "subcategory" TEXT;`
-          );
-        } catch (migErr: any) {
-          console.warn('⚠️  Aviso ao verificar coluna subcategory:', migErr?.message || migErr);
-        }
-      }
-
-      console.log('🐘 PostgreSQL: Conectado com sucesso via Prisma!');
-
-      // Carrega usuários
-      const dbUsers = await prisma.user.findMany();
-      if (dbUsers.length > 0) {
-        this.users = dbUsers.map((u) => ({
-          id: u.id,
-          name: u.name,
-          role: u.role as any,
-          email: u.email,
-          avatarColor: u.avatarColor,
-        }));
-      }
-
-      // Carrega produtos com tamanhos e adicionais
-      const dbProducts = await prisma.product.findMany({
-        include: { sizes: true, addons: true },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      const subRows = await prisma
-        .$queryRawUnsafe<Array<{ id: string; subcategory: string | null }>>(
-          `SELECT "id", "subcategory" FROM "Product"`
-        )
-        .catch(() => []);
-      const subMap = new Map(subRows.map((r) => [r.id, r.subcategory || undefined]));
-
-      if (dbProducts.length > 0) {
-        const mappedFromDb: Product[] = dbProducts.map((p) => {
-          const existingInMem = this.products.find((ep) => ep.id === p.id);
-          return {
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            price: p.price,
-            costPrice: p.costPrice,
-            category: p.category as any,
-            subcategory: subMap.get(p.id) || existingInMem?.subcategory || undefined,
-            imageUrl: p.imageUrl,
-            cutoutImageUrl: p.cutoutImageUrl || existingInMem?.cutoutImageUrl || undefined,
-            stockQuantity: p.stockQuantity,
-            minStockThreshold: p.minStockThreshold,
-            status: p.status as any,
-            hasSizes: p.hasSizes,
-            hasAddons: p.hasAddons,
-            sizes: p.sizes.map((s) => ({ name: s.name, price: s.price, costPrice: s.costPrice || undefined })),
-            addons: p.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
-            isCombo: existingInMem?.isCombo,
-            comboItems: existingInMem?.comboItems,
-            originalComboPrice: existingInMem?.originalComboPrice,
-            discountPercentage: existingInMem?.discountPercentage,
-            isWeeklySpecial: existingInMem?.isWeeklySpecial,
-            createdAt: p.createdAt.toISOString(),
-            updatedAt: p.updatedAt.toISOString(),
-          };
-        });
-        const dbIds = new Set(mappedFromDb.map((p) => p.id));
-        const customInMem = this.products.filter(
-          (p) => !dbIds.has(p.id) && !initialProducts.some((ip) => ip.id === p.id)
-        );
-        this.products = [...customInMem, ...mappedFromDb];
-      }
-
-      // Carrega insumos
-      const dbIngredients = await prisma.ingredient.findMany({
-        orderBy: { name: 'asc' },
-      });
-      if (dbIngredients.length > 0) {
-        this.ingredients = dbIngredients.map((i) => ({
-          id: i.id,
-          name: i.name,
-          category: i.category as any,
-          currentStock: i.currentStock,
-          unit: i.unit as any,
-          minStockThreshold: i.minStockThreshold,
-          costPerUnit: i.costPerUnit,
-          supplier: i.supplier || undefined,
-          isAddonIngredient: i.isAddonIngredient,
-          updatedAt: i.updatedAt.toISOString(),
-        }));
-      }
-
-      // Carrega pedidos
-      const dbOrders = await prisma.order.findMany({
-        include: { items: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (dbOrders.length > 0) {
-        this.orders = dbOrders.map((o) => ({
-          id: o.id,
-          orderNumber: o.orderNumber,
-          customerName: o.customerName,
-          customerPhone: o.customerPhone || undefined,
-          tableOrTakeaway: o.tableOrTakeaway,
-          consumptionType: o.consumptionType as any,
-          notes: o.notes || undefined,
-          totalAmount: o.totalAmount,
-          totalCost: o.totalCost,
-          status: o.status as any,
-          paymentMethod: o.paymentMethod as any,
-          stockDeducted: o.stockDeducted,
-          createdAt: o.createdAt.toISOString(),
-          updatedAt: o.updatedAt.toISOString(),
-          startedPreparingAt: o.startedPreparingAt?.toISOString(),
-          readyAt: o.readyAt?.toISOString(),
-          deliveredAt: o.deliveredAt?.toISOString(),
-          items: o.items.map((it) => ({
-            productId: it.productId,
-            productName: it.productName,
-            selectedSize: it.selectedSize || undefined,
-            selectedAddons: it.selectedAddons ? JSON.parse(it.selectedAddons) : undefined,
-            unitPrice: it.unitPrice,
-            costPrice: it.costPrice,
-            quantity: it.quantity,
-            subtotal: it.subtotal,
-            notes: it.notes || undefined,
-          })),
-        }));
-        this.nextOrderNumber = Math.max(2000, ...this.orders.map((o) => o.orderNumber + 1));
-      }
-
-      // Carrega logs de auditoria
-      const dbAuditLogs = await prisma.auditLog.findMany({
-        orderBy: { timestamp: 'desc' },
-        take: 200,
-      });
-      if (dbAuditLogs.length > 0) {
-        this.auditLogs = dbAuditLogs.map((a) => ({
-          id: a.id,
-          timestamp: a.timestamp.toISOString(),
-          userId: a.userId,
-          userName: a.userName,
-          userRole: a.userRole as any,
-          actionType: a.actionType as any,
-          targetEntity: a.targetEntity as any,
-          targetId: a.targetId || undefined,
-          details: a.details,
-          oldValue: a.oldValue ?? undefined,
-          newValue: a.newValue ?? undefined,
-        }));
-      }
-
-      this.lastDbError = null;
-      return true;
-    } catch (err: any) {
-      this.lastDbError = err?.message || String(err);
-      console.warn('⚠️  Aviso: Não foi possível conectar ao PostgreSQL:', err);
-      return false;
+  public async syncUsers(force: boolean = false): Promise<void> {
+    if (!process.env.DATABASE_URL) return;
+    if (!force && this.lastUsersSync > 0 && Date.now() - this.lastUsersSync < USERS_TTL_MS) {
+      return;
     }
+    if (this.usersSyncPromise) {
+      await this.usersSyncPromise;
+      if (!force) return;
+    }
+
+    this.usersSyncPromise = (async () => {
+      try {
+        if (!(await this.ensurePostgresConnection())) return;
+        const dbUsers = await prisma.user.findMany();
+        if (dbUsers.length > 0) {
+          this.users = dbUsers.map((u) => ({
+            id: u.id,
+            name: u.name,
+            role: u.role as any,
+            email: u.email,
+            avatarColor: u.avatarColor,
+          }));
+        }
+        this.lastUsersSync = Date.now();
+        this.lastDbError = null;
+      } catch (err: any) {
+        this.handleSyncError('usuários', err);
+      } finally {
+        this.usersSyncPromise = null;
+      }
+    })();
+
+    await this.usersSyncPromise;
+  }
+
+  public async syncIngredients(force: boolean = false): Promise<void> {
+    if (!process.env.DATABASE_URL) return;
+    if (
+      !force &&
+      this.lastIngredientsSync > 0 &&
+      Date.now() - this.lastIngredientsSync < INGREDIENTS_TTL_MS
+    ) {
+      return;
+    }
+    if (this.ingredientsSyncPromise) {
+      await this.ingredientsSyncPromise;
+      if (!force) return;
+    }
+
+    this.ingredientsSyncPromise = (async () => {
+      try {
+        if (!(await this.ensurePostgresConnection())) return;
+        await this.flushPendingOps();
+        const dbIngredients = await prisma.ingredient.findMany({
+          orderBy: { name: 'asc' },
+        });
+        if (dbIngredients.length > 0) {
+          this.ingredients = dbIngredients.map((i) => ({
+            id: i.id,
+            name: i.name,
+            category: i.category as any,
+            currentStock: i.currentStock,
+            unit: i.unit as any,
+            minStockThreshold: i.minStockThreshold,
+            costPerUnit: i.costPerUnit,
+            supplier: i.supplier || undefined,
+            isAddonIngredient: i.isAddonIngredient,
+            updatedAt: i.updatedAt.toISOString(),
+          }));
+        }
+        this.lastIngredientsSync = Date.now();
+        this.lastDbError = null;
+      } catch (err: any) {
+        this.handleSyncError('insumos', err);
+      } finally {
+        this.ingredientsSyncPromise = null;
+      }
+    })();
+
+    await this.ingredientsSyncPromise;
+  }
+
+  public async syncOrders(force: boolean = false): Promise<void> {
+    if (!process.env.DATABASE_URL) return;
+    if (!force && this.lastOrdersSync > 0 && Date.now() - this.lastOrdersSync < ORDERS_TTL_MS) {
+      return;
+    }
+    if (this.ordersSyncPromise) {
+      await this.ordersSyncPromise;
+      if (!force) return;
+    }
+
+    this.ordersSyncPromise = (async () => {
+      try {
+        if (!(await this.ensurePostgresConnection())) return;
+        await this.flushPendingOps();
+        const dbOrders = await prisma.order.findMany({
+          include: { items: true },
+          orderBy: { createdAt: 'desc' },
+          take: 200,
+        });
+        if (dbOrders.length > 0) {
+          this.orders = dbOrders.map((o) => ({
+            id: o.id,
+            orderNumber: o.orderNumber,
+            customerName: o.customerName,
+            customerPhone: o.customerPhone || undefined,
+            tableOrTakeaway: o.tableOrTakeaway,
+            consumptionType: o.consumptionType as any,
+            notes: o.notes || undefined,
+            totalAmount: o.totalAmount,
+            totalCost: o.totalCost,
+            status: o.status as any,
+            paymentMethod: o.paymentMethod as any,
+            stockDeducted: o.stockDeducted,
+            createdAt: o.createdAt.toISOString(),
+            updatedAt: o.updatedAt.toISOString(),
+            startedPreparingAt: o.startedPreparingAt?.toISOString(),
+            readyAt: o.readyAt?.toISOString(),
+            deliveredAt: o.deliveredAt?.toISOString(),
+            items: o.items.map((it) => ({
+              productId: it.productId,
+              productName: it.productName,
+              selectedSize: it.selectedSize || undefined,
+              selectedAddons: it.selectedAddons ? JSON.parse(it.selectedAddons) : undefined,
+              unitPrice: it.unitPrice,
+              costPrice: it.costPrice,
+              quantity: it.quantity,
+              subtotal: it.subtotal,
+              notes: it.notes || undefined,
+            })),
+          }));
+          this.nextOrderNumber = Math.max(2000, ...this.orders.map((o) => o.orderNumber + 1));
+        }
+        this.lastOrdersSync = Date.now();
+        this.lastDbError = null;
+      } catch (err: any) {
+        this.handleSyncError('pedidos', err);
+      } finally {
+        this.ordersSyncPromise = null;
+      }
+    })();
+
+    await this.ordersSyncPromise;
+  }
+
+  public async syncAuditLogs(force: boolean = false): Promise<void> {
+    if (!process.env.DATABASE_URL) return;
+    if (
+      !force &&
+      this.lastAuditLogsSync > 0 &&
+      Date.now() - this.lastAuditLogsSync < AUDIT_LOGS_TTL_MS
+    ) {
+      return;
+    }
+    if (this.auditLogsSyncPromise) {
+      await this.auditLogsSyncPromise;
+      if (!force) return;
+    }
+
+    this.auditLogsSyncPromise = (async () => {
+      try {
+        if (!(await this.ensurePostgresConnection())) return;
+        await this.flushPendingOps();
+        const dbAuditLogs = await prisma.auditLog.findMany({
+          orderBy: { timestamp: 'desc' },
+          take: 200,
+        });
+        if (dbAuditLogs.length > 0) {
+          this.auditLogs = dbAuditLogs.map((a) => ({
+            id: a.id,
+            timestamp: a.timestamp.toISOString(),
+            userId: a.userId,
+            userName: a.userName,
+            userRole: a.userRole as any,
+            actionType: a.actionType as any,
+            targetEntity: a.targetEntity as any,
+            targetId: a.targetId || undefined,
+            details: a.details,
+            oldValue: a.oldValue ?? undefined,
+            newValue: a.newValue ?? undefined,
+          }));
+        }
+        this.lastAuditLogsSync = Date.now();
+        this.lastDbError = null;
+      } catch (err: any) {
+        this.handleSyncError('auditoria', err);
+      } finally {
+        this.auditLogsSyncPromise = null;
+      }
+    })();
+
+    await this.auditLogsSyncPromise;
+  }
+
+  public async syncProductsMetadata(force: boolean = false): Promise<void> {
+    if (!process.env.DATABASE_URL) return;
+    if (
+      !force &&
+      this.lastProductsMetaSync > 0 &&
+      Date.now() - this.lastProductsMetaSync < PRODUCTS_META_TTL_MS
+    ) {
+      return;
+    }
+    if (this.productsMetaSyncPromise) {
+      await this.productsMetaSyncPromise;
+      if (!force) return;
+    }
+
+    this.productsMetaSyncPromise = (async () => {
+      try {
+        if (!(await this.ensurePostgresConnection())) return;
+        await this.flushPendingOps();
+        const dbProducts = await prisma.product.findMany({
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+            costPrice: true,
+            category: true,
+            subcategory: true,
+            stockQuantity: true,
+            minStockThreshold: true,
+            status: true,
+            hasSizes: true,
+            hasAddons: true,
+            createdAt: true,
+            updatedAt: true,
+            sizes: true,
+            addons: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (dbProducts.length > 0) {
+          const existingMap = new Map(this.products.map((ep) => [ep.id, ep]));
+          const mappedFromDb: Product[] = dbProducts.map((p) => {
+            const existingInMem = existingMap.get(p.id);
+            return {
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              price: p.price,
+              costPrice: p.costPrice,
+              category: p.category as any,
+              subcategory: p.subcategory || existingInMem?.subcategory || undefined,
+              imageUrl: existingInMem?.imageUrl ?? '',
+              cutoutImageUrl: existingInMem?.cutoutImageUrl,
+              stockQuantity: p.stockQuantity,
+              minStockThreshold: p.minStockThreshold,
+              status: p.status as any,
+              hasSizes: p.hasSizes,
+              hasAddons: p.hasAddons,
+              sizes: p.sizes.map((s) => ({
+                name: s.name,
+                price: s.price,
+                costPrice: s.costPrice || undefined,
+              })),
+              addons: p.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
+              isCombo: existingInMem?.isCombo,
+              comboItems: existingInMem?.comboItems,
+              originalComboPrice: existingInMem?.originalComboPrice,
+              discountPercentage: existingInMem?.discountPercentage,
+              isWeeklySpecial: existingInMem?.isWeeklySpecial,
+              createdAt: p.createdAt.toISOString(),
+              updatedAt: p.updatedAt.toISOString(),
+            };
+          });
+          const dbIds = new Set(mappedFromDb.map((p) => p.id));
+          const customInMem = this.products.filter(
+            (p) => !dbIds.has(p.id) && !initialProducts.some((ip) => ip.id === p.id)
+          );
+          this.products = [...customInMem, ...mappedFromDb];
+        }
+
+        this.lastProductsMetaSync = Date.now();
+        this.lastDbError = null;
+      } catch (err: any) {
+        this.handleSyncError('metadados de produtos', err);
+      } finally {
+        this.productsMetaSyncPromise = null;
+      }
+    })();
+
+    await this.productsMetaSyncPromise;
+  }
+
+  public async syncProductsFull(force: boolean = false): Promise<void> {
+    if (!process.env.DATABASE_URL) return;
+    if (
+      !force &&
+      this.productsFullLoaded &&
+      this.lastProductsFullSync > 0 &&
+      Date.now() - this.lastProductsFullSync < PRODUCTS_FULL_TTL_MS
+    ) {
+      return;
+    }
+    if (this.productsFullSyncPromise) {
+      await this.productsFullSyncPromise;
+      if (!force) return;
+    }
+
+    this.productsFullSyncPromise = (async () => {
+      try {
+        if (!(await this.ensurePostgresConnection())) return;
+        await this.flushPendingOps();
+
+        const agg = await prisma.product.aggregate({
+          _count: { _all: true },
+          _max: { updatedAt: true },
+        });
+        const dbVersion = `${agg._count._all}:${agg._max.updatedAt ? agg._max.updatedAt.toISOString() : 'none'}`;
+
+        if (!force && this.productsFullLoaded && dbVersion === this.dbProductsVersionKey) {
+          this.lastProductsFullSync = Date.now();
+          this.lastDbError = null;
+          return;
+        }
+
+        const dbProducts = await prisma.product.findMany({
+          include: { sizes: true, addons: true },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (dbProducts.length > 0) {
+          const existingMap = new Map(this.products.map((ep) => [ep.id, ep]));
+          const mappedFromDb: Product[] = dbProducts.map((p) => {
+            const existingInMem = existingMap.get(p.id);
+            return {
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              price: p.price,
+              costPrice: p.costPrice,
+              category: p.category as any,
+              subcategory: p.subcategory || existingInMem?.subcategory || undefined,
+              imageUrl: p.imageUrl,
+              cutoutImageUrl: p.cutoutImageUrl || existingInMem?.cutoutImageUrl || undefined,
+              stockQuantity: p.stockQuantity,
+              minStockThreshold: p.minStockThreshold,
+              status: p.status as any,
+              hasSizes: p.hasSizes,
+              hasAddons: p.hasAddons,
+              sizes: p.sizes.map((s) => ({
+                name: s.name,
+                price: s.price,
+                costPrice: s.costPrice || undefined,
+              })),
+              addons: p.addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
+              isCombo: existingInMem?.isCombo,
+              comboItems: existingInMem?.comboItems,
+              originalComboPrice: existingInMem?.originalComboPrice,
+              discountPercentage: existingInMem?.discountPercentage,
+              isWeeklySpecial: existingInMem?.isWeeklySpecial,
+              createdAt: p.createdAt.toISOString(),
+              updatedAt: p.updatedAt.toISOString(),
+            };
+          });
+          const dbIds = new Set(mappedFromDb.map((p) => p.id));
+          const customInMem = this.products.filter(
+            (p) => !dbIds.has(p.id) && !initialProducts.some((ip) => ip.id === p.id)
+          );
+          this.products = [...customInMem, ...mappedFromDb];
+        }
+
+        this.productsFullLoaded = true;
+        this.dbProductsVersionKey = dbVersion;
+        this.lastProductsFullSync = Date.now();
+        this.lastProductsMetaSync = Date.now();
+        this.lastDbError = null;
+      } catch (err: any) {
+        this.handleSyncError('produtos', err);
+      } finally {
+        this.productsFullSyncPromise = null;
+      }
+    })();
+
+    await this.productsFullSyncPromise;
+  }
+
+  private handleSyncError(domain: string, err: any): void {
+    this.lastDbError = err?.message || String(err);
+    this.isPostgresConnected = false;
+    this.lastConnectionFailAt = Date.now();
+    console.warn(`⚠️  Aviso: falha ao sincronizar ${domain} no PostgreSQL:`, err?.message || err);
+  }
+
+  private invalidateProductsCache(): void {
+    this.dbProductsVersionKey = '';
+    this.lastProductsMetaSync = 0;
+    this.lastProductsFullSync = 0;
   }
 
   private asyncPersist(operation: () => Promise<void>): void {
@@ -256,6 +544,7 @@ class DatabaseStore {
     const p = operation()
       .then(() => {
         this.isPostgresConnected = true;
+        this.lastConnectionFailAt = 0;
         this.lastDbError = null;
       })
       .catch((err) => {
@@ -273,6 +562,15 @@ class DatabaseStore {
     this.auditLogs = JSON.parse(JSON.stringify(initialAuditLogs));
     this.currentUserId = 'usr_admin';
     this.nextOrderNumber = 2000 + this.orders.length;
+
+    this.lastUsersSync = 0;
+    this.lastIngredientsSync = 0;
+    this.lastOrdersSync = 0;
+    this.lastAuditLogsSync = 0;
+    this.lastProductsMetaSync = 0;
+    this.lastProductsFullSync = 0;
+    this.productsFullLoaded = false;
+    this.dbProductsVersionKey = '';
   }
 
   public getCurrentUser(): SystemUser {
@@ -299,11 +597,36 @@ class DatabaseStore {
     return this.products.filter((p) => p.status === 'ativo');
   }
 
+  public getProductsMeta(includeInactive: boolean = true): ProductMetadata[] {
+    const list = includeInactive
+      ? this.products
+      : this.products.filter((p) => p.status === 'ativo');
+    return list.map(({ imageUrl: _img, cutoutImageUrl: _cutout, ...rest }) => rest);
+  }
+
+  public getProductsEtag(includeInactive: boolean): string {
+    const list = includeInactive
+      ? this.products
+      : this.products.filter((p) => p.status === 'ativo');
+    let maxUpdatedAt = '0';
+    for (const p of list) {
+      if (p.updatedAt && p.updatedAt > maxUpdatedAt) {
+        maxUpdatedAt = p.updatedAt;
+      }
+    }
+    return `W/"products-${list.length}-${maxUpdatedAt}-${includeInactive ? 'all' : 'active'}"`;
+  }
+
   public getProductById(id: string): Product | undefined {
     return this.products.find((p) => p.id === id);
   }
 
-  public createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'status'> & { id?: string; status?: Product['status'] }): Product {
+  public createProduct(
+    data: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'status'> & {
+      id?: string;
+      status?: Product['status'];
+    }
+  ): Product {
     const currentUser = this.getCurrentUser();
     const id = (data as any).id || generateUniqueId('prod');
     const existing = this.getProductById(id);
@@ -326,7 +649,9 @@ class DatabaseStore {
       costPrice: Number(data.costPrice || data.price * 0.4),
       category: data.category,
       subcategory: data.subcategory,
-      imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=600',
+      imageUrl:
+        data.imageUrl ||
+        'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=600',
       cutoutImageUrl: data.cutoutImageUrl,
       stockQuantity: Number(data.stockQuantity !== undefined ? data.stockQuantity : 50),
       minStockThreshold: Number(data.minStockThreshold || 5),
@@ -345,6 +670,7 @@ class DatabaseStore {
     };
 
     this.products.unshift(newProduct);
+    this.invalidateProductsCache();
 
     // Auditoria de criação
     const log = createAuditLog(
@@ -357,9 +683,11 @@ class DatabaseStore {
       newProduct.price
     );
     this.auditLogs.unshift(log);
+    this.lastAuditLogsSync = 0;
 
     this.asyncPersist(async () => {
       await prisma.product.create({
+        select: { id: true },
         data: {
           id: newProduct.id,
           name: newProduct.name,
@@ -367,6 +695,7 @@ class DatabaseStore {
           price: newProduct.price,
           costPrice: newProduct.costPrice,
           category: newProduct.category,
+          subcategory: newProduct.subcategory ?? null,
           imageUrl: newProduct.imageUrl,
           cutoutImageUrl: newProduct.cutoutImageUrl,
           stockQuantity: newProduct.stockQuantity,
@@ -374,18 +703,26 @@ class DatabaseStore {
           status: newProduct.status,
           hasSizes: Boolean(newProduct.hasSizes),
           hasAddons: Boolean(newProduct.hasAddons),
-          sizes: newProduct.sizes && newProduct.sizes.length > 0 ? {
-            create: newProduct.sizes.map((s) => ({ name: s.name, price: s.price, costPrice: s.costPrice })),
-          } : undefined,
-          addons: newProduct.addons && newProduct.addons.length > 0 ? {
-            create: newProduct.addons.map((a) => ({ name: a.name, price: a.price })),
-          } : undefined,
+          sizes:
+            newProduct.sizes && newProduct.sizes.length > 0
+              ? {
+                  create: newProduct.sizes.map((s) => ({
+                    name: s.name,
+                    price: s.price,
+                    costPrice: s.costPrice,
+                  })),
+                }
+              : undefined,
+          addons:
+            newProduct.addons && newProduct.addons.length > 0
+              ? {
+                  create: newProduct.addons.map((a) => ({ name: a.name, price: a.price })),
+                }
+              : undefined,
         },
       });
-      if (newProduct.subcategory !== undefined) {
-        await prisma.$executeRaw`UPDATE "Product" SET "subcategory" = ${newProduct.subcategory || null} WHERE "id" = ${newProduct.id}`.catch(() => {});
-      }
       await prisma.auditLog.create({
+        select: { id: true },
         data: {
           id: log.id,
           timestamp: new Date(log.timestamp),
@@ -417,43 +754,65 @@ class DatabaseStore {
     }
 
     const currentUser = this.getCurrentUser();
-    const { updatedProduct, auditLogs } = updateProductWithAudit(
-      product,
-      updates,
-      currentUser
-    );
+    const { updatedProduct, auditLogs } = updateProductWithAudit(product, updates, currentUser);
 
     const index = this.products.findIndex((p) => p.id === id);
     this.products[index] = updatedProduct;
+    this.invalidateProductsCache();
 
     // Registra os logs de auditoria
     for (const log of auditLogs) {
       this.auditLogs.unshift(log);
     }
+    this.lastAuditLogsSync = 0;
 
     this.asyncPersist(async () => {
+      const updateData: {
+        name: string;
+        description: string;
+        price: number;
+        costPrice: number;
+        category: string;
+        subcategory?: string | null;
+        imageUrl?: string;
+        cutoutImageUrl?: string | null;
+        stockQuantity: number;
+        minStockThreshold: number;
+        status: string;
+        hasSizes: boolean;
+        hasAddons: boolean;
+      } = {
+        name: updatedProduct.name,
+        description: updatedProduct.description,
+        price: updatedProduct.price,
+        costPrice: updatedProduct.costPrice,
+        category: updatedProduct.category,
+        stockQuantity: updatedProduct.stockQuantity,
+        minStockThreshold: updatedProduct.minStockThreshold,
+        status: updatedProduct.status,
+        hasSizes: Boolean(updatedProduct.hasSizes),
+        hasAddons: Boolean(updatedProduct.hasAddons),
+      };
+
+      if (updates.subcategory !== undefined) {
+        updateData.subcategory = updatedProduct.subcategory || null;
+      }
+      if (updates.imageUrl !== undefined) {
+        updateData.imageUrl = updatedProduct.imageUrl;
+      }
+      if (updates.cutoutImageUrl !== undefined) {
+        updateData.cutoutImageUrl = updatedProduct.cutoutImageUrl ?? null;
+      }
+
       await prisma.product.update({
         where: { id: updatedProduct.id },
-        data: {
-          name: updatedProduct.name,
-          description: updatedProduct.description,
-          price: updatedProduct.price,
-          costPrice: updatedProduct.costPrice,
-          category: updatedProduct.category,
-          imageUrl: updatedProduct.imageUrl,
-          cutoutImageUrl: updatedProduct.cutoutImageUrl,
-          stockQuantity: updatedProduct.stockQuantity,
-          minStockThreshold: updatedProduct.minStockThreshold,
-          status: updatedProduct.status,
-          hasSizes: Boolean(updatedProduct.hasSizes),
-          hasAddons: Boolean(updatedProduct.hasAddons),
-        },
+        select: { id: true },
+        data: updateData,
       });
-      if (updatedProduct.subcategory !== undefined) {
-        await prisma.$executeRaw`UPDATE "Product" SET "subcategory" = ${updatedProduct.subcategory || null} WHERE "id" = ${updatedProduct.id}`.catch(() => {});
-      }
+
       for (const log of auditLogs) {
         await prisma.auditLog.create({
+          select: { id: true },
           data: {
             id: log.id,
             timestamp: new Date(log.timestamp),
@@ -487,15 +846,19 @@ class DatabaseStore {
 
     const index = this.products.findIndex((p) => p.id === id);
     this.products[index] = updatedProduct;
+    this.invalidateProductsCache();
 
     this.auditLogs.unshift(auditLog);
+    this.lastAuditLogsSync = 0;
 
     this.asyncPersist(async () => {
       await prisma.product.update({
         where: { id: updatedProduct.id },
+        select: { id: true },
         data: { status: 'inativo' },
       });
       await prisma.auditLog.create({
+        select: { id: true },
         data: {
           id: auditLog.id,
           timestamp: new Date(auditLog.timestamp),
@@ -522,15 +885,19 @@ class DatabaseStore {
 
     const index = this.products.findIndex((p) => p.id === id);
     this.products[index] = updatedProduct;
+    this.invalidateProductsCache();
 
     this.auditLogs.unshift(auditLog);
+    this.lastAuditLogsSync = 0;
 
     this.asyncPersist(async () => {
       await prisma.product.update({
         where: { id: updatedProduct.id },
+        select: { id: true },
         data: { status: 'ativo' },
       });
       await prisma.auditLog.create({
+        select: { id: true },
         data: {
           id: auditLog.id,
           timestamp: new Date(auditLog.timestamp),
@@ -557,9 +924,10 @@ class DatabaseStore {
     const oldStock = product.stockQuantity;
     const diff = newStock - oldStock;
     const sign = diff > 0 ? `+${diff}` : `${diff}`;
-    
+
     product.stockQuantity = Math.max(0, newStock);
     product.updatedAt = new Date().toISOString();
+    this.invalidateProductsCache();
 
     const reasonText = reason ? ` Motivo: "${reason}".` : '';
     const auditLog = createAuditLog(
@@ -572,13 +940,16 @@ class DatabaseStore {
       newStock
     );
     this.auditLogs.unshift(auditLog);
+    this.lastAuditLogsSync = 0;
 
     this.asyncPersist(async () => {
       await prisma.product.update({
         where: { id: product.id },
+        select: { id: true },
         data: { stockQuantity: product.stockQuantity },
       });
       await prisma.auditLog.create({
+        select: { id: true },
         data: {
           id: auditLog.id,
           timestamp: new Date(auditLog.timestamp),
@@ -622,6 +993,7 @@ class DatabaseStore {
 
     ingredient.currentStock = Math.max(0, Number(newStock));
     ingredient.updatedAt = new Date().toISOString();
+    this.lastIngredientsSync = 0;
 
     const reasonText = reason ? ` Motivo: "${reason}".` : '';
     const auditLog = createAuditLog(
@@ -634,13 +1006,16 @@ class DatabaseStore {
       newStock
     );
     this.auditLogs.unshift(auditLog);
+    this.lastAuditLogsSync = 0;
 
     this.asyncPersist(async () => {
       await prisma.ingredient.update({
         where: { id: ingredient.id },
+        select: { id: true },
         data: { currentStock: ingredient.currentStock },
       });
       await prisma.auditLog.create({
+        select: { id: true },
         data: {
           id: auditLog.id,
           timestamp: new Date(auditLog.timestamp),
@@ -677,11 +1052,12 @@ class DatabaseStore {
       minStockThreshold: Math.max(0, Number(data.minStockThreshold) || 0),
       costPerUnit: Math.max(0, Number(data.costPerUnit) || 0),
       supplier: data.supplier ? data.supplier.trim() : undefined,
-      isAddonIngredient: data.isAddonIngredient ?? (data.category === 'Adicionais & Complementos'),
+      isAddonIngredient: data.isAddonIngredient ?? data.category === 'Adicionais & Complementos',
       updatedAt: now,
     };
 
     this.ingredients.unshift(newIngredient);
+    this.lastIngredientsSync = 0;
 
     const currentUser = this.getCurrentUser();
     const auditLog = createAuditLog(
@@ -694,9 +1070,11 @@ class DatabaseStore {
       newIngredient.currentStock
     );
     this.auditLogs.unshift(auditLog);
+    this.lastAuditLogsSync = 0;
 
     this.asyncPersist(async () => {
       await prisma.ingredient.create({
+        select: { id: true },
         data: {
           id: newIngredient.id,
           name: newIngredient.name,
@@ -711,6 +1089,7 @@ class DatabaseStore {
         },
       });
       await prisma.auditLog.create({
+        select: { id: true },
         data: {
           id: auditLog.id,
           timestamp: new Date(auditLog.timestamp),
@@ -851,6 +1230,8 @@ class DatabaseStore {
       updatedAt: now,
     };
 
+    const previousStockById = new Map(this.products.map((p) => [p.id, p.stockQuantity]));
+
     // Subtrai automaticamente do estoque (Requisito 5)
     const { updatedProducts, updatedOrder, auditLogs } = deductStockForOrder(
       newOrder,
@@ -858,8 +1239,16 @@ class DatabaseStore {
       currentUser
     );
 
+    const changedProducts = updatedProducts.filter(
+      (p) => previousStockById.get(p.id) !== p.stockQuantity
+    );
+
     this.products = updatedProducts;
     this.orders.unshift(updatedOrder);
+    this.lastOrdersSync = 0;
+    if (changedProducts.length > 0) {
+      this.invalidateProductsCache();
+    }
 
     // Registra auditoria de pedido e baixas de estoque
     const orderLog = createAuditLog(
@@ -876,9 +1265,11 @@ class DatabaseStore {
     for (const log of auditLogs) {
       this.auditLogs.unshift(log);
     }
+    this.lastAuditLogsSync = 0;
 
     this.asyncPersist(async () => {
       await prisma.order.create({
+        select: { id: true },
         data: {
           id: updatedOrder.id,
           orderNumber: updatedOrder.orderNumber,
@@ -909,13 +1300,15 @@ class DatabaseStore {
           },
         },
       });
-      for (const p of updatedProducts) {
+      for (const p of changedProducts) {
         await prisma.product.update({
           where: { id: p.id },
+          select: { id: true },
           data: { stockQuantity: p.stockQuantity },
         });
       }
       await prisma.auditLog.create({
+        select: { id: true },
         data: {
           id: orderLog.id,
           timestamp: new Date(orderLog.timestamp),
@@ -944,6 +1337,7 @@ class DatabaseStore {
 
     order.status = newStatus;
     order.updatedAt = now;
+    this.lastOrdersSync = 0;
 
     if (newStatus === 'preparando' && !order.startedPreparingAt) {
       order.startedPreparingAt = now;
@@ -963,10 +1357,12 @@ class DatabaseStore {
       newStatus
     );
     this.auditLogs.unshift(log);
+    this.lastAuditLogsSync = 0;
 
     this.asyncPersist(async () => {
       await prisma.order.update({
         where: { id: order.id },
+        select: { id: true },
         data: {
           status: order.status,
           startedPreparingAt: order.startedPreparingAt ? new Date(order.startedPreparingAt) : undefined,
@@ -975,6 +1371,7 @@ class DatabaseStore {
         },
       });
       await prisma.auditLog.create({
+        select: { id: true },
         data: {
           id: log.id,
           timestamp: new Date(log.timestamp),

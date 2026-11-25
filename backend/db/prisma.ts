@@ -6,27 +6,20 @@ declare global {
   var __prismaClient: PrismaClient | undefined;
 }
 
-const DEFAULT_SUPABASE_POOLER_URL = [
-  'postgresql://postgres.zakrnmohhusesmwtiggf:',
-  '%23Lt%235Xz9*z%266VEe',
-  '@aws-1-us-west-2.pooler.supabase.com:5432/postgres?connection_limit=1',
-].join('');
-
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = DEFAULT_SUPABASE_POOLER_URL;
-}
-if (!process.env.DIRECT_URL) {
-  process.env.DIRECT_URL = DEFAULT_SUPABASE_POOLER_URL;
-}
-
 function getNormalizedDatabaseUrl(): string | undefined {
   const rawUrl = process.env.DATABASE_URL;
   if (!rawUrl) return undefined;
-  if (rawUrl.includes(':6543') && !rawUrl.includes('pgbouncer=true')) {
-    const separator = rawUrl.includes('?') ? '&' : '?';
-    return `${rawUrl}${separator}pgbouncer=true`;
+
+  let normalized = rawUrl;
+  if (normalized.includes(':6543') && !normalized.includes('pgbouncer=true')) {
+    const separator = normalized.includes('?') ? '&' : '?';
+    normalized = `${normalized}${separator}pgbouncer=true`;
   }
-  return rawUrl;
+  if (process.env.VERCEL && !normalized.includes('connection_limit=')) {
+    const separator = normalized.includes('?') ? '&' : '?';
+    normalized = `${normalized}${separator}connection_limit=1`;
+  }
+  return normalized;
 }
 
 const normalizedUrl = getNormalizedDatabaseUrl();
@@ -47,6 +40,11 @@ export let lastConnectionError: string | null = null;
  * Retorna true se conectou com sucesso, ou false caso contrário.
  */
 export async function testDatabaseConnection(): Promise<boolean> {
+  if (!process.env.DATABASE_URL) {
+    lastConnectionError = null;
+    return false;
+  }
+
   try {
     await prisma.$queryRaw`SELECT 1`;
     lastConnectionError = null;

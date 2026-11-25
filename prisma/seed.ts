@@ -44,6 +44,7 @@ async function main() {
         price: prod.price,
         costPrice: prod.costPrice,
         category: prod.category,
+        subcategory: prod.subcategory ?? null,
         imageUrl: prod.imageUrl,
         cutoutImageUrl: prod.cutoutImageUrl,
         stockQuantity: prod.stockQuantity,
