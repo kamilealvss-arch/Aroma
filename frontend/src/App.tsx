@@ -204,6 +204,26 @@ export default function App() {
     }
   };
 
+  const handleBatchUpdateProducts = async (
+    updatesList: Array<{ id: string; updates: Partial<Product> }>,
+    successMessage?: string
+  ) => {
+    try {
+      for (const item of updatesList) {
+        await api.updateProduct(item.id, item.updates);
+      }
+      if (updatesList.length > 0) {
+        await refreshProductsAndLive();
+      }
+      if (successMessage) {
+        showToast(successMessage);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Erro ao atualizar produtos.', 'error');
+      throw err;
+    }
+  };
+
   // ⭐ REQUISITO 4 (PONTO DE OURO): Exclusão Lógica
   const handleSoftDeleteProduct = async (id: string) => {
     try {
@@ -394,6 +414,7 @@ export default function App() {
                 products={products}
                 onCreateProduct={handleCreateProduct}
                 onUpdateProduct={handleUpdateProduct}
+                onBatchUpdateProducts={handleBatchUpdateProducts}
                 onSoftDeleteProduct={handleSoftDeleteProduct}
                 onRestoreProduct={handleRestoreProduct}
               />

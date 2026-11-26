@@ -22,26 +22,40 @@ import {
   ArrowUpRight,
   Star,
   Image as ImageIcon,
+  SlidersHorizontal,
+  ChevronDown,
+  FolderTree,
 } from 'lucide-react';
 import { Product } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 import {
   ProductModal,
-  DEFAULT_CATEGORIES,
-  DEFAULT_SUBCATEGORIES,
-  getStoredCustomSubcategories,
   getStoredWeeklySpecialBannerBg,
   saveStoredWeeklySpecialBannerBg,
   compressBannerImageFile,
 } from './ProductModal.tsx';
 import { ComboBuilderModal } from './ComboBuilderModal.tsx';
-
-const CUSTOM_CATEGORIES_KEY = 'aroma_custom_product_categories_v1';
+import { CategoryManagerModal } from './CategoryManagerModal.tsx';
+import {
+  CATEGORIES_UPDATED_EVENT,
+  getAllCategories,
+  getAllSubcategoriesForCategory,
+  addCategoryInConfig,
+  renameCategoryInConfig,
+  deleteCategoryInConfig,
+  addSubcategoryInConfig,
+  renameSubcategoryInConfig,
+  deleteSubcategoryInConfig,
+} from '../utils/categoryConfig.ts';
 
 interface ProductsViewProps {
   products: Product[];
   onCreateProduct: (data: Partial<Product>) => Promise<void>;
   onUpdateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  onBatchUpdateProducts?: (
+    updatesList: Array<{ id: string; updates: Partial<Product> }>,
+    successMessage?: string
+  ) => Promise<void>;
   onSoftDeleteProduct: (id: string) => Promise<void>;
   onRestoreProduct: (id: string) => Promise<void>;
 }
@@ -58,6 +72,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   products,
   onCreateProduct,
   onUpdateProduct,
+  onBatchUpdateProducts,
   onSoftDeleteProduct,
   onRestoreProduct,
 }) => {
@@ -90,29 +105,114 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Categorias personalizadas salvas pelo usuário
-  const [customCategories, setCustomCategories] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
+  // Menu unificado "Gerenciar cardápio" & Gerenciador de Categorias/Subcategorias
+  const [isManageMenuOpen, setIsManageMenuOpen] = useState(false);
+  const manageMenuRef = useRef<HTMLDivElement | null>(null);
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [categoriesVersion, setCategoriesVersion] = useState(0);
+
+  useEffect(() => {
+    const handleSync = () => setCategoriesVersion((v) => v + 1);
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, handleSync);
+    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, handleSync);
+  }, []);
+
+  useEffect(() => {
+    if (!isManageMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (manageMenuRef.current && !manageMenuRef.current.contains(e.target as Node)) {
+        setIsManageMenuOpen(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsManageMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isManageMenuOpen]);
+
+  const applyBatchUpdates = async (
+    updatesList: Array<{ id: string; updates: Partial<Product> }>,
+    successMessage?: string
+  ) => {
+    if (updatesList.length === 0) return;
+    if (onBatchUpdateProducts) {
+      await onBatchUpdateProducts(updatesList, successMessage);
+    } else {
+      for (const item of updatesList) {
+        await onUpdateProduct(item.id, item.updates);
+      }
     }
-  });
+  };
 
   const handleCreateCategory = (newCat: string) => {
-    const trimmed = newCat.trim();
-    if (!trimmed) return;
-    setCustomCategories((prev) => {
-      if (prev.includes(trimmed)) return prev;
-      const updated = [...prev, trimmed];
-      try {
-        localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
-      return updated;
-    });
+    addCategoryInConfig(newCat);
+  };
+
+  const handleRenameCategory = async (oldName: string, newName: string) => {
+    const updatesList = products
+      .filter((p) => p.category === oldName)
+      .map((p) => ({ id: p.id, updates: { category: newName } }));
+    await applyBatchUpdates(
+      updatesList,
+      `Categoria "${oldName}" renomeada para "${newName}"!`
+    );
+    renameCategoryInConfig(oldName, newName);
+    if (selectedCategory === oldName) {
+      setSelectedCategory(newName);
+    }
+  };
+
+  const handleDeleteCategory = async (name: string, replacementCategory?: string) => {
+    if (replacementCategory) {
+      const updatesList = products
+        .filter((p) => p.category === name)
+        .map((p) => ({
+          id: p.id,
+          updates: { category: replacementCategory, subcategory: '' },
+        }));
+      await applyBatchUpdates(
+        updatesList,
+        `Categoria "${name}" excluída e produtos movidos para "${replacementCategory}".`
+      );
+    }
+    deleteCategoryInConfig(name);
+    if (selectedCategory === name) {
+      setSelectedCategory('ALL');
+    }
+  };
+
+  const handleCreateSubcategory = (category: string, subName: string) => {
+    addSubcategoryInConfig(category, subName);
+  };
+
+  const handleRenameSubcategory = async (category: string, oldSub: string, newSub: string) => {
+    const updatesList = products
+      .filter((p) => p.category === category && p.subcategory === oldSub)
+      .map((p) => ({ id: p.id, updates: { subcategory: newSub } }));
+    await applyBatchUpdates(
+      updatesList,
+      `Subcategoria "${oldSub}" renomeada para "${newSub}"!`
+    );
+    renameSubcategoryInConfig(category, oldSub, newSub);
+    if (selectedCategory === category && selectedSubcategory === oldSub) {
+      setSelectedSubcategory(newSub);
+    }
+  };
+
+  const handleDeleteSubcategory = async (category: string, subName: string) => {
+    const updatesList = products
+      .filter((p) => p.category === category && p.subcategory === subName)
+      .map((p) => ({ id: p.id, updates: { subcategory: '' } }));
+    await applyBatchUpdates(updatesList, `Subcategoria "${subName}" excluída.`);
+    deleteSubcategoryInConfig(category, subName);
+    if (selectedCategory === category && selectedSubcategory === subName) {
+      setSelectedSubcategory('ALL');
+    }
   };
 
   // Resetar página ao alterar filtros
@@ -120,9 +220,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
     setCurrentPage(1);
   }, [search, selectedCategory, selectedSubcategory, selectedStatus, sortBy, itemsPerPage, viewMode]);
 
-  // Métricas e contadores
-  const categories = Array.from(
-    new Set([...DEFAULT_CATEGORIES, ...products.map((p) => p.category), ...customCategories])
+  // Categorias visíveis (padrão não ocultas + personalizadas + usadas em produtos)
+  const categories = useMemo(
+    () => getAllCategories(products),
+    [products, categoriesVersion]
   );
 
   // Produto atualmente ativo como "Especial da Semana" no topo do cardápio
@@ -168,14 +269,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   // Subcategorias disponíveis para a categoria atualmente selecionada
   const availableSubcategoriesForSelectedCat = useMemo(() => {
     if (selectedCategory === 'ALL') return [];
-    const productsInCat = products.filter((p) => p.category === selectedCategory);
-    const fromProducts = productsInCat
-      .map((p) => p.subcategory)
-      .filter((s): s is string => Boolean(s));
-    const fromDefaults = DEFAULT_SUBCATEGORIES[selectedCategory] || [];
-    const fromCustom = getStoredCustomSubcategories()[selectedCategory] || [];
-    return Array.from(new Set([...fromDefaults, ...fromCustom, ...fromProducts]));
-  }, [selectedCategory, products]);
+    return getAllSubcategoriesForCategory(selectedCategory, products);
+  }, [selectedCategory, products, categoriesVersion]);
 
   const activeProducts = products.filter((p) => p.status === 'ativo');
   const activeCount = activeProducts.length;
@@ -358,37 +453,129 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
 
         {/* Botões Principais no Cabeçalho */}
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-center shrink-0">
-          <div className="inline-flex items-center gap-1">
+          <div ref={manageMenuRef} className="relative">
             <button
               type="button"
-              onClick={() => bannerFileInputRef.current?.click()}
-              className="inline-flex items-center space-x-2 h-8.5 px-3.5 rounded-full text-xs font-semibold text-[#924529] bg-amber-50 hover:bg-[#924529] hover:text-white border border-amber-200/90 shadow-xs transition cursor-pointer"
-              title="Alterar a imagem de fundo do banner Especial da Semana no cardápio"
+              onClick={() => setIsManageMenuOpen((prev) => !prev)}
+              aria-expanded={isManageMenuOpen}
+              className="inline-flex items-center space-x-2 h-8.5 px-3.5 rounded-full text-xs font-semibold text-[#850D2C] bg-[#850D2C]/10 hover:bg-[#850D2C] hover:text-white border border-[#850D2C]/20 shadow-xs transition cursor-pointer"
+              title="Gerenciar banner, combos, categorias e subcategorias"
             >
-              <ImageIcon className="w-3.5 h-3.5" />
-              <span>{bannerBgUrl ? 'Trocar fundo do banner' : 'Fundo do banner'}</span>
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Gerenciar cardápio</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${
+                  isManageMenuOpen ? 'rotate-180' : ''
+                }`}
+              />
             </button>
-            {bannerBgUrl && (
-              <button
-                type="button"
-                onClick={handleClearBannerBg}
-                className="inline-flex items-center justify-center h-8.5 w-8.5 rounded-full text-xs font-semibold text-[#850D2C] bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-xs transition cursor-pointer"
-                title="Remover imagem de fundo do banner e restaurar o degradê original"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+
+            {isManageMenuOpen && (
+              <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-stone-200/90 p-2 z-40 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                {/* 1. Fundo do banner */}
+                <div className="rounded-xl hover:bg-amber-50/70 transition p-2.5 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsManageMenuOpen(false);
+                      bannerFileInputRef.current?.click();
+                    }}
+                    className="w-full flex items-center space-x-3 text-left cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-amber-100/80 text-[#924529] flex items-center justify-center shrink-0">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-xs font-bold text-[#35312F] block">
+                        Fundo do banner
+                      </span>
+                      <span className="text-[11px] text-stone-500 block">
+                        {bannerBgUrl
+                          ? 'Imagem personalizada ativa'
+                          : 'Alterar fundo do Especial da Semana'}
+                      </span>
+                    </div>
+                  </button>
+
+                  {bannerBgUrl && (
+                    <div className="flex items-center justify-between gap-2 pl-11 pt-1.5 border-t border-stone-100">
+                      <img
+                        src={bannerBgUrl}
+                        alt="Prévia do banner"
+                        className="w-10 h-6 rounded-md object-cover border border-stone-200 shrink-0"
+                      />
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsManageMenuOpen(false);
+                            bannerFileInputRef.current?.click();
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-[#924529] text-[11px] font-semibold transition cursor-pointer"
+                        >
+                          Trocar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleClearBannerBg();
+                            setIsManageMenuOpen(false);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-[#850D2C] text-[11px] font-semibold transition cursor-pointer"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Criar combo */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsManageMenuOpen(false);
+                    handleOpenCreateCombo();
+                  }}
+                  className="w-full flex items-center space-x-3 text-left p-2.5 rounded-xl hover:bg-[#850D2C]/5 transition cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-[#850D2C]/10 text-[#850D2C] flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-bold text-[#35312F] block">
+                      Criar combo
+                    </span>
+                    <span className="text-[11px] text-stone-500 block">
+                      Monte combos promocionais com desconto
+                    </span>
+                  </div>
+                </button>
+
+                {/* 3. Categorias e subcategorias */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsManageMenuOpen(false);
+                    setIsCategoryManagerOpen(true);
+                  }}
+                  className="w-full flex items-center space-x-3 text-left p-2.5 rounded-xl hover:bg-stone-100/80 transition cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center shrink-0">
+                    <FolderTree className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-bold text-[#35312F] block">
+                      Categorias e subcategorias
+                    </span>
+                    <span className="text-[11px] text-stone-500 block">
+                      Criar, editar ou excluir categorias e subcategorias
+                    </span>
+                  </div>
+                </button>
+              </div>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={handleOpenCreateCombo}
-            className="inline-flex items-center space-x-2 h-8.5 px-4 rounded-full text-xs font-semibold text-[#850D2C] bg-[#850D2C]/10 hover:bg-[#850D2C] hover:text-white border border-[#850D2C]/20 shadow-xs transition cursor-pointer"
-            title="Criar combo promocional com produtos avulsos e desconto"
-          >
-            <Package className="w-3.5 h-3.5" />
-            <span>Criar combo</span>
-          </button>
 
           <button
             type="button"
@@ -1213,6 +1400,20 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         products={products}
         onSaveCombo={handleSaveCombo}
         comboToEdit={comboToEdit}
+      />
+
+      {/* Modal de Gerenciamento de Categorias e Subcategorias */}
+      <CategoryManagerModal
+        isOpen={isCategoryManagerOpen}
+        onClose={() => setIsCategoryManagerOpen(false)}
+        products={products}
+        categories={categories}
+        onCreateCategory={handleCreateCategory}
+        onRenameCategory={handleRenameCategory}
+        onDeleteCategory={handleDeleteCategory}
+        onCreateSubcategory={handleCreateSubcategory}
+        onRenameSubcategory={handleRenameSubcategory}
+        onDeleteSubcategory={handleDeleteSubcategory}
       />
 
       {/* Modal de Confirmação: Exclusão Lógica (Desativação Segura) */}

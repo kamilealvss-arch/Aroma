@@ -45,6 +45,10 @@ import {
   saveStoredWeeklySpecialBannerBg,
   compressBannerImageFile,
 } from './ProductModal.tsx';
+import {
+  getAllCategories,
+  CATEGORIES_UPDATED_EVENT,
+} from '../utils/categoryConfig.ts';
 
 export interface DetailedCartItem {
   cartKey: string;
@@ -141,14 +145,26 @@ const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
   onSelectSubcategory,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 640 : false
+  );
+  const [mobileIndex, setMobileIndex] = useState<number>(0);
+  const mobileIndexRef = useRef<number>(0);
+  const [canScrollLeftDesktop, setCanScrollLeftDesktop] = useState(false);
+  const [canScrollRightDesktop, setCanScrollRightDesktop] = useState(true);
+  const [catVersion, setCatVersion] = useState(0);
+
+  useEffect(() => {
+    const handleCatSync = () => setCatVersion((v) => v + 1);
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, handleCatSync);
+    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, handleCatSync);
+  }, []);
 
   const rowSubcategories = useMemo(() => {
     return getAllSubcategoriesForCategory(category, products);
-  }, [category, products]);
+  }, [category, products, catVersion]);
 
-  // Arraste com o mouse
+  // Arraste com o mouse (apenas desktop)
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
@@ -156,38 +172,80 @@ const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
   const checkScroll = () => {
     if (!scrollRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-    setCanScrollLeft(scrollLeft > 10);
-    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    setCanScrollLeftDesktop(scrollLeft > 10);
+    setCanScrollRightDesktop(scrollLeft < scrollWidth - clientWidth - 10);
   };
 
   useEffect(() => {
+    mobileIndexRef.current = mobileIndex;
+  }, [mobileIndex]);
+
+  useEffect(() => {
+    setMobileIndex((prev) => {
+      if (products.length === 0) return 0;
+      return Math.min(prev, products.length - 1);
+    });
+  }, [products.length]);
+
+  useEffect(() => {
+    if (isMobileViewport && scrollRef.current) {
+      scrollRef.current.scrollTo({
+        left: mobileIndex * scrollRef.current.clientWidth,
+        behavior: 'smooth',
+      });
+    }
+  }, [mobileIndex, isMobileViewport]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobileViewport(mobile);
+      if (mobile && scrollRef.current) {
+        scrollRef.current.scrollLeft = mobileIndexRef.current * scrollRef.current.clientWidth;
+      }
+      checkScroll();
+    };
+
     checkScroll();
     const el = scrollRef.current;
     if (el) {
       el.addEventListener('scroll', checkScroll);
-      window.addEventListener('resize', checkScroll);
-      return () => {
-        el.removeEventListener('scroll', checkScroll);
-        window.removeEventListener('resize', checkScroll);
-      };
     }
+    window.addEventListener('resize', handleResize);
+    return () => {
+      if (el) {
+        el.removeEventListener('scroll', checkScroll);
+      }
+      window.removeEventListener('resize', handleResize);
+    };
   }, [products]);
 
-  const scrollByAmount = (amount: number) => {
+  const canScrollLeft = isMobileViewport ? mobileIndex > 0 : canScrollLeftDesktop;
+  const canScrollRight = isMobileViewport
+    ? mobileIndex < products.length - 1
+    : canScrollRightDesktop;
+
+  const handleNavigate = (direction: -1 | 1) => {
+    if (isMobileViewport) {
+      setMobileIndex((prev) =>
+        Math.max(0, Math.min(products.length - 1, prev + direction))
+      );
+      return;
+    }
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+      scrollRef.current.scrollBy({ left: direction * 339, behavior: 'smooth' });
     }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!scrollRef.current) return;
+    if (isMobileViewport || !scrollRef.current) return;
     isDraggingRef.current = true;
     startXRef.current = e.pageX - scrollRef.current.offsetLeft;
     scrollLeftRef.current = scrollRef.current.scrollLeft;
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current || !scrollRef.current) return;
+    if (isMobileViewport || !isDraggingRef.current || !scrollRef.current) return;
     e.preventDefault();
     const x = e.pageX - scrollRef.current.offsetLeft;
     const walk = (x - startXRef.current) * 1.5;
@@ -219,19 +277,19 @@ const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
           <div className="flex items-center space-x-1.5">
             <button
               type="button"
-              onClick={() => scrollByAmount(-330)}
+              onClick={() => handleNavigate(-1)}
               disabled={!canScrollLeft}
               className="w-8 h-8 rounded-full bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition shadow-2xs cursor-pointer"
-              title="Rolar para a esquerda"
+              title="Página anterior"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               type="button"
-              onClick={() => scrollByAmount(330)}
+              onClick={() => handleNavigate(1)}
               disabled={!canScrollRight}
               className="w-8 h-8 rounded-full bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition shadow-2xs cursor-pointer"
-              title="Rolar para a direita"
+              title="Próxima página"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -267,23 +325,25 @@ const HorizontalCategoryRow: React.FC<HorizontalCategoryRowProps> = ({
         </div>
       )}
 
-      {/* Fileira Horizontal Arrastável */}
+      {/* Fileira Horizontal (no mobile, centraliza 1 card por vez controlado apenas pelos botões) */}
       <div
         ref={scrollRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUpOrLeave}
         onMouseLeave={handleMouseUpOrLeave}
-        className="flex items-stretch space-x-6 overflow-x-auto scrollbar-none pt-20 pb-6 px-1 cursor-grab active:cursor-grabbing select-none scroll-smooth"
-        style={{ scrollSnapType: 'x proximity' }}
+        className="flex items-stretch gap-0 sm:gap-6 overflow-x-hidden sm:overflow-x-auto scrollbar-none pt-20 pb-6 px-0 sm:px-1 sm:cursor-grab sm:active:cursor-grabbing select-none scroll-smooth"
+        style={{ scrollSnapType: isMobileViewport ? 'none' : 'x proximity' }}
       >
         {products.map((product) => (
           <div
             key={product.id}
-            className="w-[285px] sm:w-[315px] shrink-0"
-            style={{ scrollSnapAlign: 'start' }}
+            className="w-full sm:w-[315px] shrink-0 flex justify-center sm:block px-2 sm:px-0"
+            style={{ scrollSnapAlign: isMobileViewport ? undefined : 'start' }}
           >
-            {renderCard(product, true)}
+            <div className="w-full max-w-[310px] sm:max-w-none h-full">
+              {renderCard(product, true)}
+            </div>
           </div>
         ))}
       </div>
@@ -380,11 +440,19 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     setSelectedSubcategoryFilter('ALL');
   }, [activeCategory]);
 
+  const [catVersion, setCatVersion] = useState(0);
+
+  useEffect(() => {
+    const handleCatSync = () => setCatVersion((v) => v + 1);
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, handleCatSync);
+    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, handleCatSync);
+  }, []);
+
   // Lista de subcategorias existentes na categoria ativa
   const subcategoriesInActiveCategory = useMemo(() => {
     if (activeCategory === 'HOME' || activeCategory === 'ALL') return [];
     return getAllSubcategoriesForCategory(activeCategory, activeProducts);
-  }, [activeCategory, activeProducts]);
+  }, [activeCategory, activeProducts, catVersion]);
 
   // Produtos filtrados pela categoria e subcategoria selecionada
   const filteredProducts = activeProducts.filter((p) => {
@@ -657,58 +725,64 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
     }
   };
 
-  // Configuração das Categorias Gerais para a Landing Page
-  const generalCategories = [
-    {
-      id: 'Cafés Especiais',
-      label: 'Cafés Especiais',
+  // Configuração das Categorias Gerais para a Landing Page (sincronizada com alterações/exclusões)
+  const visibleCategoryNames = useMemo(
+    () => getAllCategories(activeProducts),
+    [activeProducts, catVersion]
+  );
+
+  const defaultCategoryStyles: Record<
+    string,
+    { icon: typeof Coffee; circleBg: string; borderHover: string; desc: string }
+  > = {
+    'Cafés Especiais': {
       icon: Coffee,
       circleBg: 'bg-[#924529]',
       borderHover: 'hover:border-[#924529]',
       desc: 'Grãos 100% arábica da Mogiana, expressos encorpados e métodos filtrados.',
-      count: activeProducts.filter((p) => p.category === 'Cafés Especiais').length,
-      subcategories: getAllSubcategoriesForCategory('Cafés Especiais', activeProducts),
     },
-    {
-      id: 'Salgados Artesanais',
-      label: 'Salgados Artesanais',
+    'Salgados Artesanais': {
       icon: UtensilsCrossed,
       circleBg: 'bg-[#7e8b60]',
       borderHover: 'hover:border-[#7e8b60]',
       desc: 'Pães de queijo da Canastra, croissants franceses folhados e quiches.',
-      count: activeProducts.filter((p) => p.category === 'Salgados Artesanais').length,
-      subcategories: getAllSubcategoriesForCategory('Salgados Artesanais', activeProducts),
     },
-    {
-      id: 'Doces & Bolos',
-      label: 'Doces & Bolos',
+    'Doces & Bolos': {
       icon: Cake,
       circleBg: 'bg-[#820b28]',
       borderHover: 'hover:border-[#820b28]',
       desc: 'Tortas holandesas cremosas, bolos caseiros e brigadeiros belgas.',
-      count: activeProducts.filter((p) => p.category === 'Doces & Bolos').length,
-      subcategories: getAllSubcategoriesForCategory('Doces & Bolos', activeProducts),
     },
-    {
-      id: 'Bebidas Geladas',
-      label: 'Bebidas Geladas',
+    'Bebidas Geladas': {
       icon: GlassWater,
       circleBg: 'bg-[#7e8b60]',
       borderHover: 'hover:border-[#7e8b60]',
       desc: 'Iced caramel macchiato, cold brew artesanal e refrescos especiais.',
-      count: activeProducts.filter((p) => p.category === 'Bebidas Geladas').length,
-      subcategories: getAllSubcategoriesForCategory('Bebidas Geladas', activeProducts),
     },
-    {
-      id: 'Combos & Brunch',
-      label: 'Combos & Brunch',
+    'Combos & Brunch': {
       icon: Package,
       circleBg: 'bg-[#924529]',
       borderHover: 'hover:border-[#924529]',
       desc: 'Combos completos para café da manhã ou tarde com economia e sabor.',
-      count: activeProducts.filter((p) => p.category === 'Combos & Brunch').length,
-      subcategories: getAllSubcategoriesForCategory('Combos & Brunch', activeProducts),
     },
+  };
+
+  const generalCategories = [
+    ...visibleCategoryNames.map((catName) => {
+      const preset = defaultCategoryStyles[catName];
+      return {
+        id: catName,
+        label: catName,
+        icon: preset?.icon || Coffee,
+        circleBg: preset?.circleBg || 'bg-[#820b28]',
+        borderHover: preset?.borderHover || 'hover:border-[#820b28]',
+        desc:
+          preset?.desc ||
+          `Explore os sabores artesanais selecionados de ${catName} preparados na hora.`,
+        count: activeProducts.filter((p) => p.category === catName).length,
+        subcategories: getAllSubcategoriesForCategory(catName, activeProducts),
+      };
+    }),
     {
       id: 'ALL',
       label: 'Todos os Itens',
@@ -1228,7 +1302,7 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
 
                 <p className="text-xs text-stone-500 mt-1">
                   {activeCategory === 'ALL'
-                    ? `Mostrando ${activeProducts.length} delícias divididas por categoria horizontal. Arraste para o lado para explorar!`
+                    ? `Mostrando ${activeProducts.length} delícias divididas por categoria. Use as setas para navegar entre os itens!`
                     : `Mostrando ${filteredProducts.length} ${
                         filteredProducts.length === 1 ? 'delícia disponível' : 'delícias disponíveis'
                       }${currentSubcategory !== 'ALL' ? ` em "${currentSubcategory}"` : ''}.`}

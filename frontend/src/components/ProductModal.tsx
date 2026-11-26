@@ -24,6 +24,24 @@ import {
 import { Product, ProductCategory, ProductSizeOption, ProductAddon } from '../../../shared/types/index.ts';
 import { formatCurrencyBRL } from '../../../shared/logic/cafeRules.ts';
 import {
+  DEFAULT_CATEGORIES,
+  DEFAULT_SUBCATEGORIES,
+  getStoredCustomSubcategories,
+  saveStoredCustomSubcategory,
+  getAllSubcategoriesForCategory,
+  getAllCategories,
+  CATEGORIES_UPDATED_EVENT,
+} from '../utils/categoryConfig.ts';
+export {
+  DEFAULT_CATEGORIES,
+  DEFAULT_SUBCATEGORIES,
+  getStoredCustomSubcategories,
+  saveStoredCustomSubcategory,
+  getAllSubcategoriesForCategory,
+  getAllCategories,
+  CATEGORIES_UPDATED_EVENT,
+};
+import {
   validateImageFile,
   removeProductBackgroundAI,
   autoTrimAndCenterProduct,
@@ -42,77 +60,6 @@ interface ProductModalProps {
   productToEdit?: Product | null;
   categories?: string[];
   onCreateCategory?: (newCategory: string) => void;
-}
-
-export const DEFAULT_CATEGORIES: ProductCategory[] = [
-  'Cafés Especiais',
-  'Bebidas Geladas',
-  'Doces & Bolos',
-  'Salgados Artesanais',
-  'Combos & Brunch',
-];
-
-export const DEFAULT_SUBCATEGORIES: Record<string, string[]> = {
-  'Cafés Especiais': [
-    'Espressos & Puros',
-    'Com Leite Vaporizado',
-    'Filtrados Especiais',
-    'Cold Brews & Gelados',
-  ],
-  'Bebidas Geladas': [
-    'Sucos Naturais',
-    'Frappés & Shakes',
-    'Chás & Infusões Geladas',
-    'Sodas Italianas',
-  ],
-  'Doces & Bolos': [
-    'Fatias de Bolo',
-    'Tortas & Cheesecakes',
-    'Docinhos & Brigadeiros',
-    'Cookies & Waffles',
-  ],
-  'Salgados Artesanais': [
-    'Pães de Queijo Tradicionais',
-    'Folhados & Croissants',
-    'Quiches & Empadas',
-    'Sanduíches & Toasts',
-  ],
-  'Combos & Brunch': [
-    'Brunch & Matinal',
-    'Combos da Tarde',
-    'Café da Manhã Duplo',
-  ],
-};
-
-const CUSTOM_SUBCATEGORIES_KEY = 'aroma_custom_subcategories_v1';
-
-export function getStoredCustomSubcategories(): Record<string, string[]> {
-  try {
-    const raw = localStorage.getItem(CUSTOM_SUBCATEGORIES_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-export function saveStoredCustomSubcategory(category: string, newSubcategory: string) {
-  try {
-    const current = getStoredCustomSubcategories();
-    const list = current[category] || [];
-    if (!list.includes(newSubcategory)) {
-      current[category] = [...list, newSubcategory];
-      localStorage.setItem(CUSTOM_SUBCATEGORIES_KEY, JSON.stringify(current));
-    }
-  } catch {}
-}
-
-export function getAllSubcategoriesForCategory(category: string, products: Product[] = []): string[] {
-  const defaults = DEFAULT_SUBCATEGORIES[category] || [];
-  const customs = getStoredCustomSubcategories()[category] || [];
-  const fromProds = products
-    .filter((p) => p.category === category && p.subcategory)
-    .map((p) => p.subcategory as string);
-  return Array.from(new Set([...defaults, ...customs, ...fromProds]));
 }
 
 export const WEEKLY_SPECIAL_BANNER_BG_KEY = 'aroma_weekly_special_banner_bg_v1';
@@ -205,7 +152,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   onClose,
   onSave,
   productToEdit,
-  categories = DEFAULT_CATEGORIES,
+  categories = [],
   onCreateCategory,
 }) => {
   const [name, setName] = useState('');
@@ -227,13 +174,18 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [subcategory, setSubcategory] = useState<string>('');
   const [isCreatingSubcategory, setIsCreatingSubcategory] = useState(false);
   const [newSubcategoryName, setNewSubcategoryName] = useState('');
+  const [catVersion, setCatVersion] = useState(0);
+
+  useEffect(() => {
+    const handleCatSync = () => setCatVersion((v) => v + 1);
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, handleCatSync);
+    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, handleCatSync);
+  }, []);
 
   const availableSubcategories = useMemo(() => {
-    const customMap = getStoredCustomSubcategories();
-    const defaults = DEFAULT_SUBCATEGORIES[category] || [];
-    const customs = customMap[category] || [];
-    return Array.from(new Set([...defaults, ...customs, ...(subcategory ? [subcategory] : [])]));
-  }, [category, subcategory]);
+    const list = getAllSubcategoriesForCategory(category);
+    return Array.from(new Set([...list, ...(subcategory ? [subcategory] : [])]));
+  }, [category, subcategory, catVersion]);
 
   const handleConfirmNewSubcategory = () => {
     const trimmed = newSubcategoryName.trim();
@@ -337,9 +289,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     };
   }, [originalImageUrl, imageUrl]);
 
-  // Garante que todas as categorias (padrão + existentes + atual) apareçam no select
+  // Garante que todas as categorias ativas (visíveis + atual) apareçam no select
   const allCategories = Array.from(
-    new Set([...DEFAULT_CATEGORIES, ...categories, ...(category ? [category] : [])])
+    new Set([...(categories.length > 0 ? categories : getAllCategories()), ...(category ? [category] : [])])
   );
 
   useEffect(() => {
@@ -372,7 +324,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setDescription('');
       setPrice('12.00');
       setCostPrice('4.00');
-      setCategory(categories[0] || 'Cafés Especiais');
+      setCategory(categories[0] || getAllCategories()[0] || 'Cafés Especiais');
       setSubcategory('');
       setStockQuantity('50');
       setMinStockThreshold('5');

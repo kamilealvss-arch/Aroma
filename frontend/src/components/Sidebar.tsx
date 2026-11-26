@@ -17,7 +17,11 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { SystemUser, StockAlert, Product } from '../../../shared/types/index.ts';
-import { getAllSubcategoriesForCategory } from './ProductModal.tsx';
+import {
+  getAllCategories,
+  getAllSubcategoriesForCategory,
+  CATEGORIES_UPDATED_EVENT,
+} from '../utils/categoryConfig.ts';
 
 export type AdminTabType = 'dashboard' | 'kanban' | 'products' | 'stock' | 'reports' | 'audit';
 
@@ -174,6 +178,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
   ];
 
+  const [catVersion, setCatVersion] = useState(0);
+
+  useEffect(() => {
+    const handleCatSync = () => setCatVersion((v) => v + 1);
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, handleCatSync);
+    return () => window.removeEventListener(CATEGORIES_UPDATED_EVENT, handleCatSync);
+  }, []);
+
+  const dynamicCategories = useMemo(
+    () => getAllCategories(activeProducts),
+    [activeProducts, catVersion]
+  );
+
+  const defaultNavCategoryMeta: Record<
+    string,
+    { label: string; icon: typeof Coffee; circleBg: string; activeText: string }
+  > = {
+    'Cafés Especiais': {
+      label: 'CAFÉS',
+      icon: Coffee,
+      circleBg: 'bg-[#c68e5b]',
+      activeText: 'text-[#924529]',
+    },
+    'Salgados Artesanais': {
+      label: 'SALGADOS',
+      icon: UtensilsCrossed,
+      circleBg: 'bg-[#7e8b60]',
+      activeText: 'text-[#626d4a]',
+    },
+    'Doces & Bolos': {
+      label: 'DOCES',
+      icon: Cake,
+      circleBg: 'bg-[#820b28]',
+      activeText: 'text-[#820b28]',
+    },
+    'Bebidas Geladas': {
+      label: 'GELADOS',
+      icon: GlassWater,
+      circleBg: 'bg-[#7e8b60]',
+      activeText: 'text-[#626d4a]',
+    },
+    'Combos & Brunch': {
+      label: 'COMBOS',
+      icon: Package,
+      circleBg: 'bg-[#924529]',
+      activeText: 'text-[#924529]',
+    },
+  };
+
   // Itens de Navegação Dinâmica do Cardápio Digital (quando currentView === 'client')
   const clientNavItems: NavItemConfig[] = [
     {
@@ -200,61 +253,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onClientCategoryChange?.('ALL');
       },
     },
-    {
-      id: 'Cafés Especiais',
-      label: 'CAFÉS',
-      icon: Coffee,
-      circleBg: 'bg-[#c68e5b]',
-      activeText: 'text-[#924529]',
-      isActive: currentView === 'client' && clientCategory === 'Cafés Especiais',
-      onClick: () => {
-        onClientCategoryChange?.('Cafés Especiais');
-      },
-    },
-    {
-      id: 'Salgados Artesanais',
-      label: 'SALGADOS',
-      icon: UtensilsCrossed,
-      circleBg: 'bg-[#7e8b60]',
-      activeText: 'text-[#626d4a]',
-      isActive: currentView === 'client' && clientCategory === 'Salgados Artesanais',
-      onClick: () => {
-        onClientCategoryChange?.('Salgados Artesanais');
-      },
-    },
-    {
-      id: 'Doces & Bolos',
-      label: 'DOCES',
-      icon: Cake,
-      circleBg: 'bg-[#820b28]',
-      activeText: 'text-[#820b28]',
-      isActive: currentView === 'client' && clientCategory === 'Doces & Bolos',
-      onClick: () => {
-        onClientCategoryChange?.('Doces & Bolos');
-      },
-    },
-    {
-      id: 'Bebidas Geladas',
-      label: 'GELADOS',
-      icon: GlassWater,
-      circleBg: 'bg-[#7e8b60]',
-      activeText: 'text-[#626d4a]',
-      isActive: currentView === 'client' && clientCategory === 'Bebidas Geladas',
-      onClick: () => {
-        onClientCategoryChange?.('Bebidas Geladas');
-      },
-    },
-    {
-      id: 'Combos & Brunch',
-      label: 'COMBOS',
-      icon: Package,
-      circleBg: 'bg-[#924529]',
-      activeText: 'text-[#924529]',
-      isActive: currentView === 'client' && clientCategory === 'Combos & Brunch',
-      onClick: () => {
-        onClientCategoryChange?.('Combos & Brunch');
-      },
-    },
+    ...dynamicCategories.map((catName) => {
+      const preset = defaultNavCategoryMeta[catName];
+      const fallbackLabel =
+        catName.split(/\s+/)[0]?.slice(0, 12).toUpperCase() || catName.toUpperCase();
+      return {
+        id: catName,
+        label: preset?.label || fallbackLabel,
+        icon: preset?.icon || Coffee,
+        circleBg: preset?.circleBg || 'bg-[#820b28]',
+        activeText: preset?.activeText || 'text-[#820b28]',
+        isActive: currentView === 'client' && clientCategory === catName,
+        onClick: () => {
+          onClientCategoryChange?.(catName);
+        },
+      };
+    }),
   ];
 
   const navItems = currentView === 'client' ? clientNavItems : adminNavItems;
@@ -273,7 +287,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return [];
     }
     return getAllSubcategoriesForCategory(clientCategory, activeProducts);
-  }, [currentView, clientCategory, activeProducts]);
+  }, [currentView, clientCategory, activeProducts, catVersion]);
 
   useEffect(() => {
     if (activeMobileItemRef.current) {
