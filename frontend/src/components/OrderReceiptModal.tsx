@@ -34,6 +34,15 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
     ? (order.orderNumber ? String(order.orderNumber).padStart(4, '0') : order.id.slice(-5).toUpperCase())
     : '';
 
+  // Trava a rolagem do corpo da página enquanto o modal estiver aberto (remove barras duplas de rolagem)
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
   // Efeito de impressão: o título e a bobina são 100% estáticos e apenas o papel desce
   useEffect(() => {
     if (!order) return;
@@ -216,12 +225,15 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center p-3 sm:p-5 overflow-y-auto animate-fade-in select-none">
+    <div
+      className="fixed inset-0 z-[100] flex justify-center p-2 sm:p-5 overflow-y-auto scrollbar-none animate-fade-in select-none"
+      style={{ backgroundColor: '#f6efdd' }}
+    >
       {/* =========================================================================
           FUNDO COM TOLDO / TENDINHA DE CAFETERIA
-          1. Topo: Faixa sólida Creme (#f6efdd)
-          2. Detalhe: Fileira de quadradinhos verdes (#7f8c61) no rodapé da faixa creme
-          3. Toldo: Listras verticais com pontas arredondadas 100% lisas (sem risquinhos)
+          1. Topo: Faixa verde sólida (#7f8c61)
+          2. Faixa Creme com detalhe xadrez (#f6efdd)
+          3. Toldo: Listras perfeitamente centralizadas e simétricas (sem barras laterais nas bordas)
          ========================================================================= */}
       
       {/* 1. Base geral da tela: tom #f6efdd */}
@@ -231,15 +243,15 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
         onClick={onClose} 
       />
 
-      {/* 1.5. Barra/Linha Verde Superior (#7f8c61) igual à referência circulada em vermelho */}
+      {/* 1.5. Barra/Linha Verde Superior (#7f8c61) */}
       <div 
-        className="fixed top-0 left-0 right-0 h-[18px] sm:h-[22px] z-20 pointer-events-none"
+        className="absolute top-0 left-0 right-0 h-[16px] sm:h-[22px] z-10 pointer-events-none"
         style={{ backgroundColor: '#7f8c61' }}
       />
 
-      {/* 2. Barra Superior Sólida Creme (onde fica o título estático) */}
+      {/* 2. Barra Superior Sólida Creme (onde fica a base visual do título) */}
       <div 
-        className="fixed top-[18px] sm:top-[22px] left-0 right-0 h-[92px] sm:h-[98px] z-10 pointer-events-none"
+        className="absolute top-[16px] sm:top-[22px] left-0 right-0 h-[80px] sm:h-[90px] z-10 pointer-events-none"
         style={{ backgroundColor: '#f6efdd' }}
       >
         {/* Fileira de Quadradinhos Verdes (#7f8c61) na transição para as listras */}
@@ -261,76 +273,76 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
         </div>
       </div>
 
-      {/* 3. Tendinha / Toldo com listras começando abaixo da barra sólida de texto */}
+      {/* 3. Tendinha / Toldo com listras finas e pontas arredondadas perfeitamente alinhadas */}
       <div 
-        className="fixed top-[110px] sm:top-[120px] left-0 right-0 h-[calc(72vh-110px)] min-h-[430px] max-h-[650px] pointer-events-none z-0 overflow-visible"
+        className="absolute top-[96px] sm:top-[112px] left-0 right-0 h-[480px] sm:h-[560px] pointer-events-none z-0 overflow-visible"
         style={{
           backgroundColor: '#f6efdd',
           backgroundImage: `
             repeating-linear-gradient(
               90deg,
               #f6efdd 0px,
-              #f6efdd 60px,
-              #822B3B 60px,
-              #822B3B 120px
+              #f6efdd 36px,
+              #822B3B 36px,
+              #822B3B 72px
             )
           `,
         }}
       >
-        {/* Voltinhas da Tendinha: sem qualquer fresta ou risquinho horizontal */}
-        <div className="absolute -bottom-[29px] left-0 right-0 h-[30px] overflow-hidden leading-none z-10">
-          <svg className="w-full h-[30px] block" preserveAspectRatio="none">
+        {/* Voltinhas da Tendinha: sem qualquer fresta ou desalinhamento horizontal */}
+        <div className="absolute -bottom-[17px] left-0 right-0 h-[18px] overflow-hidden leading-none z-10">
+          <svg className="w-full h-[18px] block" preserveAspectRatio="none">
             <defs>
-              <pattern id="striped-scallop-pattern" width="120" height="30" patternUnits="userSpaceOnUse">
-                {/* Ponta arredondada da listra creme (x: 0 a 60) preenchendo até o fim exato da altura 30 */}
+              <pattern id="striped-scallop-pattern" width="72" height="18" patternUnits="userSpaceOnUse">
+                {/* Ponta arredondada da listra creme (x: 0 a 36) */}
                 <path 
-                  d="M 0,0 L 60,0 C 60,20 45,30 30,30 C 15,30 0,20 0,0 Z" 
+                  d="M 0,0 L 36,0 C 36,12 27,18 18,18 C 9,18 0,12 0,0 Z" 
                   fill="#f6efdd" 
                 />
-                {/* Ponta arredondada da listra vinho (x: 60 a 120) preenchendo até o fim exato da altura 30 */}
+                {/* Ponta arredondada da listra vinho (x: 36 a 72) */}
                 <path 
-                  d="M 60,0 L 120,0 C 120,20 105,30 90,30 C 75,30 60,20 60,0 Z" 
+                  d="M 36,0 L 72,0 C 72,12 63,18 54,18 C 45,18 36,12 36,0 Z" 
                   fill="#822B3B" 
                 />
               </pattern>
             </defs>
-            <rect width="100%" height="30" fill="url(#striped-scallop-pattern)" />
+            <rect width="100%" height="18" fill="url(#striped-scallop-pattern)" />
           </svg>
         </div>
       </div>
 
-      {/* =========================================================================
-          MODAL COM POSICIONAMENTO 100% ESTÁTICO (NÃO PULA NEM MUDA DE LUGAR)
-         ========================================================================= */}
-      <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center pt-6 sm:pt-7 pb-12">
-        
-        {/* Botão de Fechar discreto no canto */}
-        <button
-          onClick={onClose}
-          aria-label="Fechar"
-          className="absolute top-6 sm:top-7 right-1 sm:-right-4 p-2 rounded-full bg-white/95 hover:bg-white text-[#5C4033] shadow-md transition hover:scale-105 cursor-pointer z-50"
-        >
-          <X className="w-5 h-5" />
-        </button>
+      {/* Botão de Fechar fixo e acessível em qualquer ponto do scroll */}
+      <button
+        onClick={onClose}
+        aria-label="Fechar"
+        className="fixed top-3 right-3 sm:top-5 sm:right-5 p-2 rounded-full bg-white/95 hover:bg-white text-[#5C4033] shadow-md transition hover:scale-105 active:scale-95 cursor-pointer z-[110]"
+      >
+        <X className="w-5 h-5" />
+      </button>
 
-        {/* Título 100% Estático no topo (sobre a área clara sólida, abaixo da linha verde) */}
-        <div className="w-full text-center flex items-center justify-center h-[48px] sm:h-[52px] z-40">
-          <h2 className="font-['Amarego'] text-2xl sm:text-3xl text-[#2B1810] tracking-wide leading-tight whitespace-nowrap">
+      {/* =========================================================================
+          CONTEÚDO DO MODAL (TÍTULO, BOBINA, PAPEL E BOTÕES)
+         ========================================================================= */}
+      <div className="relative z-20 w-full max-w-[420px] flex flex-col items-center pt-5 sm:pt-7 pb-16 min-h-full">
+        
+        {/* Título no topo sobre a barra creme */}
+        <div className="w-full text-center flex items-center justify-center min-h-[46px] sm:min-h-[50px] px-8 sm:px-10 z-40">
+          <h2 className="font-['Amarego'] text-xl sm:text-2xl md:text-3xl text-[#2B1810] tracking-wide leading-tight text-center">
             {isFinished ? 'Seu pedido está pronto!' : 'Imprimindo seu pedido...'}
           </h2>
         </div>
 
         {/* =====================================================================
-            ESTRUTURA DA BOBINA (100% ESTÁTICA - O TOPO NÃO SE MOVE)
+            ESTRUTURA DA BOBINA
            ===================================================================== */}
-        <div className="relative w-full flex flex-col items-center mt-4">
+        <div className="relative w-full flex flex-col items-center mt-3 sm:mt-4">
 
           {/* 1. CAMADA DE FUNDO / BASE DA BOBINA (Fica ATRÁS do papel - z-0) */}
           <div 
             className="absolute top-0 z-0 flex flex-col items-center pointer-events-none"
             style={{
-              width: 'min(360px, 92vw)',
-              height: '82px',
+              width: 'min(340px, 92vw)',
+              height: '76px',
               background: 'linear-gradient(180deg, #eae6de 0%, #a8a399 75%, #ccc8bf 100%)',
               borderRadius: '16px 16px 12px 12px',
               boxShadow: '0 16px 30px rgba(0,0,0,0.22), inset 0 2px 4px white, inset 0 -4px 8px rgba(100,95,90,0.4)',
@@ -341,25 +353,25 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
           <div 
             className="relative z-30 flex flex-col items-center pointer-events-none"
             style={{
-              width: 'min(360px, 92vw)',
-              height: '58px',
+              width: 'min(340px, 92vw)',
+              height: '54px',
               background: 'linear-gradient(180deg, #fbfaf8 0%, #dedad2 40%, #b8b3a9 85%, #6a665f 100%)',
               borderRadius: '16px 16px 4px 4px',
               boxShadow: 'inset 0 2px 4px white, 0 5px 12px rgba(0,0,0,0.28)',
             }}
           >
-            {/* Logo ícone Aroma oficial (posicionado onde foi marcado em amarelo) */}
-            <div className="flex items-center justify-center mt-2">
+            {/* Logo ícone Aroma oficial */}
+            <div className="flex items-center justify-center mt-1.5">
               <img 
                 src="/aroma-icon.png" 
                 alt="Aroma" 
-                className="h-[30px] w-auto object-contain opacity-85 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)]" 
+                className="h-[28px] sm:h-[30px] w-auto object-contain opacity-85 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)]" 
               />
             </div>
 
             {/* A FENDA ESCURA DE ONDE O PAPEL SAI */}
             <div 
-              className="absolute -bottom-1.5 left-[8%] w-[84%] h-[7px] rounded-full"
+              className="absolute -bottom-1.5 left-[7%] w-[86%] h-[7px] rounded-full"
               style={{
                 background: 'linear-gradient(#0a0908, #2a2826)',
                 boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.95), 0 1px 2px rgba(255,255,255,0.4)',
@@ -369,9 +381,9 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
 
           {/* 3. O PAPEL TÉRMICO (z-20 - SAI DA FENDA E ROLA PARA BAIXO POR CIMA DA BASE) */}
           <div 
-            className="relative z-20 -mt-2 overflow-hidden transition-[height] duration-[3400ms] ease-[cubic-bezier(.2,.7,.2,1)] filter drop-shadow-[0_18px_25px_rgba(0,0,0,0.20)]"
+            className="relative z-20 -mt-2 overflow-hidden transition-[height] duration-[3400ms] ease-[cubic-bezier(.2,.7,.2,1)] filter drop-shadow-[0_16px_22px_rgba(0,0,0,0.18)]"
             style={{
-              width: 'min(296px, 78vw)',
+              width: 'min(300px, 84vw)',
               height: `${paperHeight}px`,
             }}
           >
@@ -382,14 +394,14 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
 
               {/* Conteúdo Real do Papel da Notinha */}
               <div 
-                className="w-full bg-[#FAF8F5] text-[#1E1C1A] px-5 sm:px-6 pt-6 pb-3 relative select-none flex flex-col items-center"
+                className="w-full bg-[#FAF8F5] text-[#1E1C1A] px-4 sm:px-6 pt-5 pb-3 relative select-none flex flex-col items-center"
                 style={{
                   fontFamily: '"Courier Prime", Courier, monospace',
                 }}
               >
                 {/* Topo do Cupom: Tipografia Aroma Oficial */}
-                <div className="w-full text-center border-b border-dashed border-[#D1C7BD] pb-4 mb-3.5">
-                  <h2 className="font-['Amarego'] text-3xl sm:text-4xl tracking-wide text-[#2B1810] font-normal leading-none mb-1">
+                <div className="w-full text-center border-b border-dashed border-[#D1C7BD] pb-3.5 mb-3">
+                  <h2 className="font-['Amarego'] text-2xl sm:text-3xl tracking-wide text-[#2B1810] font-normal leading-none mb-1">
                     Aroma
                   </h2>
                   <p className="text-[10px] sm:text-[11px] font-sans tracking-widest uppercase text-[#7D6E63] font-semibold mt-1">
@@ -411,7 +423,7 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
                   </div>
                   <div className="flex justify-between text-[11px] text-[#6D5D53]">
                     <span>Cliente:</span>
-                    <span className="font-semibold text-[#2B1810] truncate max-w-[170px]">
+                    <span className="font-semibold text-[#2B1810] truncate max-w-[150px] sm:max-w-[170px]">
                       {order.customerName || 'Cliente Balcão'}
                     </span>
                   </div>
@@ -519,7 +531,7 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
               BOTÕES DE AÇÃO: FICAM SEMPRE ABAIXO DA NOTINHA
              ===================================================================== */}
           <div 
-            className={`w-full max-w-[310px] mt-6 flex flex-col gap-2.5 z-30 transition-all duration-700 ${
+            className={`w-[84vw] max-w-[300px] mt-6 flex flex-col gap-2.5 z-30 transition-all duration-700 ${
               isFinished ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
             }`}
           >

@@ -111,7 +111,7 @@ body {
 }
 
 .scrollbar-none {
-  -ms-overflow-style: none;
+  -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
 
@@ -119,6 +119,19 @@ body {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
+}
+
+/* No modo mobile, oculta barras de rolagem para evitar a barra lateral vermelha */
+@media (max-width: 768px) {
+  * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
 }
 
 /* Padronagem Oficial Listrada Aroma (Verde Oliva & Creme) */
