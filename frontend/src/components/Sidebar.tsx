@@ -242,17 +242,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onClientCategoryChange?.('HOME');
       },
     },
-    {
-      id: 'ALL',
-      label: 'TODOS',
-      icon: ShoppingCart,
-      circleBg: 'bg-[#820b28]',
-      activeText: 'text-[#820b28]',
-      isActive: currentView === 'client' && clientCategory === 'ALL',
-      onClick: () => {
-        onClientCategoryChange?.('ALL');
-      },
-    },
     ...dynamicCategories.map((catName) => {
       const preset = defaultNavCategoryMeta[catName];
       const fallbackLabel =

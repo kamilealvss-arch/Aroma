@@ -1513,27 +1513,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   type="checkbox"
                   checked={hasAddons}
                   onChange={(e) => {
-                    const checked = e.target.checked;
-                    setHasAddons(checked);
-                    if (checked && addons.length === 0) {
-                      const isBeverage =
-                        category === 'Cafés Especiais' ||
-                        category === 'Bebidas Geladas' ||
-                        name.toLowerCase().includes('café');
-                      if (isBeverage) {
-                        setAddons([
-                          { id: 'add_1', name: 'Chantilly Artesanal', price: 3.0 },
-                          { id: 'add_2', name: 'Calda de Caramelo Salgado', price: 2.5 },
-                          { id: 'add_3', name: 'Shot Extra de Espresso', price: 4.0 },
-                        ]);
-                      } else {
-                        setAddons([
-                          { id: 'add_1', name: 'Aquecer no Forno / Tostado', price: 0.0 },
-                          { id: 'add_2', name: 'Geléia Artesanal', price: 3.5 },
-                          { id: 'add_3', name: 'Requeijão Cremoso Extra', price: 3.5 },
-                        ]);
-                      }
-                    }
+                    setHasAddons(e.target.checked);
                   }}
                   className="sr-only peer"
                 />
