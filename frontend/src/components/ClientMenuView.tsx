@@ -1720,72 +1720,79 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
                               </div>
                             )}
 
-                            {/* Botão para Adicionar / Editar Adicionais */}
-                            <div className="mt-1.5">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setEditingAddonsCartKey(editingAddonsCartKey === item.cartKey ? null : item.cartKey)
-                                }
-                                className="text-[10px] text-[#820b28] hover:text-[#631a09] font-bold bg-[#820b28]/5 hover:bg-[#820b28]/10 border border-[#820b28]/20 px-2.5 py-1 rounded-lg transition inline-flex items-center gap-1.5 cursor-pointer"
-                                title="Adicionar ou alterar complementos"
-                              >
-                                <Plus className="w-3 h-3 stroke-[2.5]" />
-                                <span>
-                                  {item.selectedAddons && item.selectedAddons.length > 0 ? 'Adicionar mais complementos' : 'Adicionar complementos'}
-                                </span>
-                              </button>
-                            </div>
+                            {/* Botão e Gaveta de Adicionais (exibidos apenas se o produto possuir adicionais configurados) */}
+                            {(() => {
+                              const itemAvailableAddons = getProductAvailableAddons(item.product);
+                              if (itemAvailableAddons.length === 0) return null;
+                              return (
+                                <>
+                                  <div className="mt-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setEditingAddonsCartKey(editingAddonsCartKey === item.cartKey ? null : item.cartKey)
+                                      }
+                                      className="text-[10px] text-[#820b28] hover:text-[#631a09] font-bold bg-[#820b28]/5 hover:bg-[#820b28]/10 border border-[#820b28]/20 px-2.5 py-1 rounded-lg transition inline-flex items-center gap-1.5 cursor-pointer"
+                                      title="Adicionar ou alterar complementos"
+                                    >
+                                      <Plus className="w-3 h-3 stroke-[2.5]" />
+                                      <span>
+                                        {item.selectedAddons && item.selectedAddons.length > 0 ? 'Adicionar mais complementos' : 'Adicionar complementos'}
+                                      </span>
+                                    </button>
+                                  </div>
 
-                            {/* Gaveta compacta de seleção de adicionais */}
-                            {editingAddonsCartKey === item.cartKey && (
-                              <div className="mt-2 p-2.5 bg-[#FAF8F5] border border-stone-200/80 rounded-xl space-y-1.5 animate-in fade-in slide-in-from-top-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">
-                                    Adicionais disponíveis
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingAddonsCartKey(null)}
-                                    className="text-[10px] text-stone-400 hover:text-stone-700 font-medium cursor-pointer"
-                                  >
-                                    Concluir ✕
-                                  </button>
-                                </div>
-
-                                <div className="flex flex-wrap gap-1.5">
-                                  {getProductAvailableAddons(item.product).map((addon) => {
-                                    const isSelected = item.selectedAddons?.some((a) => a.id === addon.id);
-                                    return (
-                                      <button
-                                        key={addon.id}
-                                        type="button"
-                                        onClick={() => handleToggleAddonOnItem(item.cartKey, addon)}
-                                        className={`text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg border font-medium transition flex items-center gap-1.5 cursor-pointer ${
-                                          isSelected
-                                            ? 'bg-[#820b28] text-white border-[#820b28] shadow-2xs'
-                                            : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300 hover:bg-stone-50'
-                                        }`}
-                                      >
-                                        <span>{addon.name}</span>
-                                        <span
-                                          className={`text-[10px] font-bold ${
-                                            isSelected ? 'text-rose-100' : 'text-[#820b28]'
-                                          }`}
-                                        >
-                                          {addon.price > 0 ? `+${formatCurrencyBRL(addon.price)}` : 'Grátis'}
+                                  {editingAddonsCartKey === item.cartKey && (
+                                    <div className="mt-2 p-2.5 bg-[#FAF8F5] border border-stone-200/80 rounded-xl space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">
+                                          Adicionais disponíveis
                                         </span>
-                                        {isSelected ? (
-                                          <Check className="w-3 h-3 stroke-[3]" />
-                                        ) : (
-                                          <Plus className="w-3 h-3" />
-                                        )}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingAddonsCartKey(null)}
+                                          className="text-[10px] text-stone-400 hover:text-stone-700 font-medium cursor-pointer"
+                                        >
+                                          Concluir ✕
+                                        </button>
+                                      </div>
+
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {itemAvailableAddons.map((addon) => {
+                                          const isSelected = item.selectedAddons?.some((a) => a.id === addon.id);
+                                          return (
+                                            <button
+                                              key={addon.id}
+                                              type="button"
+                                              onClick={() => handleToggleAddonOnItem(item.cartKey, addon)}
+                                              className={`text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg border font-medium transition flex items-center gap-1.5 cursor-pointer ${
+                                                isSelected
+                                                  ? 'bg-[#820b28] text-white border-[#820b28] shadow-2xs'
+                                                  : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300 hover:bg-stone-50'
+                                              }`}
+                                            >
+                                              <span>{addon.name}</span>
+                                              <span
+                                                className={`text-[10px] font-bold ${
+                                                  isSelected ? 'text-rose-100' : 'text-[#820b28]'
+                                                }`}
+                                              >
+                                                {addon.price > 0 ? `+${formatCurrencyBRL(addon.price)}` : 'Grátis'}
+                                              </span>
+                                              {isSelected ? (
+                                                <Check className="w-3 h-3 stroke-[3]" />
+                                              ) : (
+                                                <Plus className="w-3 h-3" />
+                                              )}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
 

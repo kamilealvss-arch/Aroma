@@ -43,45 +43,15 @@ interface ProductDetailModalProps {
   onOpenCart?: () => void;
 }
 
-// Adicionais padrão de acordo com a categoria
-export const COFFEE_ADDONS: ProductAddonOption[] = [
-  { id: 'chantilly', name: 'Chantilly Artesanal', price: 3.0 },
-  { id: 'caramelo', name: 'Calda de Caramelo Salgado', price: 2.5 },
-  { id: 'shot_extra', name: 'Shot Extra de Espresso', price: 4.0 },
-  { id: 'leite_vegetal', name: 'Leite Sem Lactose / Vegetal', price: 3.5 },
-  { id: 'canela', name: 'Canela em Pó & Cacau Belga', price: 0.0 },
-  { id: 'chocolate', name: 'Gotas de Chocolate Belga', price: 3.0 },
-];
-
-export const FOOD_ADDONS: ProductAddonOption[] = [
-  { id: 'aquecer', name: 'Aquecer no Forno / Tostado', price: 0.0 },
-  { id: 'geleia', name: 'Geléia Artesanal de Frutas', price: 3.5 },
-  { id: 'requeijao', name: 'Requeijão Cremoso Extra', price: 3.5 },
-  { id: 'parmesao', name: 'Parmesão Ralado Maçaricado', price: 4.0 },
-  { id: 'brigadeiro', name: 'Cobertura Extra de Brigadeiro', price: 4.0 },
-];
-
 export const getProductAvailableAddons = (product: Product | null): ProductAddonOption[] => {
-  if (!product) return [];
-  if (product.hasAddons && product.addons && product.addons.length > 0) {
-    return product.addons.map((a) => ({
-      id: a.id || (a.name || '').toLowerCase().replace(/\s+/g, '_'),
-      name: a.name || 'Adicional',
-      price: Number(a.price) || 0,
-    }));
+  if (!product || !product.hasAddons || !product.addons || product.addons.length === 0) {
+    return [];
   }
-
-  const category = product.category || '';
-  const name = product.name?.toLowerCase() || '';
-  const isBeverage =
-    category === 'Cafés Especiais' ||
-    category === 'Bebidas Geladas' ||
-    name.includes('café') ||
-    name.includes('cappuccino') ||
-    name.includes('latte') ||
-    name.includes('chá');
-
-  return isBeverage ? COFFEE_ADDONS : FOOD_ADDONS;
+  return product.addons.map((a) => ({
+    id: a.id || (a.name || '').toLowerCase().replace(/\s+/g, '_'),
+    name: a.name || 'Adicional',
+    price: Number(a.price) || 0,
+  }));
 };
 
 export const formatSizeDisplayName = (name: string): string => {
@@ -435,51 +405,53 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </div>
 
             {/* ===================== ADICIONAIS & PERSONALIZAÇÃO ===================== */}
-            <div className="space-y-2.5 pt-1">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-[#231b15] flex items-center space-x-1.5">
-                  <Sparkles className="w-4 h-4 text-[#850D2C]" />
-                  <span>Adicionais & Personalização</span>
-                </span>
-                <span className="text-xs text-stone-400 font-medium">Opcional</span>
-              </div>
+            {availableAddons.length > 0 && (
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-[#231b15] flex items-center space-x-1.5">
+                    <Sparkles className="w-4 h-4 text-[#850D2C]" />
+                    <span>Adicionais & Personalização</span>
+                  </span>
+                  <span className="text-xs text-stone-400 font-medium">Opcional</span>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {availableAddons.map((addon) => {
-                  const isChecked = selectedAddons.some((a) => a.id === addon.id);
-                  return (
-                    <button
-                      key={addon.id}
-                      type="button"
-                      onClick={() => toggleAddon(addon)}
-                      className={`p-3 rounded-2xl border text-left text-xs transition-all flex items-center justify-between cursor-pointer ${
-                        isChecked
-                          ? 'bg-[#850D2C]/5 border-[#850D2C] text-[#2c1d11] ring-1 ring-[#850D2C]/30 shadow-xs'
-                          : 'bg-[#f8f7f4] border-stone-200/80 text-stone-700 hover:bg-stone-100'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2.5">
-                        <div
-                          className={`w-5 h-5 rounded-full flex items-center justify-center text-xs transition ${
-                            isChecked ? 'bg-[#850D2C] text-white' : 'bg-stone-200 text-transparent'
-                          }`}
-                        >
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        </div>
-                        <span className="font-semibold text-xs leading-tight">{addon.name}</span>
-                      </div>
-                      <span
-                        className={`text-xs font-extrabold shrink-0 ${
-                          isChecked ? 'text-[#850D2C]' : 'text-stone-500'
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {availableAddons.map((addon) => {
+                    const isChecked = selectedAddons.some((a) => a.id === addon.id);
+                    return (
+                      <button
+                        key={addon.id}
+                        type="button"
+                        onClick={() => toggleAddon(addon)}
+                        className={`p-3 rounded-2xl border text-left text-xs transition-all flex items-center justify-between cursor-pointer ${
+                          isChecked
+                            ? 'bg-[#850D2C]/5 border-[#850D2C] text-[#2c1d11] ring-1 ring-[#850D2C]/30 shadow-xs'
+                            : 'bg-[#f8f7f4] border-stone-200/80 text-stone-700 hover:bg-stone-100'
                         }`}
                       >
-                        {addon.price > 0 ? `+${formatCurrencyBRL(addon.price)}` : 'Grátis'}
-                      </span>
-                    </button>
-                  );
-                })}
+                        <div className="flex items-center space-x-2.5">
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center text-xs transition ${
+                              isChecked ? 'bg-[#850D2C] text-white' : 'bg-stone-200 text-transparent'
+                            }`}
+                          >
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </div>
+                          <span className="font-semibold text-xs leading-tight">{addon.name}</span>
+                        </div>
+                        <span
+                          className={`text-xs font-extrabold shrink-0 ${
+                            isChecked ? 'text-[#850D2C]' : 'text-stone-500'
+                          }`}
+                        >
+                          {addon.price > 0 ? `+${formatCurrencyBRL(addon.price)}` : 'Grátis'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Observação / Preferência para o Barista */}
             <div className="space-y-1.5 pt-1">
